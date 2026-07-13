@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruby ~ AI準備室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB;
+    --paper-deep:#EFE8D9;
+    --ink:#2E2A25;
+    --ink-soft:#6B655C;
+    --line:#DDD4C1;
+
+    --c-art:#C4863A;      /* 美術教室：赭黃 */
+    --c-art-bg:#FBF0DE;
+    --c-admin:#3F6672;    /* 行政工作：藏青藍 */
+    --c-admin-bg:#E7EFF0;
+    --c-study:#5F8955;    /* 學習規劃：草綠 */
+    --c-study-bg:#EBF2E6;
+    --c-health:#B96B77;   /* 健康家庭：豆沙紅 */
+    --c-health-bg:#F6E9EA;
+    --c-tool:#6E568A;     /* AI指令工具：紫 */
+    --c-tool-bg:#EFE8F3;
+
+    --radius:14px;
+    --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Noto Sans TC',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  h1,h2,h3,.brush{font-family:'Noto Serif TC',serif;}
+
+  /* ---------- Header ---------- */
+  header{
+    padding:28px 20px 0;
+    max-width:960px;
+    margin:0 auto;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .brand h1{
+    font-size:clamp(28px,5vw,40px);
+    font-weight:900;
+    margin:0;
+    letter-spacing:.02em;
+  }
+  .brand .accent{color:var(--c-art);}
+  .brand .tag{
+    font-size:13px;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    padding:3px 10px;
+    border-radius:999px;
+    background:var(--paper-deep);
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    margin:6px 0 20px;
+    font-size:15px;
+  }
+
+  /* ---------- Tabs (folder style) ---------- */
+  nav.tabs{
+    max-width:960px;
+    margin:0 auto;
+    padding:0 20px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    position:sticky;
+    top:0;
+    background:var(--paper);
+    padding-top:8px;
+    padding-bottom:10px;
+    z-index:10;
+  }
+  .tab-btn{
+    font-family:'Noto Serif TC',serif;
+    font-weight:700;
+    font-size:14px;
+    border:1px solid var(--line);
+    border-bottom:none;
+    background:var(--paper-deep);
+    color:var(--ink-soft);
+    padding:10px 16px 12px;
+    border-radius:10px 10px 0 0;
+    cursor:pointer;
+    position:relative;
+    top:2px;
+    transition:transform .15s ease, color .15s ease, background .15s ease;
+    white-space:nowrap;
+  }
+  .tab-btn:hover{ transform:translateY(-2px); }
+  .tab-btn[data-color="overview"].active{ background:var(--paper); color:var(--ink); border-color:var(--line); box-shadow:0 -2px 0 var(--ink) inset; }
+  .tab-btn[data-color="tool"].active{ background:var(--paper); color:var(--c-tool); box-shadow:0 -3px 0 var(--c-tool) inset; }
+  .tab-btn[data-color="art"].active{ background:var(--paper); color:var(--c-art); box-shadow:0 -3px 0 var(--c-art) inset; }
+  .tab-btn[data-color="admin"].active{ background:var(--paper); color:var(--c-admin); box-shadow:0 -3px 0 var(--c-admin) inset; }
+  .tab-btn[data-color="study"].active{ background:var(--paper); color:var(--c-study); box-shadow:0 -3px 0 var(--c-study) inset; }
+  .tab-btn[data-color="health"].active{ background:var(--paper); color:var(--c-health); box-shadow:0 -3px 0 var(--c-health) inset; }
+
+  main{
+    max-width:960px;
+    margin:0 auto;
+    padding:28px 20px 80px;
+    border-top:1px solid var(--line);
+  }
+  section{ display:none; animation:fade .25s ease; }
+  section.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  section h2{
+    font-size:24px;
+    margin:4px 0 4px;
+  }
+  .section-desc{
+    color:var(--ink-soft);
+    font-size:14px;
+    margin-bottom:22px;
+  }
+
+  /* ---------- Project cards (overview) ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px;
+  }
+  @media (max-width:560px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow);
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .card:hover{ transform:translateY(-3px); box-shadow:0 8px 18px rgba(46,42,37,0.12); }
+  .card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:6px;
+  }
+  .card.art::before{ background:var(--c-art); }
+  .card.admin::before{ background:var(--c-admin); }
+  .card.study::before{ background:var(--c-study); }
+  .card.health::before{ background:var(--c-health); }
+
+  .card .num{
+    font-family:'Noto Serif TC',serif;
+    font-size:12px;
+    color:var(--ink-soft);
+    letter-spacing:.15em;
+  }
+  .card h3{
+    margin:6px 0 6px;
+    font-size:19px;
+  }
+  .card.art h3{ color:var(--c-art); }
+  .card.admin h3{ color:var(--c-admin); }
+  .card.study h3{ color:var(--c-study); }
+  .card.health h3{ color:var(--c-health); }
+  .card p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0;
+    line-height:1.6;
+  }
+
+  /* ---------- AI學習歷程 ---------- */
+  .log-box{
+    margin-top:34px;
+    border:1px dashed var(--line);
+    border-radius:var(--radius);
+    padding:20px;
+    background:var(--paper-deep);
+  }
+  .log-box h3{
+    margin:0 0 6px;
+    font-size:17px;
+  }
+  .log-box p{
+    font-size:14px;
+    color:var(--ink-soft);
+    line-height:1.7;
+    margin:6px 0;
+  }
+  .log-empty{
+    border-left:3px solid var(--c-tool);
+    padding:10px 14px;
+    background:#fff;
+    border-radius:8px;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+
+  /* ---------- Tool / memory page ---------- */
+  .mem-block{
+    background:#fff;
+    border:1px solid var(--line);
+    border-left:5px solid var(--c-tool);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    box-shadow:var(--shadow);
+    margin-bottom:16px;
+  }
+  .mem-block h3{
+    color:var(--c-tool);
+    font-size:16px;
+    margin:0 0 8px;
+  }
+  .mem-block p, .mem-block li{
+    font-size:14px;
+    line-height:1.75;
+    color:var(--ink);
+    margin:4px 0;
+  }
+  .mem-block ul{ margin:6px 0; padding-left:20px; }
+  .mem-block .meta{
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  code, .mono{
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    background:var(--c-tool-bg);
+    padding:2px 6px;
+    border-radius:5px;
+    font-size:13px;
+    color:var(--c-tool);
+  }
+
+  .placeholder-page{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+  }
+  .placeholder-page .icon{
+    font-size:38px;
+    margin-bottom:10px;
+    display:block;
+  }
+  .placeholder-page h2{ color:var(--ink); }
+
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Ruby <span class="accent">~</span> AI準備室</h1>
+    <span class="tag">個人工作台</span>
+  </div>
+  <p class="subtitle">美術教室 · 行政工作 · 學習規劃 · 健康家庭，都在這裡整理</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-color="overview" data-target="overview">四大專案</button>
+  <button class="tab-btn" data-color="tool" data-target="tool">AI指令工具整合</button>
+  <button class="tab-btn" data-color="art" data-target="art">美術教室</button>
+  <button class="tab-btn" data-color="admin" data-target="admin">行政工作</button>
+  <button class="tab-btn" data-color="study" data-target="study">學習規劃</button>
+  <button class="tab-btn" data-color="health" data-target="health">健康家庭</button>
+</nav>
+
+<main>
+
+  <!-- 一、四大專案 -->
+  <section id="overview" class="active">
+    <h2>四大專案</h2>
+    <p class="section-desc">點一張卡片，直接跳到那個分頁</p>
+    <div class="grid">
+      <div class="card art" onclick="goTo('art')">
+        <div class="num">01</div>
+        <h3>美術教室</h3>
+        <p>備課、教案、教材收集。目前進行中：三～五年級梵谷主題教案。</p>
+      </div>
+      <div class="card admin" onclick="goTo('admin')">
+        <div class="num">02</div>
+        <h3>行政工作</h3>
+        <p>註冊組事務：學生資料整理、印獎狀、編班。</p>
+      </div>
+      <div class="card study" onclick="goTo('study')">
+        <div class="num">03</div>
+        <h3>學習規劃</h3>
+        <p>兩個孩子（小二、國一）的課表安排與數學英文學習規劃。</p>
+      </div>
+      <div class="card health" onclick="goTo('health')">
+        <div class="num">04</div>
+        <h3>健康家庭</h3>
+        <p>營養與身體健康相關的規劃與研究。</p>
+      </div>
+    </div>
+
+    <div class="log-box">
+      <h3>📓 AI 學習歷程</h3>
+      <p>這裡記錄使用 AI／建置這個網站過程中踩過的坑，之後可以整理成給同事看的「排錯 FAQ」。</p>
+      <div class="log-empty">
+        目前還沒有實際紀錄。等下次遇到卡關的地方（例如網址對不上、按鈕找不到、部署失敗等），把過程告訴 Claude，就能整理進來。
+      </div>
+    </div>
+  </section>
+
+  <!-- 二、AI指令工具整合 -->
+  <section id="tool">
+    <h2>AI指令工具整合</h2>
+    <p class="section-desc">Ruby 的 AI 記憶檔內容，方便隨時複製貼給 AI</p>
+
+    <div class="mem-block">
+      <h3>■ 我是誰</h3>
+      <p>Ruby，美術老師兼學校註冊組長，同時也是兩個孩子（小二、國一）的媽媽。對英語教材研究和營養健康也有濃厚興趣。</p>
+      <p class="meta">最後更新：2026 年 7 月 13 日</p>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 現在進行中的事</h3>
+      <ul>
+        <li>美術課程：三到五年級，梵谷主題教案，正在準備教學內容與收集資料</li>
+      </ul>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 希望 AI 記住的固定資訊</h3>
+      <p>待補充——之後想到隨時可以補上，例如常用教案格式、學校行事曆、孩子的課表節奏等。</p>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 跟我互動的方式</h3>
+      <ul>
+        <li>先給結論，再詳細解釋原因</li>
+        <li>不要用太多專業術語，用生活化的方式說明</li>
+      </ul>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 我的四條使用原則</h3>
+      <ul>
+        <li>重要的東西（要發出去給別人的、會影響決定的），我自己看過確認過才用。</li>
+        <li>同一份資料只放一個地方，不要東一份西一份。</li>
+        <li>AI 給的答案要能說出依據；說不出依據的，多問一句「你確定嗎？根據是什麼？」</li>
+        <li>別人的個人資料（學生、家長、同事的姓名等）不貼給 AI，需要時先改成代號。</li>
+      </ul>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 我的網站</h3>
+      <p><span class="mono">ruby-site.pages.dev</span></p>
+      <p>程式放在 GitHub（<span class="mono">hcrrabbit-lgtm/ruby-site</span>）。</p>
+      <p>要改版面就請 Claude 生成 HTML，我貼到 GitHub 網頁版按 Commit 就會自動更新。</p>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 待補充</h3>
+      <ul>
+        <li>美術備課／教案的常用格式</li>
+        <li>註冊組行政事務（有進行中的可以補）</li>
+        <li>兩個孩子的課表細節、學習安排</li>
+        <li>英文教材研究、營養健康相關的具體需求</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 三、美術教室 -->
+  <section id="art">
+    <div class="placeholder-page">
+      <span class="icon">🎨</span>
+      <h2>美術教室</h2>
+      <p>準備中——之後這裡會放教案、教材收集與課程進度。<br>目前已知：三～五年級梵谷主題教案。</p>
+    </div>
+  </section>
+
+  <!-- 四、行政工作 -->
+  <section id="admin">
+    <div class="placeholder-page">
+      <span class="icon">🗂️</span>
+      <h2>行政工作</h2>
+      <p>準備中——之後這裡會放註冊組相關事務：學生資料整理、印獎狀、編班進度。</p>
+    </div>
+  </section>
+
+  <!-- 五、學習規劃 -->
+  <section id="study">
+    <div class="placeholder-page">
+      <span class="icon">📚</span>
+      <h2>學習規劃</h2>
+      <p>準備中——之後這裡會放兩個孩子（小二、國一）的課表與數學英文學習規劃。</p>
+    </div>
+  </section>
+
+  <!-- 六、健康家庭 -->
+  <section id="health">
+    <div class="placeholder-page">
+      <span class="icon">🌿</span>
+      <h2>健康家庭</h2>
+      <p>準備中——之後這裡會放營養與身體健康相關的研究與規劃。</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>Ruby 的個人工作台 · 內容僅供自用，不含任何學生／家長／同事真實姓名</footer>
+
+<script>
+  function goTo(id){
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.target===id);
+    });
+    document.querySelectorAll('main section').forEach(s=>{
+      s.classList.toggle('active', s.id===id);
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> goTo(btn.dataset.target));
+  });
+</script>
+
+</body>
+</html>
