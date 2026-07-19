@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美術課上課助手</title>
+<style>
+  :root{
+    --paper:#F7F3EC;
+    --ink:#2E2B26;
+    --ink-soft:#6B6459;
+    --line:#E3DACB;
+    --sage:#587361;
+    --sage-dark:#3F5548;
+    --ochre:#C68A3E;
+    --clay:#B4543A;
+    --sky:#3E6E8E;
+    --card:#FFFFFF;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:720px;margin:0 auto;padding:20px 16px 60px;}
+
+  header.top{
+    display:flex;flex-direction:column;gap:6px;
+    padding:18px 20px;background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    margin-bottom:16px;
+  }
+  .brush{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:13px;color:var(--ink-soft);letter-spacing:.5px;
+  }
+  .brush svg{width:16px;height:16px;flex-shrink:0;}
+  .now-date{font-size:14px;color:var(--ink-soft);}
+  .class-row{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-top:4px;flex-wrap:wrap;
+  }
+  .class-name{font-size:26px;font-weight:700;color:var(--sage-dark);}
+  .class-sub{font-size:13px;color:var(--ink-soft);margin-top:2px;}
+  select.override{
+    font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink);
+  }
+  .no-class-banner{
+    background:#FBF0E4;border:1px dashed var(--ochre);color:#7A5522;
+    padding:10px 14px;border-radius:10px;font-size:14px;margin-top:10px;
+  }
+
+  nav.tabs{
+    display:flex;gap:8px;margin-bottom:16px;
+  }
+  nav.tabs button{
+    flex:1;padding:12px 8px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink-soft);font-size:15px;font-weight:600;
+    cursor:pointer;transition:all .15s;
+  }
+  nav.tabs button.active{
+    background:var(--sage);border-color:var(--sage);color:#fff;
+  }
+
+  section.panel{display:none;}
+  section.panel.active{display:block;}
+
+  .toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:10px;gap:10px;flex-wrap:wrap;
+  }
+  .toolbar .count{font-size:13px;color:var(--ink-soft);}
+  .sort-btn{
+    font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);cursor:pointer;
+  }
+
+  .all-present-btn{
+    width:100%;padding:14px;margin-bottom:12px;border-radius:12px;border:none;
+    background:var(--sage);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
+  }
+  .all-present-btn:active{background:var(--sage-dark);}
+
+  .quick-entry{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;
+  }
+  .quick-row{display:flex;align-items:center;gap:8px;}
+  .quick-row label{font-size:13px;color:var(--ink-soft);width:64px;flex-shrink:0;}
+  .quick-row input{
+    flex:1;min-width:0;font-size:16px;padding:9px 10px;border-radius:8px;
+    border:1px solid var(--line);background:var(--paper);color:var(--ink);
+  }
+  .quick-apply{
+    flex-shrink:0;font-size:13px;font-weight:700;padding:9px 14px;border-radius:8px;
+    border:none;color:#fff;cursor:pointer;
+  }
+  .quick-apply.late{background:var(--ochre);}
+  .quick-apply.absent{background:var(--clay);}
+
+  .roster{display:flex;flex-direction:column;gap:8px;}
+  .student-row{
+    display:flex;align-items:center;gap:12px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 12px;
+  }
+  .seat{
+    width:34px;height:34px;border-radius:50%;background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;color:var(--sage-dark);flex-shrink:0;
+    border:1px solid var(--line);
+  }
+  .s-name{font-size:15px;font-weight:600;flex:1;min-width:0;}
+
+  /* attendance controls */
+  .att-controls{display:flex;gap:6px;}
+  .att-btn{
+    font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink-soft);cursor:pointer;font-weight:600;
+  }
+  .att-btn.late.on{background:var(--ochre);border-color:var(--ochre);color:#fff;}
+  .att-btn.absent.on{background:var(--clay);border-color:var(--clay);color:#fff;}
+
+  /* behavior controls */
+  .beh-controls{display:flex;align-items:center;gap:8px;}
+  .beh-btn{
+    width:32px;height:32px;border-radius:8px;border:none;
+    font-size:18px;font-weight:700;cursor:pointer;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .beh-minus{background:var(--clay);}
+  .beh-plus{background:var(--sage);}
+  .beh-score{
+    min-width:28px;text-align:center;font-weight:700;font-size:15px;
+  }
+  .beh-score.pos{color:var(--sage-dark);}
+  .beh-score.neg{color:var(--clay);}
+
+  .footer-note{
+    margin-top:22px;font-size:12px;color:var(--ink-soft);text-align:center;line-height:1.6;
+  }
+
+  .summary-bar{
+    display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;
+  }
+  .summary-chip{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;font-size:13px;color:var(--ink-soft);
+  }
+  .summary-chip b{color:var(--ink);}
+
+  /* artwork grading */
+  .assignment-bar{display:flex;gap:8px;margin-bottom:14px;}
+  .assignment-bar select{flex:1;}
+
+  .tier-buttons{display:flex;gap:8px;margin-bottom:16px;}
+  .tier-btn{
+    flex:1;border:none;border-radius:12px;padding:14px 6px;color:#fff;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;font-size:15px;font-weight:700;
+  }
+  .tier-btn span{font-size:11px;font-weight:400;opacity:.9;}
+  .tier-btn.superb{background:var(--clay);}
+  .tier-btn.great{background:var(--ochre);}
+  .tier-btn.good{background:var(--sky);}
+
+  .section-title{font-size:14px;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;overflow:auto;}
+
+  .thumb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
+  .thumb-card{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;
+    position:relative;
+  }
+  .thumb-card img{width:100%;height:90px;object-fit:cover;display:block;}
+  .thumb-tier-tag{
+    position:absolute;top:4px;left:4px;font-size:10px;font-weight:700;color:#fff;
+    padding:2px 6px;border-radius:6px;
+  }
+  .thumb-tier-tag.superb{background:var(--clay);}
+  .thumb-tier-tag.great{background:var(--ochre);}
+  .thumb-tier-tag.good{background:var(--sky);}
+
+  .assign-form{
+    background:var(--card);border:1px solid var(--sage);border-radius:12px;padding:14px;margin-bottom:12px;
+  }
+  .assign-form img{width:100%;max-height:220px;object-fit:contain;border-radius:8px;margin-bottom:10px;background:var(--paper);}
+  .assign-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .assign-row label{font-size:13px;color:var(--ink-soft);width:56px;flex-shrink:0;}
+  .assign-row input, .assign-row select{
+    flex:1;font-size:15px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--paper);
+  }
+  .assign-actions{display:flex;gap:8px;}
+  .assign-actions button{
+    flex:1;padding:10px;border-radius:8px;border:none;font-weight:700;cursor:pointer;
+  }
+  .assign-confirm{background:var(--sage);color:#fff;}
+  .assign-cancel{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line) !important;}
+
+  .art-list{display:flex;flex-direction:column;gap:8px;}
+  .art-row{
+    display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:10px;
+  }
+  .art-row img{width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;}
+  .art-row-main{flex:1;min-width:0;}
+  .art-row-name{font-size:14px;font-weight:700;}
+  .art-row-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .art-tier-badge{font-size:11px;font-weight:700;color:#fff;padding:2px 8px;border-radius:6px;display:inline-block;margin-right:6px;}
+  .art-tier-badge.superb{background:var(--clay);}
+  .art-tier-badge.great{background:var(--ochre);}
+  .art-tier-badge.good{background:var(--sky);}
+  .art-row input.score-input{width:52px;font-size:14px;padding:5px;border-radius:6px;border:1px solid var(--line);text-align:center;}
+  .art-row-remove{background:none;border:none;color:var(--clay);font-size:18px;cursor:pointer;padding:4px;}
+  .group-heading{font-size:13px;font-weight:700;color:var(--ink-soft);margin:10px 0 2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brush">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20c4-1 6-3 8-7l7-9-4 1-9 7c-4 2-6 4-7 8z"/><circle cx="18" cy="4.5" r="1.4"/></svg>
+      美術課上課助手
+    </div>
+    <div class="now-date" id="nowDate">—</div>
+    <div class="class-row">
+      <div>
+        <div class="class-name" id="className">載入中…</div>
+        <div class="class-sub" id="classSub"></div>
+      </div>
+      <select class="override" id="overrideSelect">
+        <option value="">— 手動選擇班級 —</option>
+      </select>
+    </div>
+    <div class="no-class-banner" id="noClassBanner" style="display:none;">
+      這個時段課表上沒有排課,已切換為手動選擇班級。
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="attendance" class="active">出席點名</button>
+    <button data-tab="behavior">秩序評分</button>
+    <button data-tab="artwork">作品評分</button>
+  </nav>
+
+  <section class="panel active" id="panel-attendance">
+    <button class="all-present-btn" id="allPresentBtn">✓ 全到(清除所有標記)</button>
+
+    <div class="quick-entry">
+      <div class="quick-row">
+        <label for="lateInput">遲到座號</label>
+        <input type="text" id="lateInput" inputmode="numeric" placeholder="例如 3 7 15">
+        <button class="quick-apply late" id="lateApplyBtn">登記</button>
+      </div>
+      <div class="quick-row">
+        <label for="absentInput">缺席座號</label>
+        <input type="text" id="absentInput" inputmode="numeric" placeholder="例如 9 22">
+        <button class="quick-apply absent" id="absentApplyBtn">登記</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <span class="count" id="attCount">30 位學生</span>
+      <button class="sort-btn" id="attSortBtn">依座號排序</button>
+    </div>
+    <div class="summary-bar">
+      <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
+      <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
+    </div>
+    <div class="roster" id="attRoster"></div>
+  </section>
+
+  <section class="panel" id="panel-behavior">
+    <div class="toolbar">
+      <span class="count" id="behCount">30 位學生</span>
+      <button class="sort-btn" id="behSortBtn">依座號排序</button>
+    </div>
+    <div class="roster" id="behRoster"></div>
+  </section>
+
+  <section class="panel" id="panel-artwork">
+
+    <div class="assignment-bar">
+      <select class="override" id="assignmentSelect"></select>
+      <button class="sort-btn" id="addAssignmentBtn">＋ 新增作業</button>
+    </div>
+
+    <div class="tier-buttons">
+      <button class="tier-btn superb" data-tier="特優">📷 特優<span>拍照 / 上傳</span></button>
+      <button class="tier-btn great" data-tier="優等">📷 優等<span>拍照 / 上傳</span></button>
+      <button class="tier-btn good" data-tier="甲等">📷 甲等<span>拍照 / 上傳</span></button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+
+    <div id="unassignedSection" style="display:none;">
+      <div class="section-title">待歸戶照片(<span id="unassignedCount">0</span> 張)— 點照片來指定座號</div>
+      <div class="thumb-grid" id="unassignedGrid"></div>
+    </div>
+
+    <div class="section-title" style="margin-top:18px;">
+      已建檔作品
+      <button class="sort-btn" id="artSortBtn" style="float:right;">依等第分區</button>
+    </div>
+    <div class="art-list" id="assignedList"></div>
+  </section>
+
+  <div class="footer-note">
+    練習版本:目前資料只存在這個瀏覽器分頁裡,重新整理會清空。<br>
+    正式上線後會改成呼叫學校網站的資料庫,資料會永久保存。
+  </div>
+</div>
+
+<script>
+/* ---------- Mock data for practice (五年一班, 座號1~30) ---------- */
+const MOCK_STUDENTS = [
+  "王小明","陳怡君","林政宏","張雅婷","李明哲","吳佳蓉","黃俊傑","劉思妤","蔡承翰","楊宜蓁",
+  "許家瑋","鄭雨萱","謝宗翰","郭曉彤","洪柏宇","邱怡萱","曾冠廷","廖芸熙","賴俊安","徐子涵",
+  "周奕安","潘詩涵","蘇柏諺","江宜臻","顏彥廷","簡佳琪","施宇軒","范詠晴","沈致遠","姚語彤"
+].map((name, i) => ({ seat: i + 1, name, id: "s" + (i + 1) }));
+
+const MOCK_CLASSES = [
+  { id: "5-1", name: "五年一班" }
+];
+
+// weekday: 1=Mon ... 5=Fri. periods use simple start/end "HH:MM"
+const MOCK_SCHEDULE = [
+  { classId: "5-1", weekday: 2, start: "09:50", end: "10:30", label: "第3節" },
+  { classId: "5-1", weekday: 5, start: "13:10", end: "13:50", label: "第6節" }
+];
+
+/* ---------- App state ---------- */
+let currentClassId = null;
+let attendance = {};   // { studentId: 'late' | 'absent' }
+let behavior = {};     // { studentId: number }
+let attSortBySeat = true;
+let behSortBySeat = true;
+let rosterCache = MOCK_STUDENTS;
+
+function todayStr(){
+  const now = new Date();
+  return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+}
+
+async function apiGet(path){
+  const res = await fetch(path);
+  if(!res.ok) throw new Error("api error " + path);
+  return await res.json();
+}
+async function apiPost(path, body){
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error("api error " + path);
+  return await res.json();
+}
+async function apiDelete(path, body){
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  return res.ok;
+}
+
+async function loadRosterFromApi(classId){
+  try{
+    const roster = await apiGet(`/api/roster?classId=${encodeURIComponent(classId || "5-1")}`);
+    if(roster && roster.length) return roster;
+  }catch(e){}
+  return MOCK_STUDENTS;
+}
+
+function studentsFor(classId){
+  return rosterCache;
+}
+
+function pad(n){ return n.toString().padStart(2,"0"); }
+
+function detectClass(){
+  const now = new Date();
+  const weekday = now.getDay(); // 0 Sun .. 6 Sat
+  const hhmm = pad(now.getHours()) + ":" + pad(now.getMinutes());
+  const match = MOCK_SCHEDULE.find(s => s.weekday === weekday && hhmm >= s.start && hhmm <= s.end);
+  return match || null;
+}
+
+async function tryFetchSchedule(){
+  // Real deployment will call /api/schedule (Cloudflare Worker + D1).
+  // Falls back to local mock schedule when that endpoint isn't available (e.g. this demo file opened standalone).
+  try{
+    const res = await fetch("/api/schedule");
+    if(!res.ok) throw new Error("no api");
+    return await res.json();
+  }catch(e){
+    const match = detectClass();
+    return {
+      source: "mock",
+      current: match ? { classId: match.classId, label: match.label } : null,
+      classes: MOCK_CLASSES
+    };
+  }
+}
+
+function renderHeader(scheduleResult){
+  const now = new Date();
+  const weekdayNames = ["日","一","二","三","四","五","六"];
+  document.getElementById("nowDate").textContent =
+    `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}(星期${weekdayNames[now.getDay()]}) ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const select = document.getElementById("overrideSelect");
+  select.innerHTML = '<option value="">— 手動選擇班級 —</option>' +
+    scheduleResult.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+
+  if(scheduleResult.current){
+    currentClassId = scheduleResult.current.classId;
+    const cls = scheduleResult.classes.find(c => c.id === currentClassId);
+    document.getElementById("className").textContent = cls ? cls.name : currentClassId;
+    document.getElementById("classSub").textContent = "依課表自動判斷・" + scheduleResult.current.label;
+    document.getElementById("noClassBanner").style.display = "none";
+    select.value = currentClassId;
+  }else{
+    document.getElementById("className").textContent = "目前沒有排課";
+    document.getElementById("classSub").textContent = "請手動選擇要上課的班級";
+    document.getElementById("noClassBanner").style.display = "block";
+    currentClassId = null;
+  }
+}
+
+select_change: {
+  document.addEventListener("change", (e) => {
+    if(e.target.id === "overrideSelect"){
+      const val = e.target.value;
+      if(val){
+        currentClassId = val;
+        const cls = MOCK_CLASSES.find(c => c.id === val);
+        document.getElementById("className").textContent = cls ? cls.name : val;
+        document.getElementById("classSub").textContent = "手動選擇";
+        document.getElementById("noClassBanner").style.display = "none";
+        loadRoster();
+      }
+    }
+  });
+}
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll("nav.tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("section.panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---------- Attendance ---------- */
+function renderAttendance(){
+  const list = [...studentsFor(currentClassId)];
+  if(!attSortBySeat) list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
+
+  document.getElementById("attCount").textContent = list.length + " 位學生";
+  const late = Object.values(attendance).filter(v => v === "late").length;
+  const absent = Object.values(attendance).filter(v => v === "absent").length;
+  document.getElementById("lateCount").textContent = late;
+  document.getElementById("absentCount").textContent = absent;
+
+  const root = document.getElementById("attRoster");
+  root.innerHTML = list.map(st => {
+    const state = attendance[st.id];
+    return `
+      <div class="student-row">
+        <div class="seat">${st.seat}</div>
+        <div class="s-name">${st.name}</div>
+        <div class="att-controls">
+          <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
+          <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  root.querySelectorAll(".att-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id, state = btn.dataset.state;
+      attendance[id] = (attendance[id] === state) ? undefined : state;
+      if(attendance[id] === undefined) delete attendance[id];
+      renderAttendance();
+      if(attendance[id]){
+        const st = studentsFor(currentClassId).find(s => s.id === id);
+        if(st) apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: [st.seat], status: attendance[id] }).catch(()=>{});
+      }
+    });
+  });
+}
+
+document.getElementById("attSortBtn").addEventListener("click", () => {
+  attSortBySeat = !attSortBySeat;
+  document.getElementById("attSortBtn").textContent = attSortBySeat ? "依座號排序" : "依姓名排序";
+  renderAttendance();
+});
+
+document.getElementById("allPresentBtn").addEventListener("click", () => {
+  attendance = {};
+  document.getElementById("lateInput").value = "";
+  document.getElementById("absentInput").value = "";
+  renderAttendance();
+  apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "clearAll" }).catch(()=>{});
+});
+
+function parseSeatNumbers(text){
+  return (text.match(/\d+/g) || []).map(n => parseInt(n, 10));
+}
+
+function applySeatStatus(seatNumbers, status){
+  const list = studentsFor(currentClassId);
+  const notFound = [];
+  const foundSeats = [];
+  seatNumbers.forEach(seat => {
+    const st = list.find(s => s.seat === seat);
+    if(st){ attendance[st.id] = status; foundSeats.push(seat); }
+    else notFound.push(seat);
+  });
+  if(notFound.length){
+    alert("查無座號:" + notFound.join(", "));
+  }
+  renderAttendance();
+  if(foundSeats.length){
+    apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: foundSeats, status }).catch(()=>{});
+  }
+}
+
+document.getElementById("lateApplyBtn").addEventListener("click", () => {
+  const input = document.getElementById("lateInput");
+  const seats = parseSeatNumbers(input.value);
+  if(seats.length) applySeatStatus(seats, "late");
+  input.value = "";
+  input.focus();
+});
+
+document.getElementById("absentApplyBtn").addEventListener("click", () => {
+  const input = document.getElementById("absentInput");
+  const seats = parseSeatNumbers(input.value);
+  if(seats.length) applySeatStatus(seats, "absent");
+  input.value = "";
+  input.focus();
+});
+
+["lateInput","absentInput"].forEach(id => {
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if(e.key === "Enter"){
+      document.getElementById(id === "lateInput" ? "lateApplyBtn" : "absentApplyBtn").click();
+    }
+  });
+});
+
+/* ---------- Behavior scoring ---------- */
+function renderBehavior(){
+  const list = [...studentsFor(currentClassId)];
+  if(!behSortBySeat) list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
+
+  document.getElementById("behCount").textContent = list.length + " 位學生";
+
+  const root = document.getElementById("behRoster");
+  root.innerHTML = list.map(st => {
+    const score = behavior[st.id] || 0;
+    const cls = score > 0 ? "pos" : (score < 0 ? "neg" : "");
+    return `
+      <div class="student-row">
+        <div class="seat">${st.seat}</div>
+        <div class="s-name">${st.name}</div>
+        <div class="beh-controls">
+          <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
+          <div class="beh-score ${cls}">${score > 0 ? "+" + score : score}</div>
+          <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  root.querySelectorAll(".beh-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
+      behavior[id] = (behavior[id] || 0) + delta;
+      renderBehavior();
+      apiPost("/api/behavior", { studentId: id, date: todayStr(), delta }).catch(()=>{});
+    });
+  });
+}
+
+document.getElementById("behSortBtn").addEventListener("click", () => {
+  behSortBySeat = !behSortBySeat;
+  document.getElementById("behSortBtn").textContent = behSortBySeat ? "依座號排序" : "依姓名排序";
+  renderBehavior();
+});
+
+/* ---------- Artwork grading ---------- */
+let assignments = [{ id: "hw1", name: "作業1" }];
+let currentAssignmentId = "hw1";
+let unassignedPhotos = [];   // { id, tier, dataUrl, assignmentId }
+let submissions = {};        // { assignmentId: { studentId: {tier, score, note, dataUrl} } }
+let pendingTier = null;
+let artSortByTier = true;
+
+const TIER_DEFAULT_SCORE = { "特優": 100, "優等": 90, "甲等": 80 };
+const TIER_ORDER = ["特優", "優等", "甲等"];
+const TIER_CLASS = { "特優": "superb", "優等": "great", "甲等": "good" };
+
+function renderAssignmentSelect(){
+  const sel = document.getElementById("assignmentSelect");
+  sel.innerHTML = assignments.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
+  sel.value = currentAssignmentId;
+}
+
+async function loadAssignments(){
+  try{
+    const list = await apiGet(`/api/assignments?classId=${encodeURIComponent(currentClassId || "5-1")}`);
+    if(list && list.length){
+      assignments = list;
+      currentAssignmentId = assignments[0].id;
+    }
+  }catch(e){}
+  renderAssignmentSelect();
+}
+
+document.getElementById("assignmentSelect").addEventListener("change", async (e) => {
+  currentAssignmentId = e.target.value;
+  renderUnassigned();
+  await loadSubmissionsForCurrentAssignment();
+});
+
+document.getElementById("addAssignmentBtn").addEventListener("click", async () => {
+  const name = prompt("新作業的名稱?(例如:作業2、期末創作)", "作業" + (assignments.length + 1));
+  if(!name) return;
+  let id = "hw" + (assignments.length + 1) + "_" + Date.now();
+  try{
+    const created = await apiPost("/api/assignments", { classId: currentClassId || "5-1", name });
+    id = created.id;
+  }catch(e){}
+  assignments.push({ id, name });
+  currentAssignmentId = id;
+  renderAssignmentSelect();
+  renderUnassigned();
+  renderAssignedList();
+});
+
+document.querySelectorAll(".tier-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    pendingTier = btn.dataset.tier;
+    document.getElementById("photoInput").value = "";
+    document.getElementById("photoInput").click();
+  });
+});
+
+document.getElementById("photoInput").addEventListener("change", (e) => {
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  let remaining = files.length;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const entry = {
+        id: "p" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+        tier: pendingTier,
+        assignmentId: currentAssignmentId,
+        dataUrl: reader.result,
+        photoKey: null
+      };
+      unassignedPhotos.push(entry);
+      remaining--;
+      if(remaining === 0) renderUnassigned();
+
+      // Upload in background; fills in photoKey once done (works offline/demo without it)
+      const ext = (file.type.split("/")[1] || "jpg").replace("jpeg","jpg");
+      fetch(`/api/photo?ext=${ext}`, { method: "POST", headers: { "Content-Type": file.type }, body: file })
+        .then(r => r.ok ? r.json() : null)
+        .then(res => { if(res) entry.photoKey = res.key; })
+        .catch(()=>{});
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+function renderUnassigned(){
+  const list = unassignedPhotos.filter(p => p.assignmentId === currentAssignmentId);
+  const section = document.getElementById("unassignedSection");
+  section.style.display = list.length ? "block" : "none";
+  document.getElementById("unassignedCount").textContent = list.length;
+  const grid = document.getElementById("unassignedGrid");
+  grid.innerHTML = list.map(p => `
+    <div class="thumb-card" data-id="${p.id}">
+      <span class="thumb-tier-tag ${TIER_CLASS[p.tier]}">${p.tier}</span>
+      <img src="${p.dataUrl}">
+    </div>`).join("");
+  grid.querySelectorAll(".thumb-card").forEach(card => {
+    card.addEventListener("click", () => openAssignForm(card.dataset.id));
+  });
+}
+
+function openAssignForm(photoId){
+  const photo = unassignedPhotos.find(p => p.id === photoId);
+  if(!photo) return;
+  const existingForm = document.getElementById("assignFormWrap");
+  if(existingForm) existingForm.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "assignFormWrap";
+  wrap.className = "assign-form";
+  wrap.innerHTML = `
+    <img src="${photo.dataUrl}">
+    <div class="assign-row">
+      <label>等第</label>
+      <select id="assignTier">
+        ${TIER_ORDER.map(t => `<option value="${t}" ${t===photo.tier?"selected":""}>${t}</option>`).join("")}
+      </select>
+    </div>
+    <div class="assign-row">
+      <label>座號</label>
+      <input type="number" id="assignSeat" min="1" max="${rosterCache.length}" placeholder="輸入座號">
+    </div>
+    <div class="assign-row">
+      <label>分數</label>
+      <input type="number" id="assignScore" value="${TIER_DEFAULT_SCORE[photo.tier]}">
+    </div>
+    <div class="assign-row">
+      <label>備註</label>
+      <input type="text" id="assignNote" placeholder="選填">
+    </div>
+    <div class="assign-actions">
+      <button class="assign-cancel" id="assignCancelBtn">取消</button>
+      <button class="assign-confirm" id="assignConfirmBtn">確認建檔</button>
+    </div>
+  `;
+  document.getElementById("unassignedSection").after(wrap);
+  document.getElementById("assignSeat").focus();
+
+  document.getElementById("assignTier").addEventListener("change", (e) => {
+    document.getElementById("assignScore").value = TIER_DEFAULT_SCORE[e.target.value];
+  });
+
+  document.getElementById("assignCancelBtn").addEventListener("click", () => wrap.remove());
+
+  document.getElementById("assignConfirmBtn").addEventListener("click", async () => {
+    const seat = parseInt(document.getElementById("assignSeat").value, 10);
+    const st = rosterCache.find(s => s.seat === seat);
+    if(!st){ alert("查無座號 " + seat); return; }
+    const tier = document.getElementById("assignTier").value;
+    const score = parseInt(document.getElementById("assignScore").value, 10);
+    const note = document.getElementById("assignNote").value;
+
+    if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
+    if(submissions[currentAssignmentId][st.id] && !confirm(`${st.name}(座號${st.seat})這項作業已經建檔過,要覆蓋嗎?`)){
+      return;
+    }
+    submissions[currentAssignmentId][st.id] = { tier, score, note, dataUrl: photo.dataUrl, photoKey: photo.photoKey };
+    unassignedPhotos = unassignedPhotos.filter(p => p.id !== photoId);
+    wrap.remove();
+    renderUnassigned();
+    renderAssignedList();
+
+    apiPost("/api/submissions", {
+      assignmentId: currentAssignmentId,
+      classId: currentClassId || "5-1",
+      seat,
+      tier, score, note,
+      photoKey: photo.photoKey
+    }).catch(()=>{});
+  });
+}
+
+function renderAssignedList(){
+  const data = submissions[currentAssignmentId] || {};
+  const entries = Object.keys(data).map(studentId => {
+    const st = rosterCache.find(s => s.id === studentId);
+    return { studentId, student: st, ...data[studentId] };
+  }).filter(e => e.student);
+
+  const root = document.getElementById("assignedList");
+  if(!entries.length){
+    root.innerHTML = `<div class="class-sub" style="padding:10px 2px;">這項作業還沒有建檔的作品。</div>`;
+    return;
+  }
+
+  function rowHtml(e){
+    const imgSrc = e.photoKey ? `/api/photo/${e.photoKey}` : (e.dataUrl || "");
+    return `
+      <div class="art-row" data-student="${e.studentId}">
+        <img src="${imgSrc}">
+        <div class="art-row-main">
+          <div class="art-row-name">${e.student.seat} 號・${e.student.name}</div>
+          <div class="art-row-meta">
+            <span class="art-tier-badge ${TIER_CLASS[e.tier]}">${e.tier}</span>
+            ${e.note ? e.note : ""}
+          </div>
+        </div>
+        <input type="number" class="score-input" value="${e.score}" data-student="${e.studentId}">
+        <button class="art-row-remove" data-student="${e.studentId}" title="刪除">✕</button>
+      </div>`;
+  }
+
+  let html = "";
+  if(artSortByTier){
+    TIER_ORDER.forEach(tier => {
+      const group = entries.filter(e => e.tier === tier).sort((a,b) => a.student.seat - b.student.seat);
+      if(group.length){
+        html += `<div class="group-heading">${tier}(${group.length})</div>`;
+        html += group.map(rowHtml).join("");
+      }
+    });
+  }else{
+    entries.sort((a,b) => a.student.seat - b.student.seat);
+    html = entries.map(rowHtml).join("");
+  }
+  root.innerHTML = html;
+
+  root.querySelectorAll(".score-input").forEach(inp => {
+    inp.addEventListener("change", (e) => {
+      const sid = e.target.dataset.student;
+      const score = parseInt(e.target.value, 10) || 0;
+      submissions[currentAssignmentId][sid].score = score;
+      apiPost("/api/submissions/score", { assignmentId: currentAssignmentId, studentId: sid, score }).catch(()=>{});
+    });
+  });
+  root.querySelectorAll(".art-row-remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const sid = e.target.dataset.student;
+      const st = rosterCache.find(s => s.id === sid);
+      if(confirm(`刪除 ${st.name} 這項作業的建檔紀錄?`)){
+        delete submissions[currentAssignmentId][sid];
+        renderAssignedList();
+        apiDelete("/api/submissions", { assignmentId: currentAssignmentId, studentId: sid }).catch(()=>{});
+      }
+    });
+  });
+}
+
+async function loadSubmissionsForCurrentAssignment(){
+  try{
+    const list = await apiGet(`/api/submissions?assignmentId=${encodeURIComponent(currentAssignmentId)}`);
+    const map = {};
+    list.forEach(r => {
+      map[r.studentId] = { tier: r.tier, score: r.score, note: r.note, photoKey: r.photoKey };
+    });
+    submissions[currentAssignmentId] = map;
+  }catch(e){
+    if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
+  }
+  renderAssignedList();
+}
+
+document.getElementById("artSortBtn").addEventListener("click", () => {
+  artSortByTier = !artSortByTier;
+  document.getElementById("artSortBtn").textContent = artSortByTier ? "依等第分區" : "依座號排序";
+  renderAssignedList();
+});
+
+async function loadRoster(){
+  rosterCache = await loadRosterFromApi(currentClassId);
+
+  try{
+    attendance = await apiGet(`/api/attendance?classId=${encodeURIComponent(currentClassId)}&date=${todayStr()}`);
+  }catch(e){ attendance = {}; }
+
+  try{
+    behavior = await apiGet(`/api/behavior?classId=${encodeURIComponent(currentClassId)}&date=${todayStr()}`);
+  }catch(e){ behavior = {}; }
+
+  renderAttendance();
+  renderBehavior();
+  await loadAssignments();
+  renderUnassigned();
+  await loadSubmissionsForCurrentAssignment();
+}
+
+/* ---------- Init ---------- */
+(async function init(){
+  const scheduleResult = await tryFetchSchedule();
+  renderHeader(scheduleResult);
+  await loadRoster();
+  setInterval(() => {
+    document.getElementById("nowDate").textContent = document.getElementById("nowDate").textContent; // keep static per load for demo
+  }, 60000);
+})();
+</script>
+</body>
+</html>
