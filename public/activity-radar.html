@@ -119,7 +119,7 @@
   </div>
 
   <div class="section-title">🏫 固定巡查來源</div>
-  <div class="src-list">
+  <div class="src-list" id="schoolSrcList">
     <b>台中</b>
     <a href="https://school.tc.edu.tw/open-message/193614/page?open_kind_id=27" target="_blank">臺中市南區國光國小・教育公告</a> ·
     <a href="https://www.ntctcps.tc.edu.tw/" target="_blank">臺中教育大學附設實驗國小</a> ·
@@ -138,11 +138,17 @@
     <a href="https://ntes.ntct.edu.tw/" target="_blank">南投國小</a> ·
     <a href="https://www.ntct.edu.tw/" target="_blank">南投縣政府教育處</a> ·
     <a href="https://saao.nantou.gov.tw/" target="_blank">南投縣風景區管理所</a>
+    <div id="extraSchoolList" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="section-title">🏛️ 政府機關來源</div>
+  <div class="src-list" id="govSrcList">
+    <span style="color:var(--ink-soft);">目前沒有額外加入的政府機關連結。</span>
   </div>
 
   <div class="section-title">🔗 民間活動通連結</div>
   <div class="upload-box">
-    <p style="margin:0 0 10px;color:var(--ink-soft);font-size:12.5px;">把找到的民間活動網站貼在這裡，Claude 之後會定期去看看有沒有新活動。</p>
+    <p style="margin:0 0 10px;color:var(--ink-soft);font-size:12.5px;">把找到的民間活動網站貼在這裡；新增後系統會自動判斷是學校、政府機關還是民間網站，分別歸類到對應區塊。想要 Claude 馬上去讀取這個連結的公告，加完之後直接跟 Claude 說「幫我讀這個」就可以。</p>
     <div id="sourceList" style="margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <input type="text" id="srcUrl" placeholder="貼上網址" style="flex:2;min-width:180px;">
@@ -154,20 +160,37 @@
 
 <script>
 async function loadSources(){
-  const root = document.getElementById('sourceList');
+  const listRoot = document.getElementById('sourceList');
+  const extraSchoolRoot = document.getElementById('extraSchoolList');
+  const govRoot = document.getElementById('govSrcList');
   try{
     const res = await fetch('/api/community-sources');
     const list = res.ok ? await res.json() : [];
-    if(!list.length){
-      root.innerHTML = '<p style="color:var(--ink-soft);font-size:12.5px;">目前還沒有加入任何連結。</p>';
-      return;
-    }
-    root.innerHTML = list.map(s => `
-      <p style="font-size:13px;margin:5px 0;">
-        <a href="${s.url}" target="_blank" style="color:var(--study);">${s.note || s.url}</a>
+
+    const community = list.filter(s => s.source_type === 'community' || !s.source_type);
+    const schools = list.filter(s => s.source_type === 'school');
+    const govs = list.filter(s => s.source_type === 'government');
+
+    function itemHtml(s, color){
+      return `<p style="font-size:13px;margin:5px 0;">
+        <a href="${s.url}" target="_blank" style="color:${color};">${s.note || s.url}</a>
         <button data-id="${s.id}" class="src-remove" style="border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:11.5px;">✕ 移除</button>
-      </p>`).join('');
-    root.querySelectorAll('.src-remove').forEach(btn => {
+      </p>`;
+    }
+
+    listRoot.innerHTML = community.length
+      ? community.map(s => itemHtml(s, 'var(--study)')).join('')
+      : '<p style="color:var(--ink-soft);font-size:12.5px;">目前還沒有加入民間網站連結。</p>';
+
+    extraSchoolRoot.innerHTML = schools.length
+      ? '<b>你新增的學校連結</b>' + schools.map(s => itemHtml(s, 'var(--study)')).join('')
+      : '';
+
+    govRoot.innerHTML = govs.length
+      ? govs.map(s => itemHtml(s, 'var(--study)')).join('')
+      : '<span style="color:var(--ink-soft);">目前沒有額外加入的政府機關連結。</span>';
+
+    document.querySelectorAll('.src-remove').forEach(btn => {
       btn.addEventListener('click', async () => {
         await fetch('/api/community-sources', {
           method: 'DELETE',
@@ -178,7 +201,7 @@ async function loadSources(){
       });
     });
   }catch(e){
-    root.innerHTML = '<p style="color:var(--ink-soft);font-size:12.5px;">目前連不到資料庫，暫時無法顯示已加入的連結。</p>';
+    listRoot.innerHTML = '<p style="color:var(--ink-soft);font-size:12.5px;">目前連不到資料庫，暫時無法顯示已加入的連結。</p>';
   }
 }
 
