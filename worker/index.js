@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS behavior_events (id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, name TEXT NOT NULL, order_no INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
-CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 INSERT OR IGNORE INTO classes (id, name) VALUES ('5-1', '五年一班');
 INSERT OR IGNORE INTO schedule (class_id, weekday, start, end, label) VALUES ('5-1', 2, '09:50', '10:30', '第3節'), ('5-1', 5, '13:10', '13:50', '第6節');
 INSERT OR IGNORE INTO assignments (id, class_id, name, order_no) VALUES ('hw1', '5-1', '作業1', 1);
@@ -230,9 +230,20 @@ async function handleScoreUpdate(env, request) {
   return json({ ok: true });
 }
 
+function classifySourceUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    if (/\.edu\.tw$/.test(host) || /\.edu\.tw\.?$/.test(host)) return "school";
+    if (/\.gov\.tw$/.test(host)) return "government";
+    return "community";
+  } catch (e) {
+    return "community";
+  }
+}
+
 async function handleCommunitySourcesGet(env) {
   const res = await env.DB.prepare(
-    "SELECT id, url, note FROM community_sources ORDER BY created_at DESC"
+    "SELECT id, url, note, source_type FROM community_sources ORDER BY created_at DESC"
   ).all();
   return json(res.results);
 }
@@ -240,10 +251,11 @@ async function handleCommunitySourcesGet(env) {
 async function handleCommunitySourcesPost(env, request) {
   const { url, note } = await request.json();
   if (!url) return json({ error: "缺少網址" }, { status: 400 });
+  const sourceType = classifySourceUrl(url);
   await env.DB.prepare(
-    "INSERT INTO community_sources (url, note, created_at) VALUES (?, ?, ?)"
-  ).bind(url, note || "", new Date().toISOString()).run();
-  return json({ ok: true });
+    "INSERT INTO community_sources (url, note, source_type, created_at) VALUES (?, ?, ?, ?)"
+  ).bind(url, note || "", sourceType, new Date().toISOString()).run();
+  return json({ ok: true, sourceType });
 }
 
 async function handleCommunitySourcesDelete(env, request) {
