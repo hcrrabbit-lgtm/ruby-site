@@ -78,3 +78,7 @@ INSERT OR IGNORE INTO students (id, class_id, seat, name) VALUES
   ('s21','5-1',21,'周奕安'),('s22','5-1',22,'潘詩涵'),('s23','5-1',23,'蘇柏諺'),('s24','5-1',24,'江宜臻'),
   ('s25','5-1',25,'顏彥廷'),('s26','5-1',26,'簡佳琪'),('s27','5-1',27,'施宇軒'),('s28','5-1',28,'范詠晴'),
   ('s29','5-1',29,'沈致遠'),('s30','5-1',30,'姚語彤');
+
+CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
+INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
