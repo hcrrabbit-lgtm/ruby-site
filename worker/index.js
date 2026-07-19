@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS behavior_events (id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, name TEXT NOT NULL, order_no INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
 INSERT OR IGNORE INTO classes (id, name) VALUES ('5-1', '五年一班');
 INSERT OR IGNORE INTO schedule (class_id, weekday, start, end, label) VALUES ('5-1', 2, '09:50', '10:30', '第3節'), ('5-1', 5, '13:10', '13:50', '第6節');
 INSERT OR IGNORE INTO assignments (id, class_id, name, order_no) VALUES ('hw1', '5-1', '作業1', 1);
@@ -229,6 +230,28 @@ async function handleScoreUpdate(env, request) {
   return json({ ok: true });
 }
 
+async function handleCommunitySourcesGet(env) {
+  const res = await env.DB.prepare(
+    "SELECT id, url, note FROM community_sources ORDER BY created_at DESC"
+  ).all();
+  return json(res.results);
+}
+
+async function handleCommunitySourcesPost(env, request) {
+  const { url, note } = await request.json();
+  if (!url) return json({ error: "缺少網址" }, { status: 400 });
+  await env.DB.prepare(
+    "INSERT INTO community_sources (url, note, created_at) VALUES (?, ?, ?)"
+  ).bind(url, note || "", new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+async function handleCommunitySourcesDelete(env, request) {
+  const { id } = await request.json();
+  await env.DB.prepare("DELETE FROM community_sources WHERE id = ?").bind(id).run();
+  return json({ ok: true });
+}
+
 async function handleGrades(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const behaviorWeight = parseFloat(url.searchParams.get("behaviorWeight") || "0.1");
@@ -378,6 +401,10 @@ export default {
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
+
+      if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
+      if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
+      if (path === "/api/community-sources" && request.method === "DELETE") return await handleCommunitySourcesDelete(env, request);
 
       if (path.startsWith("/api/")) return json({ error: "not found" }, { status: 404 });
 
