@@ -1,14 +1,30 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ruby-site",
+  "main": "worker/index.js",
   "compatibility_date": "2026-07-18",
+  "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "."
+    "directory": "./public",
+    "binding": "ASSETS"
   },
-  "compatibility_flags": [
-    "nodejs_compat"
+  "vars": {
+    "CF_ACCOUNT_ID": "8b32075f80c81823a3756b4b42afbb91"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ruby-class-db",
+      "database_id": "55e99051-819a-4ab2-b230-8004962c7375"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "ruby-class-photos"
+    }
   ]
 }
