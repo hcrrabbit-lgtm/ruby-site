@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圍棋比賽資訊</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --study:#5F8955; --study-bg:#EBF2E6;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:13px;}
+  h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:14px 0 4px;color:var(--study);}
+  .updated{color:var(--ink-soft);font-size:13px;margin-bottom:20px;}
+
+  .region-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+  .region-tag{
+    font-size:12.5px;padding:4px 12px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);
+  }
+
+  .tourney-card{
+    background:#fff;border:1px solid var(--line);border-left:5px solid var(--study);
+    border-radius:var(--radius);padding:14px 18px;margin-bottom:10px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .tourney-date{
+    background:var(--study-bg);color:var(--study);font-weight:700;font-size:13px;
+    padding:6px 12px;border-radius:10px;text-align:center;min-width:78px;
+  }
+  .tourney-main{flex:1;min-width:180px;}
+  .tourney-main h3{margin:0 0 3px;font-size:15.5px;}
+  .tourney-main .meta{font-size:12.5px;color:var(--ink-soft);}
+  .tourney-tag{
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+    background:var(--study);color:#fff;margin-right:6px;
+  }
+  .tourney-card a.link{font-size:13px;color:var(--study);font-weight:700;text-decoration:none;white-space:nowrap;}
+
+  .note-box{
+    margin-top:26px;border:1px dashed var(--line);border-radius:var(--radius);
+    padding:16px 18px;font-size:13px;color:var(--ink-soft);line-height:1.8;background:var(--paper-deep);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 回 Ruby 的個人工作台</a>
+  <h1>♟️ 圍棋比賽資訊</h1>
+  <div class="updated">最後彙整：2026 年 7 月 19 日｜範圍：中彰投、雲林、新北、台北</div>
+
+  <div class="region-filter">
+    <span class="region-tag">中彰投</span>
+    <span class="region-tag">雲林</span>
+    <span class="region-tag">新北</span>
+    <span class="region-tag">台北</span>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">08/01</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">台北</span>
+      <h3>韓國總理大臣杯圍棋賽中華台北代表選拔賽</h3>
+      <div class="meta">主辦：臺北市體育總會圍棋協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=3c0c67f8-b69d-4f31-8783-4f29f2fcfdbc" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">08/09</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">雲林</span>
+      <h3>2026 年雲林縣【教育文化盃】全國圍棋公開賽</h3>
+      <div class="meta">主辦：雲林縣教育文化圍棋協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=2d44f27f-9f0e-4773-9b58-6caf4cf2c03f" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">08/23</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">新北</span>
+      <h3>115年中和區主委盃圍棋公開賽</h3>
+      <div class="meta">主辦：新北市中和區體育會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=fc6b4ad2-93b9-4250-aad8-bb83f8f635c7" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">08/30</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">新北</span>
+      <h3>2026 新北市紅面棋王全國圍棋公開賽</h3>
+      <div class="meta">主辦：新北市板橋區公所、新北市圍棋文化協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=2375cf47-6a05-48a2-b709-a579b5b8a3f1" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">09/06</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">台北</span>
+      <h3>115年士林盃全國圍棋錦標賽</h3>
+      <div class="meta">主辦：臺北市士林區體育會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=ed752f8b-3634-403f-9b53-4592c99a31f6" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">09/06</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">中彰投</span>
+      <h3>115年臺中市北區體育會理事長盃全國圍棋公開賽</h3>
+      <div class="meta">主辦：臺中市北區體育會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=ddf78b1b-97fa-4059-b8fe-5bb9089dc45f" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">09/12-13</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">台北</span>
+      <h3>2026年「台北城市」盃圍棋賽－秋季賽</h3>
+      <div class="meta">主辦：臺北市體育總會圍棋協會、台北市圍棋文化協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=635ab3d0-19ad-4e93-98d7-9f8328aa84a9" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">09/20</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">新北</span>
+      <h3>2026 新北市體育盃全國圍棋公開賽</h3>
+      <div class="meta">主辦：新北市體育總會、新北市樹林區體育會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=9e80bd5c-f7c8-472f-8491-fcaa75239ed5" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">10/04</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">雲林</span>
+      <h3>2026年雲林縣縣長盃全國圍棋公開賽</h3>
+      <div class="meta">主辦：雲林縣政府</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=8b656663-3c65-4624-a989-2aecd821b054" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">10/18</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">台北</span>
+      <h3>115年臺北市中正盃圍棋錦標賽</h3>
+      <div class="meta">主辦：臺北市體育總會圍棋協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=5c2c06e4-4eba-49d5-bcea-70fefe218a63" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">12/06</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">新北</span>
+      <h3>2026年新北市狀元盃全國圍棋公開賽</h3>
+      <div class="meta">主辦：新北市體育總會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=b6fecc39-1d1c-4dd4-9cff-b6a5758fd2c6" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="tourney-card">
+    <div class="tourney-date">12/12-13</div>
+    <div class="tourney-main">
+      <span class="tourney-tag">台北</span>
+      <h3>2026年「台北城市」盃圍棋賽－冬季賽</h3>
+      <div class="meta">主辦：臺北市體育總會圍棋協會、台北市圍棋文化協會</div>
+    </div>
+    <a class="link" href="https://tpego.hyplaygo.com/TPEGo/Active/ResultDetail?pmAcmId=fa992aed-f218-4c31-ad44-482b73774cbd" target="_blank">查看報名 →</a>
+  </div>
+
+  <div class="note-box">
+    <b>資料來源</b>：PlayGo 圍棋賽務雲端平台（中華棋協認證賽事列表）。<br>
+    <b>要提醒你注意的地方</b>：這裡列的是「比賽日期」，不是報名截止日——大部分比賽的網路報名會在比賽前 2～3 週左右截止，正確的報名起訖時間請點每筆右邊的「查看報名」連結進去確認，這份清單目前沒有抓到精確的報名截止日期。<br>
+    這頁資料一樣是手動彙整、不會自動更新，請 Claude 定期幫你重新搜尋才會更新到最新的賽事清單。
+  </div>
+</div>
+</body>
+</html>
