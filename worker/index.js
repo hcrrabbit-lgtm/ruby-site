@@ -37,6 +37,27 @@ async function ensureSchema(env) {
       "INSERT OR IGNORE INTO students (id, class_id, seat, name) VALUES (?, '5-1', ?, ?)"
     ).bind(id, seat, name).run();
   }
+  try {
+    await env.DB.prepare(
+      "ALTER TABLE community_sources ADD COLUMN source_type TEXT NOT NULL DEFAULT 'community'"
+    ).run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    const rows = (await env.DB.prepare(
+      "SELECT id, url FROM community_sources WHERE source_type = 'community' OR source_type IS NULL"
+    ).all()).results;
+    for (const row of rows) {
+      const detected = classifySourceUrl(row.url);
+      if (detected !== "community") {
+        await env.DB.prepare("UPDATE community_sources SET source_type = ? WHERE id = ?")
+          .bind(detected, row.id).run();
+      }
+    }
+  } catch (e) {
+    // best-effort backfill only
+  }
   schemaReady = true;
 }
 
