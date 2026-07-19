@@ -11,9 +11,11 @@ CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT N
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 INSERT OR IGNORE INTO classes (id, name) VALUES ('5-1', '五年一班');
 INSERT OR IGNORE INTO schedule (class_id, weekday, start, end, label) VALUES ('5-1', 2, '09:50', '10:30', '第3節'), ('5-1', 5, '13:10', '13:50', '第6節');
 INSERT OR IGNORE INTO assignments (id, class_id, name, order_no) VALUES ('hw1', '5-1', '作業1', 1);
+INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
 const STUDENT_SEED = [
@@ -30,7 +32,11 @@ async function ensureSchema(env) {
   if (schemaReady) return;
   const statements = SCHEMA_SQL.split(";").map(s => s.trim()).filter(Boolean);
   for (const stmt of statements) {
-    await env.DB.prepare(stmt).run();
+    try {
+      await env.DB.prepare(stmt).run();
+    } catch (e) {
+      // continue past any single statement that fails (e.g. unique index blocked by pre-existing duplicate rows)
+    }
   }
   for (const [id, seat, name] of STUDENT_SEED) {
     await env.DB.prepare(
