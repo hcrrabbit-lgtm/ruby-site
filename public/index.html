@@ -315,6 +315,18 @@
     </div>
 
     <div class="log-box">
+      <h3>🧩 已建置的工具網站</h3>
+      <p class="section-desc">每次做出新的工具或網頁，都會列在這裡，方便你一次看到全部。</p>
+      <ul>
+        <li>
+          <a href="class-assistant.html" style="color:var(--c-art);font-weight:700;">上課助手</a>
+          —— 美術課排課判斷、點名、秩序評分、作品拍照分級評分。資料存在 Cloudflare D1 + R2。
+          <span class="meta">建立：2026年7月</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="log-box">
       <h3>📓 AI 學習歷程</h3>
       <p>這裡記錄使用 AI／建置這個網站過程中踩過的坑，之後可以整理成給同事看的「排錯 FAQ」。</p>
       <div class="log-empty">
@@ -366,9 +378,24 @@
 
     <div class="mem-block">
       <h3>■ 我的網站</h3>
-      <p><span class="mono">ruby-site.pages.dev</span></p>
+      <p><span class="mono">ruby-site.hcrrabbit.workers.dev</span></p>
       <p>程式放在 GitHub（<span class="mono">hcrrabbit-lgtm/ruby-site</span>）。</p>
       <p>要改版面就請 Claude 生成 HTML，我貼到 GitHub 網頁版按 Commit 就會自動更新。</p>
+    </div>
+
+    <div class="mem-block">
+      <h3>■ 網站架構與部署 SOP（透明化紀錄，方便核對 Claude 理解得對不對）</h3>
+      <ul>
+        <li><b>平台</b>：Cloudflare Workers（不是舊版的 Pages，兩者已整合，但概念相同）。網址是 Cloudflare 免費送的 <span class="mono">.workers.dev</span> 網域。</li>
+        <li><b>部署流程</b>：GitHub repo（<span class="mono">hcrrabbit-lgtm/ruby-site</span>）的 <span class="mono">main</span> 分支接了 Cloudflare 自動部署，只要檔案推上 GitHub，1～2分鐘內網站自動更新，不用手動按部署。</li>
+        <li><b>檔案結構</b>：靜態網頁（HTML）都放在 <span class="mono">public/</span> 資料夾；<span class="mono">worker/index.js</span> 是後端程式，負責處理資料庫存取；<span class="mono">wrangler.jsonc</span> 是設定檔，記錄資料庫、儲存空間怎麼接上。</li>
+        <li><b>資料庫</b>：上課助手用 Cloudflare D1（資料庫，名稱 <span class="mono">ruby-class-db</span>）存點名、評分、學生名單這類文字資料；用 R2（名稱 <span class="mono">ruby-class-photos</span>）存作品照片。</li>
+        <li><b>Claude 怎麼幫忙推送更新</b>：需要改 GitHub 上的檔案時，Ruby 會建立一組「只能動這個 repo」的臨時權杖（GitHub Fine-grained Personal Access Token）給 Claude，Claude 用完後 Ruby 可以自行到 GitHub 刪除，權杖不會被 Claude 保存。</li>
+        <li><b>目前的隱私防護</b>：網站是公開網址，任何知道連結的人都能打開；目前只用 <span class="mono">robots.txt</span> + <span class="mono">noindex</span> 擋掉 Google 搜尋收錄，還沒有登入門檻。</li>
+        <li><b>放真實學生資料前，必須先做的事</b>：加裝 Cloudflare Access（免費、單人使用），要求登入才能打開網站。目前還在用假資料測試階段，先不設，等系統穩定、要放真實學生資料時再設定。<b>Claude 收到指示：之後只要對話提到要放真實/可辨識的學生資料，要主動提醒這件事。</b></li>
+        <li><b>雲端花費</b>：Cloudflare R2 免費額度是每月 10GB 儲存 + 100萬次操作，個人單一老師使用量遠低於這個門檻；已設定 Budget Alert（花費超過門檻會寄 email 通知，但不會自動斷線）。</li>
+      </ul>
+      <p class="meta">最後更新：2026 年 7 月 19 日 — 如果哪一項跟你想的不一樣，直接跟 Claude 說，我會更新這裡。</p>
     </div>
 
     <div class="mem-block">
