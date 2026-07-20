@@ -252,14 +252,17 @@
   .cam-shutter:active{background:#ddd;}
 
   .seat-grid{
-    display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px;
+    display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;
   }
   .seat-cell{
-    aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;
-    font-size:13px;font-weight:700;color:#fff;
+    aspect-ratio:0.85;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    color:#fff;cursor:pointer;padding:2px;text-align:center;
   }
+  .seat-cell .seat-num{font-size:14px;font-weight:700;line-height:1.2;}
+  .seat-cell .seat-name{font-size:10.5px;line-height:1.2;opacity:.95;word-break:break-all;}
   .seat-cell.submitted{background:var(--sage);}
   .seat-cell.missing{background:var(--clay);}
+  .seat-cell:active{opacity:0.75;}
 </style>
 </head>
 <body>
@@ -728,6 +731,8 @@ document.getElementById("addAssignmentBtn").addEventListener("click", async () =
 let camStream = null;
 let camActiveTier = null;
 let camShotSeq = 0;
+let camTargetSeat = null;
+let camSessionPhotoIds = [];
 
 function loadImageFromBlob(blob){
   return new Promise((resolve, reject) => {
@@ -772,7 +777,8 @@ function addCapturedPhoto(jpegBlob, tier){
 
 async function openCamera(tier){
   camActiveTier = tier;
-  document.getElementById("camTierLabel").textContent = tier;
+  camSessionPhotoIds = [];
+  document.getElementById("camTierLabel").textContent = tier + (camTargetSeat ? `（${camTargetSeat}號）` : "");
   document.getElementById("camShotCount").textContent = "0";
   document.getElementById("camThumbs").innerHTML = "";
   try{
@@ -799,6 +805,12 @@ function closeCamera(){
   document.getElementById("camOverlay").classList.remove("active");
   document.body.style.overflow = "";
   renderUnassigned();
+
+  if(camTargetSeat && camSessionPhotoIds.length){
+    const lastId = camSessionPhotoIds[camSessionPhotoIds.length - 1];
+    openAssignForm(lastId, camTargetSeat);
+  }
+  camTargetSeat = null;
 }
 
 document.getElementById("camShutterBtn").addEventListener("click", async () => {
@@ -815,6 +827,7 @@ document.getElementById("camShutterBtn").addEventListener("click", async () => {
   canvas.getContext("2d").drawImage(video, 0, 0, width, height);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
   const entry = addCapturedPhoto(blob, camActiveTier);
+  camSessionPhotoIds.push(entry.id);
 
   const shotCountEl = document.getElementById("camShotCount");
   shotCountEl.textContent = (parseInt(shotCountEl.textContent, 10) || 0) + 1;
@@ -824,6 +837,7 @@ document.getElementById("camShutterBtn").addEventListener("click", async () => {
   wrap.innerHTML = `<img src="${entry.dataUrl}"><button class="cam-thumb-del">✕</button>`;
   wrap.querySelector(".cam-thumb-del").addEventListener("click", () => {
     unassignedPhotos = unassignedPhotos.filter(p => p.id !== entry.id);
+    camSessionPhotoIds = camSessionPhotoIds.filter(id => id !== entry.id);
     wrap.remove();
     shotCountEl.textContent = Math.max(0, (parseInt(shotCountEl.textContent, 10) || 1) - 1);
   });
@@ -834,6 +848,7 @@ document.getElementById("camCloseBtn").addEventListener("click", closeCamera);
 
 document.querySelectorAll(".tier-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    camTargetSeat = null;
     openCamera(btn.dataset.tier);
   });
 });
@@ -868,7 +883,7 @@ function renderUnassigned(){
   });
 }
 
-function openAssignForm(photoId){
+function openAssignForm(photoId, presetSeat){
   const photo = unassignedPhotos.find(p => p.id === photoId);
   if(!photo) return;
   const existingForm = document.getElementById("assignFormWrap");
@@ -887,7 +902,7 @@ function openAssignForm(photoId){
     </div>
     <div class="assign-row">
       <label>座號</label>
-      <input type="number" id="assignSeat" min="1" max="${rosterCache.length}" placeholder="輸入座號">
+      <input type="number" id="assignSeat" min="1" max="${rosterCache.length}" placeholder="輸入座號" value="${presetSeat || ''}">
     </div>
     <div class="assign-row">
       <label>分數</label>
@@ -903,7 +918,8 @@ function openAssignForm(photoId){
     </div>
   `;
   document.getElementById("unassignedSection").after(wrap);
-  document.getElementById("assignSeat").focus();
+  wrap.scrollIntoView({ behavior: "smooth", block: "center" });
+  if(!presetSeat) document.getElementById("assignSeat").focus();
 
   document.getElementById("assignTier").addEventListener("change", (e) => {
     document.getElementById("assignScore").value = TIER_DEFAULT_SCORE[e.target.value];
@@ -945,8 +961,47 @@ function renderSeatStatusGrid(){
   if(!root) return;
   root.innerHTML = rosterCache.map(st => {
     const done = !!data[st.id];
-    return `<div class="seat-cell ${done ? 'submitted' : 'missing'}" title="${st.name}">${st.seat}</div>`;
+    return `<div class="seat-cell ${done ? 'submitted' : 'missing'}" data-seat="${st.seat}">
+      <div class="seat-num">${st.seat}</div>
+      <div class="seat-name">${st.name}</div>
+    </div>`;
   }).join("");
+  root.querySelectorAll(".seat-cell").forEach(cell => {
+    cell.addEventListener("click", () => {
+      chooseTierThenCapture(parseInt(cell.dataset.seat, 10));
+    });
+  });
+}
+
+function chooseTierThenCapture(seat){
+  const st = rosterCache.find(s => s.seat === seat);
+  if(!st) return;
+  const existing = document.getElementById("tierPickerWrap");
+  if(existing) existing.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "tierPickerWrap";
+  wrap.className = "assign-form";
+  wrap.innerHTML = `
+    <p style="margin:0 0 10px;font-weight:700;">${st.seat} 號・${st.name} — 選擇要拍的等第</p>
+    <div class="tier-buttons">
+      <button class="tier-btn superb" data-tier="特優">特優</button>
+      <button class="tier-btn great" data-tier="優等">優等</button>
+      <button class="tier-btn good" data-tier="甲等">甲等</button>
+    </div>
+    <div class="assign-actions" style="margin-top:10px;">
+      <button class="assign-cancel" id="tierPickerCancelBtn">取消</button>
+    </div>
+  `;
+  document.getElementById("seatStatusGrid").after(wrap);
+  wrap.querySelectorAll(".tier-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      wrap.remove();
+      camTargetSeat = seat;
+      openCamera(btn.dataset.tier);
+    });
+  });
+  document.getElementById("tierPickerCancelBtn").addEventListener("click", () => wrap.remove());
 }
 
 function renderAssignedList(){
