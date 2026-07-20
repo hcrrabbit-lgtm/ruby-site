@@ -218,6 +218,34 @@
   .art-row input.score-input{width:52px;font-size:14px;padding:5px;border-radius:6px;border:1px solid var(--line);text-align:center;}
   .art-row-remove{background:none;border:none;color:var(--clay);font-size:18px;cursor:pointer;padding:4px;}
   .group-heading{font-size:13px;font-weight:700;color:var(--ink-soft);margin:10px 0 2px;}
+
+  /* camera overlay */
+  .cam-overlay{
+    display:none;position:fixed;inset:0;background:#000;z-index:999;
+    flex-direction:column;
+  }
+  .cam-overlay.active{display:flex;}
+  .cam-top{
+    color:#fff;padding:14px 16px;font-size:14px;display:flex;align-items:center;justify-content:space-between;
+    background:rgba(0,0,0,0.4);
+  }
+  .cam-close{background:none;border:1px solid #fff;color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;}
+  #camVideo{flex:1;width:100%;object-fit:cover;background:#000;}
+  .cam-bottom{
+    background:rgba(0,0,0,0.5);padding:12px 16px 20px;display:flex;flex-direction:column;gap:10px;align-items:center;
+  }
+  .cam-thumbs{display:flex;gap:6px;overflow-x:auto;width:100%;padding-bottom:2px;}
+  .cam-thumbs img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:2px solid #fff;flex-shrink:0;}
+  .cam-thumb-wrap{position:relative;flex-shrink:0;}
+  .cam-thumb-del{
+    position:absolute;top:-6px;right:-6px;background:var(--clay);color:#fff;border:none;
+    width:18px;height:18px;border-radius:50%;font-size:11px;line-height:1;cursor:pointer;
+  }
+  .cam-shutter{
+    width:66px;height:66px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,0.4);
+    cursor:pointer;flex-shrink:0;
+  }
+  .cam-shutter:active{background:#ddd;}
 </style>
 </head>
 <body>
@@ -292,11 +320,24 @@
     </div>
 
     <div class="tier-buttons">
-      <button class="tier-btn superb" data-tier="特優">📷 特優<span>拍照 / 上傳</span></button>
-      <button class="tier-btn great" data-tier="優等">📷 優等<span>拍照 / 上傳</span></button>
-      <button class="tier-btn good" data-tier="甲等">📷 甲等<span>拍照 / 上傳</span></button>
+      <button class="tier-btn superb" data-tier="特優">📷 特優<span>連拍 / 上傳</span></button>
+      <button class="tier-btn great" data-tier="優等">📷 優等<span>連拍 / 上傳</span></button>
+      <button class="tier-btn good" data-tier="甲等">📷 甲等<span>連拍 / 上傳</span></button>
     </div>
     <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
+
+    <div class="cam-overlay" id="camOverlay">
+      <div class="cam-top">
+        <span id="camTierLabel">特優</span> —— 已拍 <span id="camShotCount">0</span> 張
+        <button id="camCloseBtn" class="cam-close">✕ 完成</button>
+      </div>
+      <video id="camVideo" autoplay playsinline muted></video>
+      <canvas id="camCanvas" style="display:none;"></canvas>
+      <div class="cam-bottom">
+        <div class="cam-thumbs" id="camThumbs"></div>
+        <button id="camShutterBtn" class="cam-shutter" aria-label="拍照"></button>
+      </div>
+    </div>
 
     <div id="unassignedSection" style="display:none;">
       <div class="section-title">待歸戶照片(<span id="unassignedCount">0</span> 張)— 點照片來指定座號</div>
@@ -648,40 +689,128 @@ document.getElementById("addAssignmentBtn").addEventListener("click", async () =
   renderAssignedList();
 });
 
-document.querySelectorAll(".tier-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    pendingTier = btn.dataset.tier;
+let camStream = null;
+let camActiveTier = null;
+let camShotSeq = 0;
+
+function loadImageFromBlob(blob){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
+}
+
+async function normalizeToJpeg(blobOrFile){
+  const img = await loadImageFromBlob(blobOrFile);
+  const maxDim = 2000;
+  let { width, height } = img;
+  if(width > maxDim || height > maxDim){
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+}
+
+function addCapturedPhoto(jpegBlob, tier){
+  const entry = {
+    id: "p" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+    tier,
+    assignmentId: currentAssignmentId,
+    dataUrl: URL.createObjectURL(jpegBlob),
+    photoKey: null
+  };
+  unassignedPhotos.push(entry);
+  fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(tier)}`, {
+    method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
+  }).then(r => r.ok ? r.json() : null)
+    .then(res => { if(res) entry.photoKey = res.key; })
+    .catch(()=>{});
+  return entry;
+}
+
+async function openCamera(tier){
+  camActiveTier = tier;
+  document.getElementById("camTierLabel").textContent = tier;
+  document.getElementById("camShotCount").textContent = "0";
+  document.getElementById("camThumbs").innerHTML = "";
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 } },
+      audio: false
+    });
+    document.getElementById("camVideo").srcObject = camStream;
+    document.getElementById("camOverlay").classList.add("active");
+  }catch(e){
+    // camera unavailable/denied — fall back to classic file picker
+    pendingTier = tier;
     document.getElementById("photoInput").value = "";
     document.getElementById("photoInput").click();
+  }
+}
+
+function closeCamera(){
+  if(camStream){
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  document.getElementById("camOverlay").classList.remove("active");
+  renderUnassigned();
+}
+
+document.getElementById("camShutterBtn").addEventListener("click", async () => {
+  const video = document.getElementById("camVideo");
+  const canvas = document.getElementById("camCanvas");
+  const maxDim = 2000;
+  let width = video.videoWidth, height = video.videoHeight;
+  if(width > maxDim || height > maxDim){
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  canvas.width = width; canvas.height = height;
+  canvas.getContext("2d").drawImage(video, 0, 0, width, height);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  const entry = addCapturedPhoto(blob, camActiveTier);
+
+  const shotCountEl = document.getElementById("camShotCount");
+  shotCountEl.textContent = (parseInt(shotCountEl.textContent, 10) || 0) + 1;
+
+  const wrap = document.createElement("div");
+  wrap.className = "cam-thumb-wrap";
+  wrap.innerHTML = `<img src="${entry.dataUrl}"><button class="cam-thumb-del">✕</button>`;
+  wrap.querySelector(".cam-thumb-del").addEventListener("click", () => {
+    unassignedPhotos = unassignedPhotos.filter(p => p.id !== entry.id);
+    wrap.remove();
+    shotCountEl.textContent = Math.max(0, (parseInt(shotCountEl.textContent, 10) || 1) - 1);
+  });
+  document.getElementById("camThumbs").appendChild(wrap);
+});
+
+document.getElementById("camCloseBtn").addEventListener("click", closeCamera);
+
+document.querySelectorAll(".tier-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    openCamera(btn.dataset.tier);
   });
 });
 
 document.getElementById("photoInput").addEventListener("change", (e) => {
   const files = Array.from(e.target.files || []);
   if(!files.length) return;
-  let remaining = files.length;
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const entry = {
-        id: "p" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
-        tier: pendingTier,
-        assignmentId: currentAssignmentId,
-        dataUrl: reader.result,
-        photoKey: null
-      };
-      unassignedPhotos.push(entry);
-      remaining--;
-      if(remaining === 0) renderUnassigned();
-
-      // Upload in background; fills in photoKey once done (works offline/demo without it)
-      const ext = (file.type.split("/")[1] || "jpg").replace("jpeg","jpg");
-      fetch(`/api/photo?ext=${ext}`, { method: "POST", headers: { "Content-Type": file.type }, body: file })
-        .then(r => r.ok ? r.json() : null)
-        .then(res => { if(res) entry.photoKey = res.key; })
-        .catch(()=>{});
-    };
-    reader.readAsDataURL(file);
+  files.forEach(async file => {
+    try{
+      const jpegBlob = await normalizeToJpeg(file);
+      addCapturedPhoto(jpegBlob, pendingTier);
+      renderUnassigned();
+    }catch(err){
+      alert("這張照片讀取失敗，請換一張試試：" + file.name);
+    }
   });
 });
 
