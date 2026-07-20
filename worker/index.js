@@ -195,12 +195,29 @@ async function handleAssignmentsPost(env, request) {
   return json({ id, name });
 }
 
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
+
+function isJpegMagicBytes(bytes) {
+  return bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+}
+
 async function handlePhotoUpload(env, request, url) {
-  const ext = url.searchParams.get("ext") || "jpg";
+  const tier = url.searchParams.get("tier") || "未分類";
   const contentType = request.headers.get("Content-Type") || "image/jpeg";
-  const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const body = await request.arrayBuffer();
-  await env.PHOTOS.put(`photos/${key}`, body, { httpMetadata: { contentType } });
+
+  if (body.byteLength > MAX_PHOTO_BYTES) {
+    return json({ error: "檔案超過 8MB 上限" }, { status: 413 });
+  }
+  const bytes = new Uint8Array(body.slice(0, 3));
+  if (!isJpegMagicBytes(bytes)) {
+    return json({ error: "檔案不是有效的 JPEG 格式" }, { status: 415 });
+  }
+
+  const now = new Date();
+  const yearMonth = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}`;
+  const key = `${encodeURIComponent(tier)}/${yearMonth}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  await env.PHOTOS.put(`photos/${key}`, body, { httpMetadata: { contentType: "image/jpeg" } });
   return json({ key });
 }
 
