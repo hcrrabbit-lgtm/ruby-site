@@ -330,6 +330,7 @@
 
     <div class="assignment-bar">
       <select class="override" id="assignmentSelect"></select>
+      <button class="sort-btn" id="renameAssignmentBtn">✎ 改名</button>
       <button class="sort-btn" id="addAssignmentBtn">＋ 新增作業</button>
     </div>
 
@@ -695,6 +696,18 @@ document.getElementById("assignmentSelect").addEventListener("change", async (e)
   currentAssignmentId = e.target.value;
   renderUnassigned();
   await loadSubmissionsForCurrentAssignment();
+});
+
+document.getElementById("renameAssignmentBtn").addEventListener("click", async () => {
+  const current = assignments.find(a => a.id === currentAssignmentId);
+  if(!current) return;
+  const newName = prompt("修改作業名稱", current.name);
+  if(!newName || newName === current.name) return;
+  current.name = newName;
+  renderAssignmentSelect();
+  try{
+    await apiPost("/api/assignments/rename", { id: currentAssignmentId, name: newName });
+  }catch(e){}
 });
 
 document.getElementById("addAssignmentBtn").addEventListener("click", async () => {
