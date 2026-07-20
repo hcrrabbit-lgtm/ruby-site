@@ -223,16 +223,20 @@
   .cam-overlay{
     display:none;position:fixed;inset:0;background:#000;z-index:999;
     flex-direction:column;
+    height:100vh;height:100svh;
   }
   .cam-overlay.active{display:flex;}
   .cam-top{
+    flex-shrink:0;
     color:#fff;padding:14px 16px;font-size:14px;display:flex;align-items:center;justify-content:space-between;
     background:rgba(0,0,0,0.4);
   }
   .cam-close{background:none;border:1px solid #fff;color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;}
-  #camVideo{flex:1;width:100%;object-fit:cover;background:#000;}
+  #camVideo{flex:1 1 auto;min-height:0;width:100%;object-fit:cover;background:#000;}
   .cam-bottom{
-    background:rgba(0,0,0,0.5);padding:12px 16px 20px;display:flex;flex-direction:column;gap:10px;align-items:center;
+    flex-shrink:0;
+    background:rgba(0,0,0,0.5);padding:12px 16px calc(20px + env(safe-area-inset-bottom));
+    display:flex;flex-direction:column;gap:10px;align-items:center;
   }
   .cam-thumbs{display:flex;gap:6px;overflow-x:auto;width:100%;padding-bottom:2px;}
   .cam-thumbs img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:2px solid #fff;flex-shrink:0;}
@@ -746,6 +750,7 @@ async function openCamera(tier){
     });
     document.getElementById("camVideo").srcObject = camStream;
     document.getElementById("camOverlay").classList.add("active");
+    document.body.style.overflow = "hidden";
   }catch(e){
     // camera unavailable/denied — fall back to classic file picker
     pendingTier = tier;
@@ -760,6 +765,7 @@ function closeCamera(){
     camStream = null;
   }
   document.getElementById("camOverlay").classList.remove("active");
+  document.body.style.overflow = "";
   renderUnassigned();
 }
 
