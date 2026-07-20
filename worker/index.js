@@ -201,6 +201,13 @@ function isJpegMagicBytes(bytes) {
   return bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
 }
 
+async function handleAssignmentsRename(env, request) {
+  const { id, name } = await request.json();
+  if (!id || !name) return json({ error: "缺少 id 或 name" }, { status: 400 });
+  await env.DB.prepare("UPDATE assignments SET name = ? WHERE id = ?").bind(name, id).run();
+  return json({ ok: true });
+}
+
 async function handlePhotoUpload(env, request, url) {
   const tier = url.searchParams.get("tier") || "未分類";
   const contentType = request.headers.get("Content-Type") || "image/jpeg";
@@ -445,6 +452,7 @@ export default {
 
       if (path === "/api/assignments" && request.method === "GET") return await handleAssignmentsGet(env, url);
       if (path === "/api/assignments" && request.method === "POST") return await handleAssignmentsPost(env, request);
+      if (path === "/api/assignments/rename" && request.method === "POST") return await handleAssignmentsRename(env, request);
 
       if (path === "/api/photo" && request.method === "POST") return await handlePhotoUpload(env, request, url);
       if (path.startsWith("/api/photo/") && request.method === "GET") {
