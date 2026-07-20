@@ -44,6 +44,11 @@ async function ensureSchema(env) {
     ).bind(id, seat, name).run();
   }
   try {
+    await env.DB.prepare("ALTER TABLE students ADD COLUMN photo_key TEXT").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
     await env.DB.prepare(
       "ALTER TABLE community_sources ADD COLUMN source_type TEXT NOT NULL DEFAULT 'community'"
     ).run();
@@ -105,7 +110,7 @@ async function handleSchedule(env) {
 async function handleRoster(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const res = await env.DB.prepare(
-    "SELECT id, seat, name FROM students WHERE class_id = ? ORDER BY seat"
+    "SELECT id, seat, name, photo_key as photoKey FROM students WHERE class_id = ? ORDER BY seat"
   ).bind(classId).all();
   return json(res.results);
 }
@@ -206,6 +211,25 @@ async function handleAssignmentsRename(env, request) {
   if (!id || !name) return json({ error: "缺少 id 或 name" }, { status: 400 });
   await env.DB.prepare("UPDATE assignments SET name = ? WHERE id = ?").bind(name, id).run();
   return json({ ok: true });
+}
+
+async function handleStudentPhotoUpload(env, request, url) {
+  const studentId = url.searchParams.get("studentId");
+  if (!studentId) return json({ error: "缺少 studentId" }, { status: 400 });
+  const body = await request.arrayBuffer();
+
+  if (body.byteLength > MAX_PHOTO_BYTES) {
+    return json({ error: "檔案超過 8MB 上限" }, { status: 413 });
+  }
+  const bytes = new Uint8Array(body.slice(0, 3));
+  if (!isJpegMagicBytes(bytes)) {
+    return json({ error: "檔案不是有效的 JPEG 格式" }, { status: 415 });
+  }
+
+  const key = `avatar/${studentId}-${Date.now()}.jpg`;
+  await env.PHOTOS.put(`photos/${key}`, body, { httpMetadata: { contentType: "image/jpeg" } });
+  await env.DB.prepare("UPDATE students SET photo_key = ? WHERE id = ?").bind(key, studentId).run();
+  return json({ key });
 }
 
 async function handlePhotoUpload(env, request, url) {
@@ -443,6 +467,7 @@ export default {
 
       if (path === "/api/schedule" && request.method === "GET") return await handleSchedule(env);
       if (path === "/api/roster" && request.method === "GET") return await handleRoster(env, url);
+      if (path === "/api/students/photo" && request.method === "POST") return await handleStudentPhotoUpload(env, request, url);
 
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);
       if (path === "/api/attendance" && request.method === "POST") return await handleAttendancePost(env, request);
