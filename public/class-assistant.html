@@ -118,6 +118,13 @@
     border:1px solid var(--line);
   }
   .s-name{font-size:15px;font-weight:600;flex:1;min-width:0;}
+  .avatar{
+    width:38px;height:38px;border-radius:50%;flex-shrink:0;cursor:pointer;
+    background:var(--paper);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    font-size:16px;color:var(--ink-soft);
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover;}
 
   /* attendance controls */
   .att-controls{display:flex;gap:6px;}
@@ -542,8 +549,10 @@ function renderAttendance(){
   const root = document.getElementById("attRoster");
   root.innerHTML = list.map(st => {
     const state = attendance[st.id];
+    const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `
       <div class="student-row">
+        <div class="avatar" data-student="${st.id}" title="點一下拍/換大頭照">${avatarInner}</div>
         <div class="seat">${st.seat}</div>
         <div class="s-name">${st.name}</div>
         <div class="att-controls">
@@ -552,6 +561,10 @@ function renderAttendance(){
         </div>
       </div>`;
   }).join("");
+
+  root.querySelectorAll(".avatar").forEach(el => {
+    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
+  });
 
   root.querySelectorAll(".att-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -638,8 +651,10 @@ function renderBehavior(){
   root.innerHTML = list.map(st => {
     const score = behavior[st.id] || 0;
     const cls = score > 0 ? "pos" : (score < 0 ? "neg" : "");
+    const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `
       <div class="student-row">
+        <div class="avatar" data-student="${st.id}" title="點一下拍/換大頭照">${avatarInner}</div>
         <div class="seat">${st.seat}</div>
         <div class="s-name">${st.name}</div>
         <div class="beh-controls">
@@ -649,6 +664,10 @@ function renderBehavior(){
         </div>
       </div>`;
   }).join("");
+
+  root.querySelectorAll(".avatar").forEach(el => {
+    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
+  });
 
   root.querySelectorAll(".beh-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -775,10 +794,37 @@ function addCapturedPhoto(jpegBlob, tier){
   return entry;
 }
 
+let camAvatarStudentId = null;
+
+async function openAvatarCamera(studentId){
+  camAvatarStudentId = studentId;
+  camTargetSeat = null;
+  await openCamera("大頭照");
+}
+
+async function uploadAvatar(studentId, blob){
+  try{
+    const res = await fetch(`/api/students/photo?studentId=${encodeURIComponent(studentId)}`, {
+      method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob
+    });
+    if(!res.ok) return;
+    const data = await res.json();
+    const st = rosterCache.find(s => s.id === studentId);
+    if(st) st.photoKey = data.key;
+    renderAttendance();
+    renderBehavior();
+  }catch(e){}
+}
+
 async function openCamera(tier){
   camActiveTier = tier;
   camSessionPhotoIds = [];
-  document.getElementById("camTierLabel").textContent = tier + (camTargetSeat ? `（${camTargetSeat}號）` : "");
+  let label = tier + (camTargetSeat ? `（${camTargetSeat}號）` : "");
+  if(camAvatarStudentId){
+    const st = rosterCache.find(s => s.id === camAvatarStudentId);
+    label = st ? `${st.name} 的大頭照` : "大頭照";
+  }
+  document.getElementById("camTierLabel").textContent = label;
   document.getElementById("camShotCount").textContent = "0";
   document.getElementById("camThumbs").innerHTML = "";
   try{
@@ -811,12 +857,13 @@ function closeCamera(){
     openAssignForm(lastId, camTargetSeat);
   }
   camTargetSeat = null;
+  camAvatarStudentId = null;
 }
 
 document.getElementById("camShutterBtn").addEventListener("click", async () => {
   const video = document.getElementById("camVideo");
   const canvas = document.getElementById("camCanvas");
-  const maxDim = 2000;
+  const maxDim = camAvatarStudentId ? 800 : 2000;
   let width = video.videoWidth, height = video.videoHeight;
   if(width > maxDim || height > maxDim){
     const scale = maxDim / Math.max(width, height);
@@ -826,6 +873,14 @@ document.getElementById("camShutterBtn").addEventListener("click", async () => {
   canvas.width = width; canvas.height = height;
   canvas.getContext("2d").drawImage(video, 0, 0, width, height);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
+
+  if(camAvatarStudentId){
+    const studentId = camAvatarStudentId;
+    closeCamera();
+    uploadAvatar(studentId, blob);
+    return;
+  }
+
   const entry = addCapturedPhoto(blob, camActiveTier);
   camSessionPhotoIds.push(entry.id);
 
@@ -849,6 +904,7 @@ document.getElementById("camCloseBtn").addEventListener("click", closeCamera);
 document.querySelectorAll(".tier-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     camTargetSeat = null;
+    camAvatarStudentId = null;
     openCamera(btn.dataset.tier);
   });
 });
@@ -998,6 +1054,7 @@ function chooseTierThenCapture(seat){
     btn.addEventListener("click", () => {
       wrap.remove();
       camTargetSeat = seat;
+      camAvatarStudentId = null;
       openCamera(btn.dataset.tier);
     });
   });
