@@ -258,6 +258,109 @@
   }
   .placeholder-page h2{ color:var(--ink); }
 
+  /* ---------- 健康家庭：一日時間軸 ---------- */
+  .health-note{
+    background:var(--c-health-bg);
+    border:1px solid var(--line);
+    border-left:5px solid var(--c-health);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    font-size:13.5px;
+    line-height:1.7;
+    color:var(--ink);
+    margin-bottom:26px;
+  }
+  .health-note b{ color:var(--c-health); }
+
+  .timeline{
+    position:relative;
+    padding-left:26px;
+    margin-bottom:10px;
+  }
+  .timeline::before{
+    content:"";
+    position:absolute;
+    left:7px; top:6px; bottom:6px;
+    width:2px;
+    background:var(--line);
+  }
+  .time-slot{
+    position:relative;
+    margin-bottom:30px;
+  }
+  .time-slot::before{
+    content:"";
+    position:absolute;
+    left:-26px; top:4px;
+    width:14px; height:14px;
+    border-radius:50%;
+    background:var(--c-health);
+    border:3px solid var(--paper);
+    box-shadow:0 0 0 1px var(--c-health);
+  }
+  .time-label{
+    font-family:'Noto Serif TC',serif;
+    font-weight:700;
+    font-size:16px;
+    color:var(--c-health);
+    margin:0 0 10px;
+  }
+  .supp-card{
+    display:flex;
+    gap:14px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:12px;
+    margin-bottom:10px;
+    align-items:center;
+  }
+  .supp-card img{
+    width:72px;
+    height:96px;
+    object-fit:cover;
+    border-radius:8px;
+    flex-shrink:0;
+    background:var(--paper-deep);
+  }
+  .supp-info h4{
+    margin:0 0 4px;
+    font-size:15.5px;
+    color:var(--ink);
+  }
+  .supp-info .dose{
+    display:inline-block;
+    font-size:12px;
+    color:var(--c-health);
+    background:var(--c-health-bg);
+    border-radius:999px;
+    padding:2px 10px;
+    margin:0 0 6px;
+    font-weight:700;
+  }
+  .supp-info p{
+    margin:0;
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.6;
+  }
+  .health-warn{
+    background:#fff;
+    border:1px dashed var(--c-health);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    font-size:13px;
+    color:var(--ink);
+    line-height:1.8;
+    margin-top:22px;
+  }
+  .health-warn h4{
+    margin:0 0 8px;
+    color:var(--c-health);
+    font-size:14.5px;
+  }
+
   footer{
     text-align:center;
     color:var(--ink-soft);
@@ -469,10 +572,96 @@
 
   <!-- 六、健康家庭 -->
   <section id="health">
-    <div class="placeholder-page">
-      <span class="icon">🌿</span>
-      <h2>健康家庭</h2>
-      <p>準備中——之後這裡會放營養與身體健康相關的研究與規劃。</p>
+    <h2>🌿 健康家庭</h2>
+    <p class="section-desc">目前家中營養品的一日搭配時間軸（Young Living 系列）。</p>
+
+    <div class="health-note">
+      <b>排法邏輯：</b>消化酵素隨餐或飯前吃、幫助那一餐消化；益生菌建議空腹或睡前吃、存活率較高；同類型酵素（Essentialzyme／Essentialzymes-4）不同餐重複吃，避免疊加。以下時間僅供參考，實際份量請以瓶身標示為準。
+    </div>
+
+    <div class="timeline">
+
+      <div class="time-slot">
+        <p class="time-label">🌅 早餐前（空腹）</p>
+        <div class="supp-card">
+          <img src="images/supplements/detoxzyme.jpg" alt="Detoxzyme">
+          <div class="supp-info">
+            <h4>Detoxzyme 素食酵素</h4>
+            <span class="dose">2顆</span>
+            <p>兩餐之間或空腹服用，幫助全身酵素活性、消化與代謝。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-slot">
+        <p class="time-label">🍳 早餐時</p>
+        <div class="supp-card">
+          <img src="images/supplements/sulfurzyme.jpg" alt="Sulfurzyme">
+          <div class="supp-info">
+            <h4>Sulfurzyme 勁捷配方</h4>
+            <span class="dose">2顆</span>
+            <p>MSM + 寧夏枸杞粉，關節、皮膚毛髮保健，隨餐或飯前後1小時皆可。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-slot">
+        <p class="time-label">🍱 午餐前1小時</p>
+        <div class="supp-card">
+          <img src="images/supplements/essentialzyme.jpg" alt="Essentialzyme">
+          <div class="supp-info">
+            <h4>Essentialzyme 消化酵素</h4>
+            <span class="dose">1錠</span>
+            <p>最大一餐前1小時服用，幫助分解脂肪、蛋白質、澱粉。與 Essentialzymes-4 擇一，不同餐重複。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-slot">
+        <p class="time-label">☕ 下午（兩餐之間）</p>
+        <div class="supp-card">
+          <img src="images/supplements/detoxzyme.jpg" alt="Detoxzyme">
+          <div class="supp-info">
+            <h4>Detoxzyme 素食酵素</h4>
+            <span class="dose">2顆</span>
+            <p>第二次補充，兩餐之間服用。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-slot">
+        <p class="time-label">🍽️ 晚餐時</p>
+        <div class="supp-card">
+          <img src="images/supplements/sulfurzyme.jpg" alt="Sulfurzyme">
+          <div class="supp-info">
+            <h4>Sulfurzyme 勁捷配方</h4>
+            <span class="dose">2顆</span>
+            <p>第二次補充，隨餐或飯前後1小時皆可。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="time-slot">
+        <p class="time-label">🌙 睡前（飯後）</p>
+        <div class="supp-card">
+          <img src="images/supplements/life9.jpg" alt="Life 9">
+          <div class="supp-info">
+            <h4>Life 9 悠活9 益生菌</h4>
+            <span class="dose">1顆</span>
+            <p>每晚飯後服用，胃酸較少時益生菌存活率較高。</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="health-warn">
+      <h4>⚠️ 使用提醒</h4>
+      <p>
+        以上皆為保健食品，非藥品，官方建議劑量僅供參考。<br>
+        如有慢性病、正在服藥（尤其抗凝血藥、甲狀腺藥物等），使用前建議先諮詢醫師或藥師。<br>
+        Essentialzyme 與 Essentialzymes-4 功能重疊，同一餐請擇一使用，不要疊加。
+      </p>
     </div>
   </section>
 
