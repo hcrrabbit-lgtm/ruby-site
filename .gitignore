@@ -4,3 +4,6 @@
 !.dev.vars.example
 .env*
 !.env.example
+
+# 含真實學生姓名/性別等個資，不可進版控（此 repo 為 public）
+migrations/0002_add_401_405_students.sql

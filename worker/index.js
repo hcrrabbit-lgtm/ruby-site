@@ -12,20 +12,8 @@ CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT 
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
-INSERT OR IGNORE INTO classes (id, name) VALUES ('5-1', '五年一班');
-INSERT OR IGNORE INTO schedule (class_id, weekday, start, end, label) VALUES ('5-1', 2, '09:50', '10:30', '第3節'), ('5-1', 5, '13:10', '13:50', '第6節');
-INSERT OR IGNORE INTO assignments (id, class_id, name, order_no) VALUES ('hw1', '5-1', '作業1', 1);
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
-
-const STUDENT_SEED = [
-  ["s1",1,"王小明"],["s2",2,"陳怡君"],["s3",3,"林政宏"],["s4",4,"張雅婷"],["s5",5,"李明哲"],
-  ["s6",6,"吳佳蓉"],["s7",7,"黃俊傑"],["s8",8,"劉思妤"],["s9",9,"蔡承翰"],["s10",10,"楊宜蓁"],
-  ["s11",11,"許家瑋"],["s12",12,"鄭雨萱"],["s13",13,"謝宗翰"],["s14",14,"郭曉彤"],["s15",15,"洪柏宇"],
-  ["s16",16,"邱怡萱"],["s17",17,"曾冠廷"],["s18",18,"廖芸熙"],["s19",19,"賴俊安"],["s20",20,"徐子涵"],
-  ["s21",21,"周奕安"],["s22",22,"潘詩涵"],["s23",23,"蘇柏諺"],["s24",24,"江宜臻"],["s25",25,"顏彥廷"],
-  ["s26",26,"簡佳琪"],["s27",27,"施宇軒"],["s28",28,"范詠晴"],["s29",29,"沈致遠"],["s30",30,"姚語彤"]
-];
 
 let schemaReady = false;
 async function ensureSchema(env) {
@@ -37,11 +25,6 @@ async function ensureSchema(env) {
     } catch (e) {
       // continue past any single statement that fails (e.g. unique index blocked by pre-existing duplicate rows)
     }
-  }
-  for (const [id, seat, name] of STUDENT_SEED) {
-    await env.DB.prepare(
-      "INSERT OR IGNORE INTO students (id, class_id, seat, name) VALUES (?, '5-1', ?, ?)"
-    ).bind(id, seat, name).run();
   }
   try {
     await env.DB.prepare("ALTER TABLE students ADD COLUMN photo_key TEXT").run();
