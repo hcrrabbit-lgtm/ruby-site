@@ -143,14 +143,54 @@ async function handleAttendanceGet(env, url) {
 async function handleAttendanceSummary(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const res = await env.DB.prepare(
-    `SELECT a.student_id as studentId, COUNT(*) as lateCount FROM attendance a
+    `SELECT a.student_id as studentId, a.status as status, COUNT(*) as cnt FROM attendance a
      JOIN students s ON s.id = a.student_id
-     WHERE s.class_id = ? AND a.status = 'late'
-     GROUP BY a.student_id`
+     WHERE s.class_id = ?
+     GROUP BY a.student_id, a.status`
   ).bind(classId).all();
   const map = {};
-  res.results.forEach(r => { map[r.studentId] = r.lateCount; });
+  res.results.forEach(r => {
+    if (!map[r.studentId]) map[r.studentId] = { late: 0, absent: 0 };
+    if (r.status === "late") map[r.studentId].late = r.cnt;
+    if (r.status === "absent") map[r.studentId].absent = r.cnt;
+  });
   return json(map);
+}
+
+async function handleBehaviorSummary(env, url) {
+  const classId = url.searchParams.get("classId") || "5-1";
+  const res = await env.DB.prepare(
+    `SELECT b.student_id as studentId,
+            SUM(CASE WHEN b.delta > 0 THEN b.delta ELSE 0 END) as plusTotal,
+            SUM(CASE WHEN b.delta < 0 THEN -b.delta ELSE 0 END) as minusTotal
+     FROM behavior_events b JOIN students s ON s.id = b.student_id
+     WHERE s.class_id = ?
+     GROUP BY b.student_id`
+  ).bind(classId).all();
+  const map = {};
+  res.results.forEach(r => { map[r.studentId] = { plus: r.plusTotal || 0, minus: r.minusTotal || 0 }; });
+  return json(map);
+}
+
+async function handleAssignmentScores(env, url) {
+  const classId = url.searchParams.get("classId") || "5-1";
+  const assignments = (await env.DB.prepare(
+    "SELECT id, name FROM assignments WHERE class_id = ? ORDER BY order_no"
+  ).bind(classId).all()).results;
+
+  const subs = (await env.DB.prepare(
+    `SELECT sub.student_id as studentId, sub.assignment_id as assignmentId, sub.score as score
+     FROM submissions sub JOIN students s ON s.id = sub.student_id
+     WHERE s.class_id = ?`
+  ).bind(classId).all()).results;
+
+  const scores = {};
+  subs.forEach(r => {
+    if (!scores[r.studentId]) scores[r.studentId] = {};
+    scores[r.studentId][r.assignmentId] = r.score;
+  });
+
+  return json({ assignments, scores });
 }
 
 async function handleAttendancePost(env, request) {
@@ -514,10 +554,12 @@ export default {
 
       if (path === "/api/behavior" && request.method === "GET") return await handleBehaviorGet(env, url);
       if (path === "/api/behavior" && request.method === "POST") return await handleBehaviorPost(env, request);
+      if (path === "/api/behavior/summary" && request.method === "GET") return await handleBehaviorSummary(env, url);
 
       if (path === "/api/assignments" && request.method === "GET") return await handleAssignmentsGet(env, url);
       if (path === "/api/assignments" && request.method === "POST") return await handleAssignmentsPost(env, request);
       if (path === "/api/assignments/rename" && request.method === "POST") return await handleAssignmentsRename(env, request);
+      if (path === "/api/assignments/scores" && request.method === "GET") return await handleAssignmentScores(env, url);
 
       if (path === "/api/photo" && request.method === "POST") return await handlePhotoUpload(env, request, url);
       if (path.startsWith("/api/photo/") && request.method === "GET") {

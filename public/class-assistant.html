@@ -310,6 +310,32 @@
     padding:3px 1px;font-size:11px;font-weight:700;line-height:1.2;
   }
 
+  .stats-toolbar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin-bottom:10px;flex-wrap:wrap;
+  }
+  .stats-search{
+    flex:1;min-width:140px;font-size:14px;padding:8px 10px;border-radius:8px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+  }
+  .stats-table-wrap{
+    overflow-x:auto;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);
+  }
+  .stats-table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;}
+  .stats-table th, .stats-table td{
+    border:1px solid var(--line);padding:6px 8px;text-align:center;white-space:nowrap;
+  }
+  .stats-table thead th{
+    background:var(--paper);color:var(--ink-soft);cursor:pointer;user-select:none;
+  }
+  .stats-table thead th.sorted{color:var(--sage-dark);}
+  .stats-table td.stats-name{text-align:left;font-weight:600;}
+  .stats-table td.stats-seat{color:var(--ink-soft);}
+  .stats-table td.stats-plus{color:var(--sage-dark);font-weight:600;}
+  .stats-table td.stats-minus{color:var(--clay);font-weight:600;}
+  .stats-table tfoot td{background:var(--paper);font-weight:700;}
+
   .photo-modal{
     position:fixed;inset:0;background:rgba(0,0,0,0.75);
     display:flex;align-items:center;justify-content:center;
@@ -370,6 +396,7 @@
     <button data-tab="artwork">作品評分</button>
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
+    <button data-tab="stats">統計表</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
@@ -439,6 +466,16 @@
     </div>
   </section>
 
+  <section class="panel" id="panel-stats">
+    <div class="stats-toolbar">
+      <input type="text" id="statsSearch" class="stats-search" placeholder="搜尋座號或姓名">
+      <span class="count" id="statsCount">0 位學生</span>
+    </div>
+    <div class="stats-table-wrap">
+      <table class="stats-table" id="statsTable"></table>
+    </div>
+  </section>
+
   <div class="footer-note">
     出席、秩序評分、作業成績都會即時存到資料庫。<br>
     只有「待歸戶照片」(已拍但還沒指定座號)是暫存在這個分頁裡,重新整理會消失,記得拍完就盡快指定座號。
@@ -452,10 +489,17 @@ let currentClasses = [];   // classes list from the latest /api/schedule respons
 let weeklySchedule = [];   // { classId, className, weekday, start, end, label }[] from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
-let lateTotals = {};   // { studentId: cumulative late count since records began }
+let lateTotals = {};   // { studentId: { late, absent } } cumulative counts since records began
 let selectedDate = "";  // "YYYY-MM-DD", defaults to today, changeable via the date picker
 let rosterSortMode = "seat"; // "seat" | "scoreDesc" | "scoreAsc"
 let rosterCache = [];
+
+let statsBehaviorTotals = {}; // { studentId: { plus, minus } } cumulative since records began
+let statsAssignments = [];    // [{ id, name }] assignments for the current class
+let statsScores = {};         // { studentId: { assignmentId: score } }
+let statsSearchTerm = "";
+let statsSortKey = "seat";    // "seat" | "name" | "plus" | "minus" | "late" | "absent" | assignmentId
+let statsSortAsc = true;
 
 let audioCtx = null;
 function playBeep(freq, volume){
@@ -741,7 +785,7 @@ function renderRoster(){
             <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
             <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
           </div>
-          <div class="late-total">累計遲到 ${lateTotals[st.id] || 0} 次</div>
+          <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0} 次</div>
           <div class="beh-controls">
             <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
             <div class="beh-score ${scoreCls}">${score > 0 ? "+" + score : score}</div>
@@ -811,6 +855,128 @@ async function loadLateTotals(){
   }
   renderRoster();
 }
+
+/* ---------- Stats table (統計表) ---------- */
+async function loadStatsData(){
+  statsBehaviorTotals = {};
+  statsAssignments = [];
+  statsScores = {};
+  if(currentClassId){
+    try{
+      statsBehaviorTotals = await apiGet(`/api/behavior/summary?classId=${encodeURIComponent(currentClassId)}`);
+    }catch(e){}
+    try{
+      const res = await apiGet(`/api/assignments/scores?classId=${encodeURIComponent(currentClassId)}`);
+      statsAssignments = res.assignments || [];
+      statsScores = res.scores || {};
+    }catch(e){}
+  }
+  renderStatsTable();
+}
+
+function statsBehaviorFor(studentId){
+  return statsBehaviorTotals[studentId] || { plus: 0, minus: 0 };
+}
+function statsLateFor(studentId){
+  return (lateTotals[studentId] && lateTotals[studentId].late) || 0;
+}
+function statsAbsentFor(studentId){
+  return (lateTotals[studentId] && lateTotals[studentId].absent) || 0;
+}
+
+function statsValueFor(st, key){
+  if(key === "seat") return st.seat;
+  if(key === "name") return st.name;
+  if(key === "plus") return statsBehaviorFor(st.id).plus;
+  if(key === "minus") return statsBehaviorFor(st.id).minus;
+  if(key === "late") return statsLateFor(st.id);
+  if(key === "absent") return statsAbsentFor(st.id);
+  const score = statsScores[st.id] && statsScores[st.id][key];
+  return score != null ? score : -1;
+}
+
+function renderStatsTable(){
+  const root = document.getElementById("statsTable");
+  if(!root) return;
+
+  const term = statsSearchTerm.trim();
+  let list = rosterCache.filter(st => !term || String(st.seat).includes(term) || st.name.includes(term));
+
+  list.sort((a, b) => {
+    const va = statsValueFor(a, statsSortKey), vb = statsValueFor(b, statsSortKey);
+    const cmp = typeof va === "string" ? va.localeCompare(vb, "zh-Hant") : va - vb;
+    return statsSortAsc ? cmp : -cmp;
+  });
+
+  document.getElementById("statsCount").textContent = list.length + " 位學生";
+
+  const columns = [
+    { key: "seat", label: "座號" },
+    { key: "name", label: "姓名" },
+    { key: "plus", label: "加分累計" },
+    { key: "minus", label: "扣分累計" },
+    { key: "late", label: "遲到累計" },
+    { key: "absent", label: "缺席累計" },
+    ...statsAssignments.map(a => ({ key: a.id, label: a.name }))
+  ];
+
+  const headHtml = columns.map(c => {
+    const isSorted = statsSortKey === c.key;
+    return `<th data-key="${c.key}" class="${isSorted ? "sorted" : ""}">${c.label}${isSorted ? (statsSortAsc ? " ▲" : " ▼") : ""}</th>`;
+  }).join("");
+
+  const bodyHtml = list.map(st => {
+    const beh = statsBehaviorFor(st.id);
+    const assignmentCells = statsAssignments.map(a => {
+      const score = statsScores[st.id] && statsScores[st.id][a.id];
+      return `<td>${score != null ? score : "-"}</td>`;
+    }).join("");
+    return `<tr>
+      <td class="stats-seat">${st.seat}</td>
+      <td class="stats-name">${st.name}</td>
+      <td class="stats-plus">${beh.plus}</td>
+      <td class="stats-minus">${beh.minus}</td>
+      <td>${statsLateFor(st.id)}</td>
+      <td>${statsAbsentFor(st.id)}</td>
+      ${assignmentCells}
+    </tr>`;
+  }).join("");
+
+  const sum = (fn) => list.reduce((acc, st) => acc + fn(st), 0);
+  const avgCells = statsAssignments.map(a => {
+    const scores = list
+      .map(st => statsScores[st.id] && statsScores[st.id][a.id])
+      .filter(v => v != null);
+    if(!scores.length) return `<td>-</td>`;
+    const avg = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+    return `<td>${avg}</td>`;
+  }).join("");
+
+  const footHtml = `<tr>
+    <td colspan="2">全班合計/平均</td>
+    <td>${sum(st => statsBehaviorFor(st.id).plus)}</td>
+    <td>${sum(st => statsBehaviorFor(st.id).minus)}</td>
+    <td>${sum(st => statsLateFor(st.id))}</td>
+    <td>${sum(st => statsAbsentFor(st.id))}</td>
+    ${avgCells}
+  </tr>`;
+
+  root.innerHTML = `<thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody><tfoot>${footHtml}</tfoot>`;
+
+  root.querySelectorAll("thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.key;
+      if(statsSortKey === key) statsSortAsc = !statsSortAsc;
+      else { statsSortKey = key; statsSortAsc = true; }
+      renderStatsTable();
+    });
+  });
+}
+
+document.getElementById("statsSearch").addEventListener("input", (e) => {
+  statsSearchTerm = e.target.value;
+  renderStatsTable();
+});
 
 async function loadAttendanceAndBehaviorForDate(){
   attendance = {};
@@ -1308,6 +1474,7 @@ async function loadRoster(){
   dateInput.value = selectedDate;
   await loadAttendanceAndBehaviorForDate();
   await loadLateTotals();
+  await loadStatsData();
 
   renderStudentsGrid();
   await loadAssignments();
