@@ -546,7 +546,16 @@ function renderNowDate(){
     `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}(星期${weekdayLabel(ymd)}) ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   const week = semesterWeekOf(ymd);
-  document.getElementById("weekBadge").textContent = week ? `第${week}週` : "";
+  let weekText = "";
+  if(week){
+    weekText = `第${week}週`;
+  }else{
+    const [y, m, d] = ymd.split("-").map(Number);
+    const diffDays = Math.round((Date.UTC(y, m-1, d) - SEMESTER_START) / 86400000);
+    if(diffDays < 0) weekText = `開學倒數${-diffDays}天`;
+    else weekText = "本學期已結束";
+  }
+  document.getElementById("weekBadge").textContent = weekText;
 
   const holiday = holidayOn(ymd);
   const exam = examOn(ymd);
