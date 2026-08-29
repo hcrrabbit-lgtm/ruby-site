@@ -92,12 +92,7 @@
     font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);cursor:pointer;
   }
-
-  .all-present-btn{
-    width:100%;padding:14px;margin-bottom:12px;border-radius:12px;border:none;
-    background:var(--sage);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
-  }
-  .all-present-btn:active{background:var(--sage-dark);}
+  .sort-btn.active{background:var(--sage);border-color:var(--sage);color:#fff;}
 
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
@@ -316,11 +311,10 @@
   </nav>
 
   <section class="panel active" id="panel-attendance">
-    <button class="all-present-btn" id="allPresentBtn">✓ 全到(清除所有標記)</button>
-
     <div class="toolbar">
       <span class="count" id="attCount">30 位學生</span>
       <button class="sort-btn" id="attSortBtn">依座號排序</button>
+      <button class="sort-btn" id="scoreSortBtn">依加扣分排序</button>
     </div>
     <div class="summary-bar">
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
@@ -386,7 +380,7 @@ let currentClassId = null;
 let currentClasses = [];   // classes list from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
-let attSortBySeat = true;
+let rosterSortMode = "seat"; // "seat" | "name" | "score"
 let rosterCache = [];
 
 function todayStr(){
@@ -499,7 +493,14 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
 /* ---------- Attendance + behavior (combined roster) ---------- */
 function renderRoster(){
   const list = [...studentsFor(currentClassId)];
-  if(!attSortBySeat) list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
+  if(rosterSortMode === "name"){
+    list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }else if(rosterSortMode === "score"){
+    list.sort((a,b) => (behavior[b.id] || 0) - (behavior[a.id] || 0) || a.seat - b.seat);
+  }
+
+  document.getElementById("attSortBtn").textContent = rosterSortMode === "name" ? "依姓名排序" : "依座號排序";
+  document.getElementById("scoreSortBtn").classList.toggle("active", rosterSortMode === "score");
 
   document.getElementById("attCount").textContent = list.length + " 位學生";
   const late = Object.values(attendance).filter(v => v === "late").length;
@@ -562,15 +563,13 @@ function renderRoster(){
 }
 
 document.getElementById("attSortBtn").addEventListener("click", () => {
-  attSortBySeat = !attSortBySeat;
-  document.getElementById("attSortBtn").textContent = attSortBySeat ? "依座號排序" : "依姓名排序";
+  rosterSortMode = rosterSortMode === "name" ? "seat" : "name";
   renderRoster();
 });
 
-document.getElementById("allPresentBtn").addEventListener("click", () => {
-  attendance = {};
+document.getElementById("scoreSortBtn").addEventListener("click", () => {
+  rosterSortMode = rosterSortMode === "score" ? "seat" : "score";
   renderRoster();
-  apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "clearAll" }).catch(()=>{});
 });
 
 /* ---------- Students grid (認識學生) ---------- */
