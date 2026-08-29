@@ -165,12 +165,16 @@
   }
 
   .summary-bar{
-    display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;
+    display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;
   }
   .summary-chip{
     background:var(--card);border:1px solid var(--line);border-radius:10px;
     padding:8px 12px;font-size:13px;color:var(--ink-soft);
   }
+  .sort-group{
+    display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap;
+  }
+  .sort-label{font-size:13px;color:var(--ink-soft);}
   .summary-chip b{color:var(--ink);}
 
   /* artwork grading */
@@ -345,9 +349,12 @@
     <div class="summary-bar">
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
       <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
-      <button class="sort-btn" id="scoreDescSortBtn">依加分排序</button>
-      <button class="sort-btn" id="scoreAscSortBtn">依扣分排序</button>
-      <button class="sort-btn" id="seatSortBtn">依座號排序</button>
+    </div>
+    <div class="sort-group">
+      <span class="sort-label">排序方式</span>
+      <button class="sort-btn" id="seatSortBtn">座號</button>
+      <button class="sort-btn" id="scoreDescSortBtn">加分</button>
+      <button class="sort-btn" id="scoreAscSortBtn">扣分</button>
     </div>
     <div class="roster" id="attRoster"></div>
   </section>
