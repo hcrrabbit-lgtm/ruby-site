@@ -99,23 +99,6 @@
   }
   .all-present-btn:active{background:var(--sage-dark);}
 
-  .quick-entry{
-    background:var(--card);border:1px solid var(--line);border-radius:12px;
-    padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;
-  }
-  .quick-row{display:flex;align-items:center;gap:8px;}
-  .quick-row label{font-size:13px;color:var(--ink-soft);width:64px;flex-shrink:0;}
-  .quick-row input{
-    flex:1;min-width:0;font-size:16px;padding:9px 10px;border-radius:8px;
-    border:1px solid var(--line);background:var(--paper);color:var(--ink);
-  }
-  .quick-apply{
-    flex-shrink:0;font-size:13px;font-weight:700;padding:9px 14px;border-radius:8px;
-    border:none;color:#fff;cursor:pointer;
-  }
-  .quick-apply.late{background:var(--ochre);}
-  .quick-apply.absent{background:var(--clay);}
-
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
     display:flex;flex-direction:column;gap:10px;
@@ -317,26 +300,13 @@
   </header>
 
   <nav class="tabs">
-    <button data-tab="attendance" class="active">出席・秩序評分</button>
+    <button data-tab="attendance" class="active">課堂表現</button>
     <button data-tab="artwork">作品評分</button>
     <button data-tab="students">認識學生</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
     <button class="all-present-btn" id="allPresentBtn">✓ 全到(清除所有標記)</button>
-
-    <div class="quick-entry">
-      <div class="quick-row">
-        <label for="lateInput">遲到座號</label>
-        <input type="text" id="lateInput" inputmode="numeric" placeholder="例如 3 7 15">
-        <button class="quick-apply late" id="lateApplyBtn">登記</button>
-      </div>
-      <div class="quick-row">
-        <label for="absentInput">缺席座號</label>
-        <input type="text" id="absentInput" inputmode="numeric" placeholder="例如 9 22">
-        <button class="quick-apply absent" id="absentApplyBtn">登記</button>
-      </div>
-    </div>
 
     <div class="toolbar">
       <span class="count" id="attCount">30 位學生</span>
@@ -589,56 +559,8 @@ document.getElementById("attSortBtn").addEventListener("click", () => {
 
 document.getElementById("allPresentBtn").addEventListener("click", () => {
   attendance = {};
-  document.getElementById("lateInput").value = "";
-  document.getElementById("absentInput").value = "";
   renderRoster();
   apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "clearAll" }).catch(()=>{});
-});
-
-function parseSeatNumbers(text){
-  return (text.match(/\d+/g) || []).map(n => parseInt(n, 10));
-}
-
-function applySeatStatus(seatNumbers, status){
-  const list = studentsFor(currentClassId);
-  const notFound = [];
-  const foundSeats = [];
-  seatNumbers.forEach(seat => {
-    const st = list.find(s => s.seat === seat);
-    if(st){ attendance[st.id] = status; foundSeats.push(seat); }
-    else notFound.push(seat);
-  });
-  if(notFound.length){
-    alert("查無座號:" + notFound.join(", "));
-  }
-  renderRoster();
-  if(foundSeats.length){
-    apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: foundSeats, status }).catch(()=>{});
-  }
-}
-
-document.getElementById("lateApplyBtn").addEventListener("click", () => {
-  const input = document.getElementById("lateInput");
-  const seats = parseSeatNumbers(input.value);
-  if(seats.length) applySeatStatus(seats, "late");
-  input.value = "";
-  input.focus();
-});
-
-document.getElementById("absentApplyBtn").addEventListener("click", () => {
-  const input = document.getElementById("absentInput");
-  const seats = parseSeatNumbers(input.value);
-  if(seats.length) applySeatStatus(seats, "absent");
-  input.value = "";
-  input.focus();
-});
-
-["lateInput","absentInput"].forEach(id => {
-  document.getElementById(id).addEventListener("keydown", (e) => {
-    if(e.key === "Enter"){
-      document.getElementById(id === "lateInput" ? "lateApplyBtn" : "absentApplyBtn").click();
-    }
-  });
 });
 
 /* ---------- Students grid (認識學生) ---------- */
