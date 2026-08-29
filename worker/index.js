@@ -163,6 +163,20 @@ async function handleAttendancePost(env, request) {
     return json({ ok: true, notFound });
   }
 
+  if (action === "clear") {
+    const { seats } = body;
+    for (const seat of seats) {
+      const stu = await env.DB.prepare(
+        "SELECT id FROM students WHERE class_id = ? AND seat = ?"
+      ).bind(classId, seat).first();
+      if (!stu) continue;
+      await env.DB.prepare(
+        "DELETE FROM attendance WHERE student_id = ? AND date = ?"
+      ).bind(stu.id, date).run();
+    }
+    return json({ ok: true });
+  }
+
   return json({ error: "unknown action" }, { status: 400 });
 }
 
