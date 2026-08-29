@@ -52,6 +52,18 @@ async function ensureSchema(env) {
   } catch (e) {
     // best-effort backfill only
   }
+  try {
+    // 405（四年5班）美術課調到週一下午第六、七節（14:20-15:55）
+    const cls = await env.DB.prepare("SELECT id FROM classes WHERE name = ?").bind("四年5班").first();
+    if (cls) {
+      await env.DB.prepare("DELETE FROM schedule WHERE class_id = ?").bind(cls.id).run();
+      await env.DB.prepare(
+        "INSERT INTO schedule (class_id, weekday, start, end, label) VALUES (?, ?, ?, ?, ?)"
+      ).bind(cls.id, 1, "14:20", "15:55", "美術課（第六、七節）").run();
+    }
+  } catch (e) {
+    // best-effort schedule fix only
+  }
   schemaReady = true;
 }
 

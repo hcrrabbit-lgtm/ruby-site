@@ -384,6 +384,25 @@ let behavior = {};     // { studentId: number }
 let rosterSortMode = "seat"; // "seat" | "scoreDesc" | "scoreAsc"
 let rosterCache = [];
 
+let audioCtx = null;
+function playBeep(freq, volume){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }catch(e){}
+}
+
 function todayStr(){
   const now = new Date();
   return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
@@ -558,6 +577,7 @@ function renderRoster(){
     btn.addEventListener("click", () => {
       const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
       behavior[id] = (behavior[id] || 0) + delta;
+      playBeep(delta > 0 ? 880 : 330, 0.05);
       renderRoster();
       apiPost("/api/behavior", { studentId: id, date: todayStr(), delta }).catch(()=>{});
     });
