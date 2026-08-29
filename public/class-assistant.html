@@ -295,7 +295,7 @@
     background:var(--paper);color:var(--ink-soft);font-size:13px;font-weight:700;
     padding:8px 4px;
   }
-  .schedule-table thead th:first-child{background:var(--card);border:none;}
+  .schedule-table thead th.period-col-head{background:var(--card);border:none;}
   .schedule-table td.period-label{
     background:var(--paper);color:var(--ink-soft);font-size:11px;line-height:1.5;
     white-space:nowrap;
@@ -612,15 +612,17 @@ function renderHeader(scheduleResult){
 }
 
 const PERIODS = [
-  { label: "第一節", start: "08:40", end: "09:20" },
-  { label: "第二節", start: "09:30", end: "10:10" },
-  { label: "第三節", start: "10:30", end: "11:10" },
-  { label: "第四節", start: "11:20", end: "12:00" },
-  { label: "第五節", start: "13:30", end: "14:10" },
-  { label: "第六節", start: "14:20", end: "15:00" },
-  { label: "第七節", start: "15:15", end: "15:55" }
+  { num: "0" },
+  { num: "1", start: "08:40", end: "09:20" },
+  { num: "2", start: "09:30", end: "10:10" },
+  { num: "3", start: "10:30", end: "11:10" },
+  { num: "4", start: "11:20", end: "12:00" },
+  { num: "5", start: "13:30", end: "14:10" },
+  { num: "6", start: "14:20", end: "15:00" },
+  { num: "7", start: "15:15", end: "15:55" }
 ];
-const SCHEDULE_WEEKDAY_LABELS = ["一","二","三","四","五"];
+const SCHEDULE_WEEKDAYS = [5, 4, 3, 2, 1]; // 顯示順序比照課表：五四三二一，由左到右
+const SCHEDULE_WEEKDAY_LABELS = { 1:"一", 2:"二", 3:"三", 4:"四", 5:"五" };
 
 function renderWeeklySchedule(){
   const root = document.getElementById("scheduleTable");
@@ -628,12 +630,12 @@ function renderWeeklySchedule(){
   const todayWeekday = new Date().getDay();
 
   const blocksByWeekday = {};
-  for(let wd = 1; wd <= 5; wd++){
+  SCHEDULE_WEEKDAYS.forEach(wd => {
     blocksByWeekday[wd] = weeklySchedule
       .filter(s => s.weekday === wd)
       .map(e => {
         const coveredIdx = PERIODS
-          .map((p, i) => (p.start >= e.start && p.end <= e.end) ? i : -1)
+          .map((p, i) => (p.start && p.start >= e.start && p.end <= e.end) ? i : -1)
           .filter(i => i >= 0);
         if(!coveredIdx.length) return null;
         return {
@@ -643,21 +645,23 @@ function renderWeeklySchedule(){
         };
       })
       .filter(Boolean);
-  }
+  });
 
-  const headHtml = `<tr><th></th>${
-    SCHEDULE_WEEKDAY_LABELS.map((w, i) => `<th class="${i+1 === todayWeekday ? "today-col" : ""}">星期${w}</th>`).join("")
-  }</tr>`;
+  const headHtml = `<tr>${
+    SCHEDULE_WEEKDAYS.map(wd => `<th class="${wd === todayWeekday ? "today-col" : ""}">星期${SCHEDULE_WEEKDAY_LABELS[wd]}</th>`).join("")
+  }<th class="period-col-head"></th></tr>`;
 
-  const rowsRemaining = { 1:0, 2:0, 3:0, 4:0, 5:0 };
+  const rowsRemaining = {};
+  SCHEDULE_WEEKDAYS.forEach(wd => { rowsRemaining[wd] = 0; });
+
   let bodyHtml = "";
   PERIODS.forEach((p, pi) => {
-    let rowHtml = `<tr><td class="period-label">${p.label}<br>${p.start}</td>`;
-    for(let wd = 1; wd <= 5; wd++){
+    let rowHtml = "<tr>";
+    SCHEDULE_WEEKDAYS.forEach(wd => {
       const todayCls = wd === todayWeekday ? "today-col" : "";
       if(rowsRemaining[wd] > 0){
         rowsRemaining[wd]--;
-        continue;
+        return;
       }
       const block = blocksByWeekday[wd].find(b => b.startIdx === pi);
       if(block){
@@ -667,8 +671,9 @@ function renderWeeklySchedule(){
       }else{
         rowHtml += `<td class="${todayCls}"></td>`;
       }
-    }
-    rowHtml += `</tr>`;
+    });
+    rowHtml += `<td class="period-label">${p.num}${p.start ? `<br>${p.start}` : ""}</td>`;
+    rowHtml += "</tr>";
     bodyHtml += rowHtml;
   });
 
