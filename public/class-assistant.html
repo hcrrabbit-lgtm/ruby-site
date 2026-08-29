@@ -118,9 +118,14 @@
 
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
-    display:flex;align-items:center;gap:12px;
+    display:flex;flex-direction:column;gap:10px;
     background:var(--card);border:1px solid var(--line);border-radius:12px;
     padding:10px 12px;
+  }
+  .student-row-top{display:flex;align-items:center;gap:12px;}
+  .student-row-controls{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding-top:8px;border-top:1px solid var(--line);
   }
   .seat{
     width:34px;height:34px;border-radius:50%;background:var(--paper);
@@ -312,8 +317,7 @@
   </header>
 
   <nav class="tabs">
-    <button data-tab="attendance" class="active">出席點名</button>
-    <button data-tab="behavior">秩序評分</button>
+    <button data-tab="attendance" class="active">出席・秩序評分</button>
     <button data-tab="artwork">作品評分</button>
     <button data-tab="students">認識學生</button>
   </nav>
@@ -343,14 +347,6 @@
       <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
     </div>
     <div class="roster" id="attRoster"></div>
-  </section>
-
-  <section class="panel" id="panel-behavior">
-    <div class="toolbar">
-      <span class="count" id="behCount">30 位學生</span>
-      <button class="sort-btn" id="behSortBtn">依座號排序</button>
-    </div>
-    <div class="roster" id="behRoster"></div>
   </section>
 
   <section class="panel" id="panel-artwork">
@@ -411,7 +407,6 @@ let currentClasses = [];   // classes list from the latest /api/schedule respons
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
 let attSortBySeat = true;
-let behSortBySeat = true;
 let rosterCache = [];
 
 function todayStr(){
@@ -521,8 +516,8 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
   });
 });
 
-/* ---------- Attendance ---------- */
-function renderAttendance(){
+/* ---------- Attendance + behavior (combined roster) ---------- */
+function renderRoster(){
   const list = [...studentsFor(currentClassId)];
   if(!attSortBySeat) list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
 
@@ -535,15 +530,26 @@ function renderAttendance(){
   const root = document.getElementById("attRoster");
   root.innerHTML = list.map(st => {
     const state = attendance[st.id];
+    const score = behavior[st.id] || 0;
+    const scoreCls = score > 0 ? "pos" : (score < 0 ? "neg" : "");
     const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `
       <div class="student-row">
-        <div class="avatar" data-student="${st.id}" title="點一下拍/換大頭照">${avatarInner}</div>
-        <div class="seat">${st.seat}</div>
-        <div class="s-name">${st.name}</div>
-        <div class="att-controls">
-          <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
-          <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
+        <div class="student-row-top">
+          <div class="avatar" data-student="${st.id}" title="點一下拍/換大頭照">${avatarInner}</div>
+          <div class="seat">${st.seat}</div>
+          <div class="s-name">${st.name}</div>
+        </div>
+        <div class="student-row-controls">
+          <div class="att-controls">
+            <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
+            <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
+          </div>
+          <div class="beh-controls">
+            <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
+            <div class="beh-score ${scoreCls}">${score > 0 ? "+" + score : score}</div>
+            <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋</button>
+          </div>
         </div>
       </div>`;
   }).join("");
@@ -557,11 +563,20 @@ function renderAttendance(){
       const id = btn.dataset.id, state = btn.dataset.state;
       attendance[id] = (attendance[id] === state) ? undefined : state;
       if(attendance[id] === undefined) delete attendance[id];
-      renderAttendance();
+      renderRoster();
       if(attendance[id]){
         const st = studentsFor(currentClassId).find(s => s.id === id);
         if(st) apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: [st.seat], status: attendance[id] }).catch(()=>{});
       }
+    });
+  });
+
+  root.querySelectorAll(".beh-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
+      behavior[id] = (behavior[id] || 0) + delta;
+      renderRoster();
+      apiPost("/api/behavior", { studentId: id, date: todayStr(), delta }).catch(()=>{});
     });
   });
 }
@@ -569,14 +584,14 @@ function renderAttendance(){
 document.getElementById("attSortBtn").addEventListener("click", () => {
   attSortBySeat = !attSortBySeat;
   document.getElementById("attSortBtn").textContent = attSortBySeat ? "依座號排序" : "依姓名排序";
-  renderAttendance();
+  renderRoster();
 });
 
 document.getElementById("allPresentBtn").addEventListener("click", () => {
   attendance = {};
   document.getElementById("lateInput").value = "";
   document.getElementById("absentInput").value = "";
-  renderAttendance();
+  renderRoster();
   apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "clearAll" }).catch(()=>{});
 });
 
@@ -596,7 +611,7 @@ function applySeatStatus(seatNumbers, status){
   if(notFound.length){
     alert("查無座號:" + notFound.join(", "));
   }
-  renderAttendance();
+  renderRoster();
   if(foundSeats.length){
     apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: foundSeats, status }).catch(()=>{});
   }
@@ -624,51 +639,6 @@ document.getElementById("absentApplyBtn").addEventListener("click", () => {
       document.getElementById(id === "lateInput" ? "lateApplyBtn" : "absentApplyBtn").click();
     }
   });
-});
-
-/* ---------- Behavior scoring ---------- */
-function renderBehavior(){
-  const list = [...studentsFor(currentClassId)];
-  if(!behSortBySeat) list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
-
-  document.getElementById("behCount").textContent = list.length + " 位學生";
-
-  const root = document.getElementById("behRoster");
-  root.innerHTML = list.map(st => {
-    const score = behavior[st.id] || 0;
-    const cls = score > 0 ? "pos" : (score < 0 ? "neg" : "");
-    const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
-    return `
-      <div class="student-row">
-        <div class="avatar" data-student="${st.id}" title="點一下拍/換大頭照">${avatarInner}</div>
-        <div class="seat">${st.seat}</div>
-        <div class="s-name">${st.name}</div>
-        <div class="beh-controls">
-          <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
-          <div class="beh-score ${cls}">${score > 0 ? "+" + score : score}</div>
-          <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋</button>
-        </div>
-      </div>`;
-  }).join("");
-
-  root.querySelectorAll(".avatar").forEach(el => {
-    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
-  });
-
-  root.querySelectorAll(".beh-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
-      behavior[id] = (behavior[id] || 0) + delta;
-      renderBehavior();
-      apiPost("/api/behavior", { studentId: id, date: todayStr(), delta }).catch(()=>{});
-    });
-  });
-}
-
-document.getElementById("behSortBtn").addEventListener("click", () => {
-  behSortBySeat = !behSortBySeat;
-  document.getElementById("behSortBtn").textContent = behSortBySeat ? "依座號排序" : "依姓名排序";
-  renderBehavior();
 });
 
 /* ---------- Students grid (認識學生) ---------- */
@@ -852,8 +822,7 @@ async function uploadAvatar(studentId, blob){
     const data = await res.json();
     const st = rosterCache.find(s => s.id === studentId);
     if(st) st.photoKey = data.key;
-    renderAttendance();
-    renderBehavior();
+    renderRoster();
     renderStudentsGrid();
   }catch(e){}
 }
@@ -1151,8 +1120,7 @@ async function loadRoster(){
     }catch(e){}
   }
 
-  renderAttendance();
-  renderBehavior();
+  renderRoster();
   renderStudentsGrid();
   await loadAssignments();
   renderUnassigned();
