@@ -94,6 +94,13 @@
   }
   .sort-btn.active{background:var(--sage);border-color:var(--sage);color:#fff;}
 
+  .date-picker{display:flex;align-items:center;gap:6px;}
+  .date-picker label{font-size:13px;color:var(--ink-soft);}
+  .date-picker input[type="date"]{
+    font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);
+  }
+
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
     display:flex;flex-direction:column;gap:10px;
@@ -103,8 +110,9 @@
   .student-row-top{display:flex;align-items:center;gap:12px;}
   .student-row-controls{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding-top:8px;border-top:1px solid var(--line);
+    padding-top:8px;border-top:1px solid var(--line);flex-wrap:wrap;
   }
+  .late-total{font-size:11px;color:var(--clay);font-weight:700;white-space:nowrap;}
   .seat{
     width:34px;height:34px;border-radius:50%;background:var(--paper);
     display:flex;align-items:center;justify-content:center;
@@ -313,6 +321,10 @@
   <section class="panel active" id="panel-attendance">
     <div class="toolbar">
       <span class="count" id="attCount">30 位學生</span>
+      <div class="date-picker">
+        <label for="attDateInput">查詢日期</label>
+        <input type="date" id="attDateInput">
+      </div>
     </div>
     <div class="summary-bar">
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
@@ -381,6 +393,8 @@ let currentClassId = null;
 let currentClasses = [];   // classes list from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
+let lateTotals = {};   // { studentId: cumulative late count since records began }
+let selectedDate = "";  // "YYYY-MM-DD", defaults to today, changeable via the date picker
 let rosterSortMode = "seat"; // "seat" | "scoreDesc" | "scoreAsc"
 let rosterCache = [];
 
@@ -547,6 +561,7 @@ function renderRoster(){
             <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
             <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
           </div>
+          <div class="late-total">累計遲到 ${lateTotals[st.id] || 0} 次</div>
           <div class="beh-controls">
             <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
             <div class="beh-score ${scoreCls}">${score > 0 ? "+" + score : score}</div>
@@ -568,7 +583,9 @@ function renderRoster(){
       renderRoster();
       if(attendance[id]){
         const st = studentsFor(currentClassId).find(s => s.id === id);
-        if(st) apiPost("/api/attendance", { classId: currentClassId, date: todayStr(), action: "setStatus", seats: [st.seat], status: attendance[id] }).catch(()=>{});
+        if(st) apiPost("/api/attendance", { classId: currentClassId, date: selectedDate, action: "setStatus", seats: [st.seat], status: attendance[id] })
+          .then(() => loadLateTotals())
+          .catch(()=>{});
       }
     });
   });
@@ -579,7 +596,7 @@ function renderRoster(){
       behavior[id] = (behavior[id] || 0) + delta;
       playBeep(delta > 0 ? 880 : 330, 0.05);
       renderRoster();
-      apiPost("/api/behavior", { studentId: id, date: todayStr(), delta }).catch(()=>{});
+      apiPost("/api/behavior", { studentId: id, date: selectedDate, delta }).catch(()=>{});
     });
   });
 }
@@ -597,6 +614,35 @@ document.getElementById("scoreDescSortBtn").addEventListener("click", () => {
 document.getElementById("scoreAscSortBtn").addEventListener("click", () => {
   rosterSortMode = "scoreAsc";
   renderRoster();
+});
+
+async function loadLateTotals(){
+  lateTotals = {};
+  if(currentClassId){
+    try{
+      lateTotals = await apiGet(`/api/attendance/summary?classId=${encodeURIComponent(currentClassId)}`);
+    }catch(e){}
+  }
+  renderRoster();
+}
+
+async function loadAttendanceAndBehaviorForDate(){
+  attendance = {};
+  behavior = {};
+  if(currentClassId){
+    try{
+      attendance = await apiGet(`/api/attendance?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`);
+    }catch(e){}
+    try{
+      behavior = await apiGet(`/api/behavior?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`);
+    }catch(e){}
+  }
+  renderRoster();
+}
+
+document.getElementById("attDateInput").addEventListener("change", (e) => {
+  selectedDate = e.target.value || todayStr();
+  loadAttendanceAndBehaviorForDate();
 });
 
 /* ---------- Students grid (認識學生) ---------- */
@@ -1069,20 +1115,14 @@ document.getElementById("artSortBtn").addEventListener("click", () => {
 
 async function loadRoster(){
   rosterCache = await loadRosterFromApi(currentClassId);
-  attendance = {};
-  behavior = {};
 
-  if(currentClassId){
-    try{
-      attendance = await apiGet(`/api/attendance?classId=${encodeURIComponent(currentClassId)}&date=${todayStr()}`);
-    }catch(e){}
+  selectedDate = todayStr();
+  const dateInput = document.getElementById("attDateInput");
+  dateInput.max = selectedDate;
+  dateInput.value = selectedDate;
+  await loadAttendanceAndBehaviorForDate();
+  await loadLateTotals();
 
-    try{
-      behavior = await apiGet(`/api/behavior?classId=${encodeURIComponent(currentClassId)}&date=${todayStr()}`);
-    }catch(e){}
-  }
-
-  renderRoster();
   renderStudentsGrid();
   await loadAssignments();
   renderUnassigned();

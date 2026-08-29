@@ -123,6 +123,19 @@ async function handleAttendanceGet(env, url) {
   return json(map);
 }
 
+async function handleAttendanceSummary(env, url) {
+  const classId = url.searchParams.get("classId") || "5-1";
+  const res = await env.DB.prepare(
+    `SELECT a.student_id as studentId, COUNT(*) as lateCount FROM attendance a
+     JOIN students s ON s.id = a.student_id
+     WHERE s.class_id = ? AND a.status = 'late'
+     GROUP BY a.student_id`
+  ).bind(classId).all();
+  const map = {};
+  res.results.forEach(r => { map[r.studentId] = r.lateCount; });
+  return json(map);
+}
+
 async function handleAttendancePost(env, request) {
   const body = await request.json();
   const { classId, date, action } = body;
@@ -466,6 +479,7 @@ export default {
 
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);
       if (path === "/api/attendance" && request.method === "POST") return await handleAttendancePost(env, request);
+      if (path === "/api/attendance/summary" && request.method === "GET") return await handleAttendanceSummary(env, url);
 
       if (path === "/api/behavior" && request.method === "GET") return await handleBehaviorGet(env, url);
       if (path === "/api/behavior" && request.method === "POST") return await handleBehaviorPost(env, request);
