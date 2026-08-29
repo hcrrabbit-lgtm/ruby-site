@@ -57,22 +57,6 @@
     font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);
   }
-  .calendar-link{
-    align-self:flex-start;font-size:12px;color:var(--sage-dark);background:none;border:none;
-    padding:2px 0;margin-top:2px;cursor:pointer;text-decoration:underline;
-  }
-  .semester-calendar{
-    margin-top:6px;padding:8px 10px;background:var(--paper);border:1px solid var(--line);
-    border-radius:10px;max-height:240px;overflow-y:auto;
-    display:flex;flex-direction:column;gap:3px;
-  }
-  .week-row{
-    display:flex;flex-wrap:wrap;column-gap:8px;row-gap:2px;align-items:baseline;
-    font-size:12px;padding:3px 4px;border-radius:6px;
-  }
-  .week-row b{color:var(--ink);}
-  .week-row .week-range{color:var(--ink-soft);}
-  .week-row .week-notes{color:var(--clay);font-weight:600;}
   .class-row{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     margin-top:4px;flex-wrap:wrap;
@@ -336,8 +320,6 @@
         <input type="date" id="dateInput">
       </div>
     </div>
-    <button type="button" class="calendar-link" id="calendarToggleBtn">📅 學期行事曆(共21週)</button>
-    <div class="semester-calendar" id="semesterCalendar" hidden></div>
     <div class="class-row">
       <div>
         <div class="class-name" id="className">載入中…</div>
@@ -511,14 +493,6 @@ const SEMESTER_EXAMS = [
   { start: "2027-01-14", end: "2027-01-15", label: "期末評量" }
 ];
 
-function ymdOf(utcMs){
-  const d = new Date(utcMs);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
-}
-function mdOf(ymd){
-  const [, m, d] = ymd.split("-");
-  return `${parseInt(m,10)}/${parseInt(d,10)}`;
-}
 function semesterWeekOf(ymd){
   const [y, m, d] = ymd.split("-").map(Number);
   const diffDays = Math.round((Date.UTC(y, m-1, d) - SEMESTER_START) / 86400000);
@@ -564,32 +538,6 @@ function renderNowDate(){
   if(exam) html += `<span class="exam-badge">📝 今天${exam.label}</span>`;
   document.getElementById("todayNote").innerHTML = html;
 }
-
-function renderSemesterCalendar(){
-  let html = "";
-  for(let w = 1; w <= SEMESTER_WEEKS; w++){
-    const weekStartMs = SEMESTER_START + (w-1) * 7 * 86400000;
-    const weekEndMs = weekStartMs + 4 * 86400000; // 週一~週五
-    const startYmd = ymdOf(weekStartMs), endYmd = ymdOf(weekEndMs);
-    const notes = [];
-    SEMESTER_HOLIDAYS.forEach(h => {
-      if(h.date >= startYmd && h.date <= endYmd) notes.push(`🔴${mdOf(h.date)} ${h.label}`);
-    });
-    SEMESTER_EXAMS.forEach(e => {
-      if(e.start >= startYmd && e.start <= endYmd){
-        const range = e.start === e.end ? mdOf(e.start) : `${mdOf(e.start)}~${mdOf(e.end)}`;
-        notes.push(`📝${range} ${e.label}`);
-      }
-    });
-    html += `<div class="week-row"><b>第${w}週</b><span class="week-range">${mdOf(startYmd)}–${mdOf(endYmd)}</span>${notes.length ? `<span class="week-notes">${notes.join("；")}</span>` : ""}</div>`;
-  }
-  document.getElementById("semesterCalendar").innerHTML = html;
-}
-
-document.getElementById("calendarToggleBtn").addEventListener("click", () => {
-  const panel = document.getElementById("semesterCalendar");
-  panel.hidden = !panel.hidden;
-});
 
 async function tryFetchSchedule(){
   try{
@@ -1265,7 +1213,6 @@ async function loadRoster(){
 (async function init(){
   renderNowDate();
   setInterval(renderNowDate, 60000);
-  renderSemesterCalendar();
   const scheduleResult = await tryFetchSchedule();
   renderHeader(scheduleResult);
   await loadRoster();
