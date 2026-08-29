@@ -41,8 +41,12 @@
     font-size:13px;color:var(--ink-soft);letter-spacing:.5px;
   }
   .brush svg{width:16px;height:16px;flex-shrink:0;}
-  .now-date-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
-  .now-date{font-size:14px;color:var(--ink-soft);}
+  .now-date-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .now-date-row input[type="date"]{
+    font-size:14px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);
+  }
+  .date-weekday{font-size:13px;color:var(--ink-soft);}
   .today-note{font-size:12px;}
   .today-note .week-badge{color:var(--ink-soft);}
   .today-note .holiday-badge{color:var(--clay);font-weight:700;margin-left:6px;}
@@ -114,13 +118,6 @@
     background:var(--card);color:var(--ink);cursor:pointer;
   }
   .sort-btn.active{background:var(--sage);border-color:var(--sage);color:#fff;}
-
-  .date-picker{display:flex;align-items:center;gap:6px;}
-  .date-picker label{font-size:13px;color:var(--ink-soft);}
-  .date-picker input[type="date"]{
-    font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);
-    background:var(--card);color:var(--ink);
-  }
 
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
@@ -321,7 +318,8 @@
       美術課上課助手
     </div>
     <div class="now-date-row">
-      <div class="now-date" id="nowDate">—</div>
+      <input type="date" id="dateInput">
+      <span class="date-weekday" id="dateWeekday"></span>
       <span class="today-note" id="todayNote"></span>
     </div>
     <button type="button" class="calendar-link" id="calendarToggleBtn">📅 學期行事曆(共21週)</button>
@@ -347,10 +345,6 @@
   <section class="panel active" id="panel-attendance">
     <div class="toolbar">
       <span class="count" id="attCount">30 位學生</span>
-      <div class="date-picker">
-        <label for="attDateInput">查詢日期</label>
-        <input type="date" id="attDateInput">
-      </div>
     </div>
     <div class="summary-bar">
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
@@ -525,14 +519,21 @@ function examOn(ymd){
   return SEMESTER_EXAMS.find(e => ymd >= e.start && ymd <= e.end) || null;
 }
 
-function renderTodayNote(){
-  const ymd = todayStr();
+function weekdayLabel(ymd){
+  const [y, m, d] = ymd.split("-").map(Number);
+  const wd = new Date(Date.UTC(y, m-1, d)).getUTCDay();
+  return "日一二三四五六"[wd];
+}
+
+function renderDateNote(){
+  const ymd = selectedDate;
+  document.getElementById("dateWeekday").textContent = ymd ? `星期${weekdayLabel(ymd)}` : "";
   const week = semesterWeekOf(ymd);
   const holiday = holidayOn(ymd);
   const exam = examOn(ymd);
   let html = week ? `<span class="week-badge">第${week}週</span>` : "";
-  if(holiday) html += `<span class="holiday-badge">🔴 今日${holiday.label}，不用上課</span>`;
-  if(exam) html += `<span class="exam-badge">📝 今日${exam.label}</span>`;
+  if(holiday) html += `<span class="holiday-badge">🔴 ${holiday.label}，當天不用上課</span>`;
+  if(exam) html += `<span class="exam-badge">📝 ${exam.label}</span>`;
   document.getElementById("todayNote").innerHTML = html;
 }
 
@@ -573,12 +574,6 @@ async function tryFetchSchedule(){
 }
 
 function renderHeader(scheduleResult){
-  const now = new Date();
-  const weekdayNames = ["日","一","二","三","四","五","六"];
-  document.getElementById("nowDate").textContent =
-    `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}(星期${weekdayNames[now.getDay()]}) ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  renderTodayNote();
-
   currentClasses = scheduleResult.classes || [];
 
   if(scheduleResult.current){
@@ -749,8 +744,9 @@ async function loadAttendanceAndBehaviorForDate(){
   renderRoster();
 }
 
-document.getElementById("attDateInput").addEventListener("change", (e) => {
+document.getElementById("dateInput").addEventListener("change", (e) => {
   selectedDate = e.target.value || todayStr();
+  renderDateNote();
   loadAttendanceAndBehaviorForDate();
 });
 
@@ -1226,9 +1222,10 @@ async function loadRoster(){
   rosterCache = await loadRosterFromApi(currentClassId);
 
   selectedDate = todayStr();
-  const dateInput = document.getElementById("attDateInput");
+  const dateInput = document.getElementById("dateInput");
   dateInput.max = selectedDate;
   dateInput.value = selectedDate;
+  renderDateNote();
   await loadAttendanceAndBehaviorForDate();
   await loadLateTotals();
 
@@ -1244,9 +1241,6 @@ async function loadRoster(){
   const scheduleResult = await tryFetchSchedule();
   renderHeader(scheduleResult);
   await loadRoster();
-  setInterval(() => {
-    document.getElementById("nowDate").textContent = document.getElementById("nowDate").textContent; // keep static per load for demo
-  }, 60000);
 })();
 </script>
 </body>
