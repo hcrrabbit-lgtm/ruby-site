@@ -303,7 +303,7 @@
   .schedule-table th.today-col, .schedule-table td.today-col{
     background:rgba(88,115,97,0.1);
   }
-  .schedule-table td.pm-divider{border-top:3px solid var(--ink);}
+  .schedule-table td.pm-divider{border-top:3px solid var(--line);}
   .schedule-cell{
     display:inline-block;width:100%;
     background:var(--sage);color:#fff;border-radius:6px;
@@ -613,7 +613,6 @@ function renderHeader(scheduleResult){
 }
 
 const PERIODS = [
-  { num: "0" },
   { num: "1", start: "08:40", end: "09:20" },
   { num: "2", start: "09:30", end: "10:10" },
   { num: "3", start: "10:30", end: "11:10" },
