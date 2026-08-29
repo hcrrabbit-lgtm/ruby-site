@@ -249,6 +249,24 @@
   .seat-cell.submitted{background:var(--sage);}
   .seat-cell.missing{background:var(--clay);}
   .seat-cell:active{opacity:0.75;}
+
+  .student-grid{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  }
+  .student-card{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    overflow:hidden;cursor:pointer;text-align:center;
+  }
+  .student-card .photo{
+    width:100%;aspect-ratio:1;background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:34px;color:var(--ink-soft);overflow:hidden;
+  }
+  .student-card .photo img{width:100%;height:100%;object-fit:cover;}
+  .student-card .info{padding:6px 4px 8px;}
+  .student-card .info .num{font-size:12px;color:var(--ink-soft);}
+  .student-card .info .name{font-size:15px;font-weight:700;margin-top:1px;}
+  .student-card:active{opacity:0.75;}
 </style>
 </head>
 <body>
@@ -276,6 +294,7 @@
     <button data-tab="attendance" class="active">出席點名</button>
     <button data-tab="behavior">秩序評分</button>
     <button data-tab="artwork">作品評分</button>
+    <button data-tab="students">認識學生</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
@@ -349,6 +368,13 @@
       <button class="sort-btn" id="artSortBtn" style="float:right;">依等第分區</button>
     </div>
     <div class="art-list" id="assignedList"></div>
+  </section>
+
+  <section class="panel" id="panel-students">
+    <div class="toolbar">
+      <span class="count" id="studentsCount">30 位學生</span>
+    </div>
+    <div class="student-grid" id="studentGrid"></div>
   </section>
 
   <div class="footer-note">
@@ -624,6 +650,29 @@ document.getElementById("behSortBtn").addEventListener("click", () => {
   renderBehavior();
 });
 
+/* ---------- Students grid (認識學生) ---------- */
+function renderStudentsGrid(){
+  const list = [...rosterCache].sort((a,b) => a.seat - b.seat);
+  document.getElementById("studentsCount").textContent = list.length + " 位學生";
+
+  const root = document.getElementById("studentGrid");
+  root.innerHTML = list.map(st => {
+    const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
+    return `
+      <div class="student-card" data-student="${st.id}" title="點一下拍/換照片">
+        <div class="photo">${photoInner}</div>
+        <div class="info">
+          <div class="num">${st.seat} 號</div>
+          <div class="name">${st.name}</div>
+        </div>
+      </div>`;
+  }).join("");
+
+  root.querySelectorAll(".student-card").forEach(el => {
+    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
+  });
+}
+
 /* ---------- Artwork grading ---------- */
 let assignments = [];
 let currentAssignmentId = null;
@@ -751,6 +800,7 @@ async function uploadAvatar(studentId, blob){
     if(st) st.photoKey = data.key;
     renderAttendance();
     renderBehavior();
+    renderStudentsGrid();
   }catch(e){}
 }
 
@@ -1049,6 +1099,7 @@ async function loadRoster(){
 
   renderAttendance();
   renderBehavior();
+  renderStudentsGrid();
   await loadAssignments();
   renderUnassigned();
   await loadSubmissionsForCurrentAssignment();
