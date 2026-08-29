@@ -303,6 +303,7 @@
   .schedule-table th.today-col, .schedule-table td.today-col{
     background:rgba(88,115,97,0.1);
   }
+  .schedule-table td.pm-divider{border-top:3px solid var(--ink);}
   .schedule-cell{
     display:inline-block;width:100%;
     background:var(--sage);color:#fff;border-radius:6px;
@@ -656,15 +657,16 @@ function renderWeeklySchedule(){
 
   let bodyHtml = "";
   PERIODS.forEach((p, pi) => {
+    const pmDivider = p.num === "5" ? "pm-divider" : "";
     let rowHtml = "<tr>";
     SCHEDULE_WEEKDAYS.forEach(wd => {
-      const todayCls = wd === todayWeekday ? "today-col" : "";
+      const cellCls = [wd === todayWeekday ? "today-col" : "", pmDivider].filter(Boolean).join(" ");
       const block = blocksByWeekday[wd].find(b => b.idxSet.has(pi));
       rowHtml += block
-        ? `<td class="${todayCls}"><span class="schedule-cell">${block.className}</span></td>`
-        : `<td class="${todayCls}"></td>`;
+        ? `<td class="${cellCls}"><span class="schedule-cell">${block.className}</span></td>`
+        : `<td class="${cellCls}"></td>`;
     });
-    rowHtml += `<td class="period-label">${p.num}${p.start ? `<br>${p.start}<br>${p.end}` : ""}</td>`;
+    rowHtml += `<td class="period-label ${pmDivider}">${p.num}${p.start ? `<br>${p.start}<br>${p.end}` : ""}</td>`;
     rowHtml += "</tr>";
     bodyHtml += rowHtml;
   });
