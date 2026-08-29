@@ -267,6 +267,27 @@
   .student-card .info .num{font-size:12px;color:var(--ink-soft);}
   .student-card .info .name{font-size:15px;font-weight:700;margin-top:1px;}
   .student-card:active{opacity:0.75;}
+
+  .photo-modal{
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;z-index:100;
+  }
+  .photo-modal-box{
+    background:var(--card);border-radius:16px;padding:16px;
+    max-width:420px;width:100%;text-align:center;
+  }
+  .photo-modal-box img{
+    width:100%;max-height:60vh;object-fit:contain;border-radius:10px;
+    background:var(--paper);
+  }
+  .photo-modal-name{font-size:18px;font-weight:700;margin-top:12px;}
+  .photo-modal-actions{display:flex;gap:8px;margin-top:14px;}
+  .photo-modal-actions button{
+    flex:1;padding:12px;border-radius:10px;border:none;font-weight:700;font-size:15px;cursor:pointer;
+  }
+  .photo-modal-retake{background:var(--sage);color:#fff;}
+  .photo-modal-close{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line) !important;}
 </style>
 </head>
 <body>
@@ -669,7 +690,40 @@ function renderStudentsGrid(){
   }).join("");
 
   root.querySelectorAll(".student-card").forEach(el => {
-    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
+    el.addEventListener("click", () => openStudentPhoto(el.dataset.student));
+  });
+}
+
+function openStudentPhoto(studentId){
+  const st = rosterCache.find(s => s.id === studentId);
+  if(!st) return;
+  const existing = document.getElementById("photoModal");
+  if(existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "photoModal";
+  modal.className = "photo-modal";
+  const photoInner = st.photoKey
+    ? `<img src="/api/photo/${st.photoKey}">`
+    : `<div class="photo" style="aspect-ratio:1;border-radius:10px;">🧑</div>`;
+  modal.innerHTML = `
+    <div class="photo-modal-box">
+      ${photoInner}
+      <div class="photo-modal-name">${st.seat} 號・${st.name}</div>
+      <div class="photo-modal-actions">
+        <button class="photo-modal-close" id="photoModalCloseBtn">關閉</button>
+        <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 重新拍照</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.addEventListener("click", (e) => {
+    if(e.target === modal) modal.remove();
+  });
+  document.getElementById("photoModalCloseBtn").addEventListener("click", () => modal.remove());
+  document.getElementById("photoModalRetakeBtn").addEventListener("click", () => {
+    modal.remove();
+    openAvatarCamera(studentId);
   });
 }
 
