@@ -95,10 +95,19 @@ async function handleSchedule(env) {
   ).bind(weekday).all();
 
   const match = schedRes.results.find(s => hhmm >= s.start && hhmm <= s.end);
+
+  const allSchedRes = await env.DB.prepare(
+    `SELECT sc.class_id as classId, c.name as className, sc.weekday as weekday,
+            sc.start as start, sc.end as end, sc.label as label
+     FROM schedule sc LEFT JOIN classes c ON c.id = sc.class_id
+     ORDER BY sc.weekday, sc.start`
+  ).all();
+
   return json({
     source: "d1",
     current: match ? { classId: match.classId, label: match.label } : null,
-    classes
+    classes,
+    schedule: allSchedRes.results
   });
 }
 
