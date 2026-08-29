@@ -313,12 +313,13 @@
   <section class="panel active" id="panel-attendance">
     <div class="toolbar">
       <span class="count" id="attCount">30 位學生</span>
-      <button class="sort-btn" id="attSortBtn">依座號排序</button>
-      <button class="sort-btn" id="scoreSortBtn">依加扣分排序</button>
     </div>
     <div class="summary-bar">
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
       <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
+      <button class="sort-btn" id="scoreDescSortBtn">依加分排序</button>
+      <button class="sort-btn" id="scoreAscSortBtn">依扣分排序</button>
+      <button class="sort-btn" id="seatSortBtn">依座號排序</button>
     </div>
     <div class="roster" id="attRoster"></div>
   </section>
@@ -380,7 +381,7 @@ let currentClassId = null;
 let currentClasses = [];   // classes list from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
-let rosterSortMode = "seat"; // "seat" | "name" | "score"
+let rosterSortMode = "seat"; // "seat" | "scoreDesc" | "scoreAsc"
 let rosterCache = [];
 
 function todayStr(){
@@ -493,14 +494,15 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
 /* ---------- Attendance + behavior (combined roster) ---------- */
 function renderRoster(){
   const list = [...studentsFor(currentClassId)];
-  if(rosterSortMode === "name"){
-    list.sort((a,b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }else if(rosterSortMode === "score"){
+  if(rosterSortMode === "scoreDesc"){
     list.sort((a,b) => (behavior[b.id] || 0) - (behavior[a.id] || 0) || a.seat - b.seat);
+  }else if(rosterSortMode === "scoreAsc"){
+    list.sort((a,b) => (behavior[a.id] || 0) - (behavior[b.id] || 0) || a.seat - b.seat);
   }
 
-  document.getElementById("attSortBtn").textContent = rosterSortMode === "name" ? "依姓名排序" : "依座號排序";
-  document.getElementById("scoreSortBtn").classList.toggle("active", rosterSortMode === "score");
+  document.getElementById("scoreDescSortBtn").classList.toggle("active", rosterSortMode === "scoreDesc");
+  document.getElementById("scoreAscSortBtn").classList.toggle("active", rosterSortMode === "scoreAsc");
+  document.getElementById("seatSortBtn").classList.toggle("active", rosterSortMode === "seat");
 
   document.getElementById("attCount").textContent = list.length + " 位學生";
   const late = Object.values(attendance).filter(v => v === "late").length;
@@ -562,13 +564,18 @@ function renderRoster(){
   });
 }
 
-document.getElementById("attSortBtn").addEventListener("click", () => {
-  rosterSortMode = rosterSortMode === "name" ? "seat" : "name";
+document.getElementById("seatSortBtn").addEventListener("click", () => {
+  rosterSortMode = "seat";
   renderRoster();
 });
 
-document.getElementById("scoreSortBtn").addEventListener("click", () => {
-  rosterSortMode = rosterSortMode === "score" ? "seat" : "score";
+document.getElementById("scoreDescSortBtn").addEventListener("click", () => {
+  rosterSortMode = "scoreDesc";
+  renderRoster();
+});
+
+document.getElementById("scoreAscSortBtn").addEventListener("click", () => {
+  rosterSortMode = "scoreAsc";
   renderRoster();
 });
 
