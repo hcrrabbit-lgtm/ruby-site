@@ -52,6 +52,17 @@
     font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);
     background:var(--paper);color:var(--ink);
   }
+  .class-buttons{
+    display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:6px;
+  }
+  .class-btn{
+    flex:1;min-width:56px;font-size:14px;font-weight:600;padding:9px 6px;
+    border-radius:10px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .15s;
+  }
+  .class-btn.active{
+    background:var(--sage);border-color:var(--sage);color:#fff;
+  }
   .no-class-banner{
     background:#FBF0E4;border:1px dashed var(--ochre);color:#7A5522;
     padding:10px 14px;border-radius:10px;font-size:14px;margin-top:10px;
@@ -254,10 +265,8 @@
         <div class="class-name" id="className">載入中…</div>
         <div class="class-sub" id="classSub"></div>
       </div>
-      <select class="override" id="overrideSelect">
-        <option value="">— 手動選擇班級 —</option>
-      </select>
     </div>
+    <div class="class-buttons" id="classButtons"></div>
     <div class="no-class-banner" id="noClassBanner" style="display:none;">
       這個時段課表上沒有排課,已切換為手動選擇班級。
     </div>
@@ -418,9 +427,6 @@ function renderHeader(scheduleResult){
     `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())}(星期${weekdayNames[now.getDay()]}) ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
   currentClasses = scheduleResult.classes || [];
-  const select = document.getElementById("overrideSelect");
-  select.innerHTML = '<option value="">— 手動選擇班級 —</option>' +
-    scheduleResult.classes.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
 
   if(scheduleResult.current){
     currentClassId = scheduleResult.current.classId;
@@ -428,29 +434,34 @@ function renderHeader(scheduleResult){
     document.getElementById("className").textContent = cls ? cls.name : currentClassId;
     document.getElementById("classSub").textContent = "依課表自動判斷・" + scheduleResult.current.label;
     document.getElementById("noClassBanner").style.display = "none";
-    select.value = currentClassId;
   }else{
     document.getElementById("className").textContent = "目前沒有排課";
     document.getElementById("classSub").textContent = "請手動選擇要上課的班級";
     document.getElementById("noClassBanner").style.display = "block";
     currentClassId = null;
   }
+  renderClassButtons();
 }
 
-select_change: {
-  document.addEventListener("change", (e) => {
-    if(e.target.id === "overrideSelect"){
-      const val = e.target.value;
-      if(val){
-        currentClassId = val;
-        const cls = currentClasses.find(c => c.id === val);
-        document.getElementById("className").textContent = cls ? cls.name : val;
-        document.getElementById("classSub").textContent = "手動選擇";
-        document.getElementById("noClassBanner").style.display = "none";
-        loadRoster();
-      }
-    }
+function renderClassButtons(){
+  const root = document.getElementById("classButtons");
+  root.innerHTML = currentClasses.map(c =>
+    `<button type="button" class="class-btn ${c.id === currentClassId ? "active" : ""}" data-id="${c.id}">${c.name}</button>`
+  ).join("");
+  root.querySelectorAll(".class-btn").forEach(btn => {
+    btn.addEventListener("click", () => selectClass(btn.dataset.id));
   });
+}
+
+function selectClass(val){
+  if(!val || val === currentClassId) return;
+  currentClassId = val;
+  const cls = currentClasses.find(c => c.id === val);
+  document.getElementById("className").textContent = cls ? cls.name : val;
+  document.getElementById("classSub").textContent = "手動選擇";
+  document.getElementById("noClassBanner").style.display = "none";
+  renderClassButtons();
+  loadRoster();
 }
 
 /* ---------- Tabs ---------- */
