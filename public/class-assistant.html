@@ -535,7 +535,7 @@ function renderRoster(){
   }).join("");
 
   root.querySelectorAll(".avatar").forEach(el => {
-    el.addEventListener("click", () => openAvatarCamera(el.dataset.student));
+    el.addEventListener("click", () => openStudentPhoto(el.dataset.student));
   });
 
   root.querySelectorAll(".att-btn").forEach(btn => {
