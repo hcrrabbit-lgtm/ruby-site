@@ -281,6 +281,22 @@
   .student-card .info .name{font-size:15px;font-weight:700;margin-top:1px;}
   .student-card:active{opacity:0.75;}
 
+  .weekly-schedule{display:flex;flex-direction:column;gap:10px;}
+  .weekday-block{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:10px 14px;
+  }
+  .weekday-block.today{border-color:var(--sage);}
+  .weekday-title{font-size:14px;font-weight:700;color:var(--sage-dark);margin-bottom:6px;}
+  .schedule-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    font-size:14px;padding:6px 0;border-top:1px solid var(--line);
+  }
+  .schedule-row:first-of-type{border-top:none;}
+  .schedule-row .schedule-class{font-weight:700;}
+  .schedule-row .schedule-time{color:var(--ink-soft);font-size:13px;white-space:nowrap;}
+  .schedule-empty{font-size:13px;color:var(--ink-soft);}
+
   .photo-modal{
     position:fixed;inset:0;background:rgba(0,0,0,0.75);
     display:flex;align-items:center;justify-content:center;
@@ -340,6 +356,7 @@
     <button data-tab="attendance" class="active">課堂表現</button>
     <button data-tab="artwork">作品評分</button>
     <button data-tab="students">認識學生</button>
+    <button data-tab="schedule">課表</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
@@ -402,6 +419,10 @@
     <div class="student-grid" id="studentGrid"></div>
   </section>
 
+  <section class="panel" id="panel-schedule">
+    <div class="weekly-schedule" id="weeklySchedule"></div>
+  </section>
+
   <div class="footer-note">
     出席、秩序評分、作業成績都會即時存到資料庫。<br>
     只有「待歸戶照片」(已拍但還沒指定座號)是暫存在這個分頁裡,重新整理會消失,記得拍完就盡快指定座號。
@@ -412,6 +433,7 @@
 /* ---------- App state ---------- */
 let currentClassId = null;
 let currentClasses = [];   // classes list from the latest /api/schedule response
+let weeklySchedule = [];   // { classId, className, weekday, start, end, label }[] from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
 let behavior = {};     // { studentId: number }
 let lateTotals = {};   // { studentId: cumulative late count since records began }
@@ -556,6 +578,8 @@ async function tryFetchSchedule(){
 
 function renderHeader(scheduleResult){
   currentClasses = scheduleResult.classes || [];
+  weeklySchedule = scheduleResult.schedule || [];
+  renderWeeklySchedule();
 
   if(scheduleResult.current){
     currentClassId = scheduleResult.current.classId;
@@ -570,6 +594,31 @@ function renderHeader(scheduleResult){
     currentClassId = null;
   }
   renderClassButtons();
+}
+
+function renderWeeklySchedule(){
+  const root = document.getElementById("weeklySchedule");
+  if(!root) return;
+  const weekdayNames = ["日","一","二","三","四","五","六"];
+  const todayWeekday = new Date().getDay();
+  let html = "";
+  for(let wd = 1; wd <= 5; wd++){
+    const entries = weeklySchedule
+      .filter(s => s.weekday === wd)
+      .sort((a,b) => a.start.localeCompare(b.start));
+    const rows = entries.length
+      ? entries.map(e => `
+        <div class="schedule-row">
+          <span class="schedule-class">${e.className || e.classId}${e.label ? "・" + e.label : ""}</span>
+          <span class="schedule-time">${e.start}–${e.end}</span>
+        </div>`).join("")
+      : `<div class="schedule-empty">沒有安排美術課</div>`;
+    html += `<div class="weekday-block ${wd === todayWeekday ? "today" : ""}">
+      <div class="weekday-title">星期${weekdayNames[wd]}</div>
+      ${rows}
+    </div>`;
+  }
+  root.innerHTML = html;
 }
 
 function renderClassButtons(){
