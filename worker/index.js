@@ -53,13 +53,21 @@ async function ensureSchema(env) {
     // best-effort backfill only
   }
   try {
-    // 405（四年5班）美術課調到週一下午第六、七節（14:20-15:55）
-    const cls = await env.DB.prepare("SELECT id FROM classes WHERE name = ?").bind("四年5班").first();
-    if (cls) {
+    // 各班美術課固定時段：四年1~4班依原課表，四年5班已改到週一下午第六、七節
+    const SCHEDULE_FIXES = [
+      { className: "四年1班", weekday: 4, start: "09:30", end: "11:10", label: "美術課（第二、三節）" },
+      { className: "四年2班", weekday: 2, start: "14:20", end: "15:55", label: "美術課（第六、七節）" },
+      { className: "四年3班", weekday: 4, start: "13:30", end: "15:00", label: "美術課（第五、六節）" },
+      { className: "四年4班", weekday: 5, start: "09:30", end: "11:10", label: "美術課（第二、三節）" },
+      { className: "四年5班", weekday: 1, start: "14:20", end: "15:55", label: "美術課（第六、七節）" }
+    ];
+    for (const fix of SCHEDULE_FIXES) {
+      const cls = await env.DB.prepare("SELECT id FROM classes WHERE name = ?").bind(fix.className).first();
+      if (!cls) continue;
       await env.DB.prepare("DELETE FROM schedule WHERE class_id = ?").bind(cls.id).run();
       await env.DB.prepare(
         "INSERT INTO schedule (class_id, weekday, start, end, label) VALUES (?, ?, ?, ?, ?)"
-      ).bind(cls.id, 1, "14:20", "15:55", "美術課（第六、七節）").run();
+      ).bind(cls.id, fix.weekday, fix.start, fix.end, fix.label).run();
     }
   } catch (e) {
     // best-effort schedule fix only
