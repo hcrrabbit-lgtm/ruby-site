@@ -102,7 +102,7 @@
     display:flex;justify-content:space-between;align-items:center;
     margin-bottom:10px;gap:10px;flex-wrap:wrap;
   }
-  .toolbar .count{font-size:13px;color:var(--ink-soft);}
+  .count{font-size:13px;color:var(--ink-soft);}
   .sort-btn{
     font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);cursor:pointer;
@@ -165,7 +165,7 @@
   }
 
   .summary-bar{
-    display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;
+    display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;
   }
   .summary-chip{
     background:var(--card);border:1px solid var(--line);border-radius:10px;
@@ -343,10 +343,8 @@
   </nav>
 
   <section class="panel active" id="panel-attendance">
-    <div class="toolbar">
-      <span class="count" id="attCount">30 位學生</span>
-    </div>
     <div class="summary-bar">
+      <span class="count" id="attCount">30 位學生</span>
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
       <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
     </div>
