@@ -229,13 +229,23 @@
     display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;
   }
   .seat-cell{
-    aspect-ratio:0.85;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    color:#fff;cursor:pointer;padding:2px;text-align:center;
+    display:flex;flex-direction:column;
+    border-radius:8px;overflow:hidden;cursor:pointer;text-align:center;
+    border:2px solid transparent;
   }
-  .seat-cell .seat-num{font-size:14px;font-weight:700;line-height:1.2;}
+  .seat-cell .seat-photo{
+    width:100%;aspect-ratio:1;background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;color:var(--ink-soft);overflow:hidden;
+  }
+  .seat-cell .seat-photo img{width:100%;height:100%;object-fit:cover;}
+  .seat-cell .seat-info{padding:3px 2px;color:#fff;}
+  .seat-cell .seat-num{font-size:13px;font-weight:700;line-height:1.2;}
   .seat-cell .seat-name{font-size:10.5px;line-height:1.2;opacity:.95;word-break:break-all;}
-  .seat-cell.submitted{background:var(--sage);}
-  .seat-cell.missing{background:var(--clay);}
+  .seat-cell.submitted{border-color:var(--sage);}
+  .seat-cell.submitted .seat-info{background:var(--sage);}
+  .seat-cell.missing{border-color:var(--clay);}
+  .seat-cell.missing .seat-info{background:var(--clay);}
   .seat-cell:active{opacity:0.75;}
 
   .student-grid{
@@ -897,9 +907,13 @@ function renderSeatStatusGrid(){
   if(!root) return;
   root.innerHTML = rosterCache.map(st => {
     const done = !!data[st.id];
+    const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `<div class="seat-cell ${done ? 'submitted' : 'missing'}" data-seat="${st.seat}">
-      <div class="seat-num">${st.seat}</div>
-      <div class="seat-name">${st.name}</div>
+      <div class="seat-photo">${photoInner}</div>
+      <div class="seat-info">
+        <div class="seat-num">${st.seat}</div>
+        <div class="seat-name">${st.name}</div>
+      </div>
     </div>`;
   }).join("");
   root.querySelectorAll(".seat-cell").forEach(cell => {
