@@ -1034,14 +1034,14 @@ function renderStatsTable(){
   }).join("");
 
   const sum = (fn) => list.reduce((acc, st) => acc + fn(st), 0);
-  const avgCells = statsAssignments.map(a => {
+  const avgFor = (assignmentId) => {
     const scores = list
-      .map(st => statsScores[st.id] && statsScores[st.id][a.id])
+      .map(st => statsScores[st.id] && statsScores[st.id][assignmentId])
       .filter(v => v != null);
-    if(!scores.length) return `<td>-</td>`;
-    const avg = Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
-    return `<td>${avg}</td>`;
-  }).join("");
+    if(!scores.length) return "-";
+    return Math.round(scores.reduce((s, v) => s + v, 0) / scores.length);
+  };
+  const avgCells = statsAssignments.map(a => `<td data-avg-for="${a.id}">${avgFor(a.id)}</td>`).join("");
 
   const footHtml = `<tr>
     <td colspan="2">全班合計/平均</td>
@@ -1096,7 +1096,7 @@ function renderStatsTable(){
   });
 
   root.querySelectorAll(".stats-score-input").forEach(inp => {
-    inp.addEventListener("change", async (e) => {
+    inp.addEventListener("change", (e) => {
       e.stopPropagation();
       const studentId = inp.dataset.student, assignmentId = inp.dataset.assignment;
       if(inp.value === "") return;
@@ -1104,12 +1104,20 @@ function renderStatsTable(){
       if(Number.isNaN(val)) return;
       if(!statsScores[studentId]) statsScores[studentId] = {};
       statsScores[studentId][assignmentId] = val;
-      try{
-        await apiPost("/api/submissions/score", { assignmentId, studentId, score: val });
-      }catch(err){}
-      renderStatsTable();
+      apiPost("/api/submissions/score", { assignmentId, studentId, score: val }).catch(()=>{});
+      const avgCell = root.querySelector(`[data-avg-for="${assignmentId}"]`);
+      if(avgCell) avgCell.textContent = avgFor(assignmentId);
     });
     inp.addEventListener("click", (e) => e.stopPropagation());
+    inp.addEventListener("keydown", (e) => {
+      if(e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      const idx = list.findIndex(st => st.id === inp.dataset.student);
+      const nextStudent = list[e.key === "ArrowDown" ? idx + 1 : idx - 1];
+      if(!nextStudent) return;
+      const nextInput = root.querySelector(`.stats-score-input[data-student="${nextStudent.id}"][data-assignment="${inp.dataset.assignment}"]`);
+      if(nextInput){ nextInput.focus(); nextInput.select(); }
+    });
   });
 
   const addBtn = root.querySelector("#statsAddAssignmentBtn");
