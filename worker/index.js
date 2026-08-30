@@ -157,6 +157,16 @@ async function handleAttendanceSummary(env, url) {
   return json(map);
 }
 
+async function handleAttendanceDetail(env, url) {
+  const studentId = url.searchParams.get("studentId");
+  const status = url.searchParams.get("status");
+  if (!studentId || !status) return json({ error: "缺少 studentId 或 status" }, { status: 400 });
+  const res = await env.DB.prepare(
+    "SELECT date FROM attendance WHERE student_id = ? AND status = ? ORDER BY date"
+  ).bind(studentId, status).all();
+  return json(res.results.map(r => r.date));
+}
+
 async function handleBehaviorSummary(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const res = await env.DB.prepare(
@@ -580,6 +590,7 @@ export default {
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);
       if (path === "/api/attendance" && request.method === "POST") return await handleAttendancePost(env, request);
       if (path === "/api/attendance/summary" && request.method === "GET") return await handleAttendanceSummary(env, url);
+      if (path === "/api/attendance/detail" && request.method === "GET") return await handleAttendanceDetail(env, url);
 
       if (path === "/api/behavior" && request.method === "GET") return await handleBehaviorGet(env, url);
       if (path === "/api/behavior" && request.method === "POST") return await handleBehaviorPost(env, request);
