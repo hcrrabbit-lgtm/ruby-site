@@ -260,12 +260,6 @@
   .student-card:active{opacity:0.75;}
 
   .schedule-note{font-size:13px;color:var(--ink-soft);margin-bottom:10px;}
-  .teacher-list{
-    display:flex;flex-direction:column;gap:6px;margin-top:14px;
-    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;
-  }
-  .teacher-item{font-size:13px;color:var(--ink-soft);}
-  .teacher-class{font-weight:700;color:var(--ink);margin-right:8px;}
   .schedule-table-wrap{
     overflow-x:auto;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
@@ -293,6 +287,7 @@
     background:var(--sage);color:#fff;border-radius:6px;
     padding:3px 1px;font-size:11px;font-weight:700;line-height:1.2;
   }
+  .schedule-teacher{display:block;font-size:8px;font-weight:400;opacity:.9;white-space:nowrap;}
 
   .stats-toolbar{
     display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -461,7 +456,6 @@
     <div class="schedule-table-wrap">
       <table class="schedule-table" id="scheduleTable"></table>
     </div>
-    <div class="teacher-list" id="teacherList"></div>
   </section>
 
   <section class="panel" id="panel-stats">
@@ -647,19 +641,10 @@ const HOMEROOM_TEACHERS = {
   "四年5班": "劉思妤"
 };
 
-function renderTeacherList(){
-  const root = document.getElementById("teacherList");
-  if(!root) return;
-  root.innerHTML = currentClasses.map(c =>
-    `<div class="teacher-item"><span class="teacher-class">${c.name}</span>導師：${HOMEROOM_TEACHERS[c.name] || "-"}</div>`
-  ).join("");
-}
-
 function renderHeader(scheduleResult){
   currentClasses = scheduleResult.classes || [];
   weeklySchedule = scheduleResult.schedule || [];
   renderWeeklySchedule();
-  renderTeacherList();
 
   if(scheduleResult.current){
     currentClassId = scheduleResult.current.classId;
@@ -708,7 +693,8 @@ function renderWeeklySchedule(){
         if(!coveredIdx.length) return null;
         return {
           idxSet: new Set(coveredIdx),
-          className: shortClassName(e.className) || e.classId
+          className: shortClassName(e.className) || e.classId,
+          teacher: HOMEROOM_TEACHERS[e.className] || ""
         };
       })
       .filter(Boolean);
@@ -726,7 +712,7 @@ function renderWeeklySchedule(){
       const cellCls = [wd === todayWeekday ? "today-col" : "", pmDivider].filter(Boolean).join(" ");
       const block = blocksByWeekday[wd].find(b => b.idxSet.has(pi));
       rowHtml += block
-        ? `<td class="${cellCls}"><span class="schedule-cell">${block.className}</span></td>`
+        ? `<td class="${cellCls}"><span class="schedule-cell">${block.className}${block.teacher ? `<span class="schedule-teacher">${block.teacher}</span>` : ""}</span></td>`
         : `<td class="${cellCls}"></td>`;
     });
     rowHtml += `<td class="period-label ${pmDivider}">${p.num}${p.start ? `<br>${p.start}<br>${p.end}` : ""}</td>`;
@@ -1386,13 +1372,15 @@ async function uploadAvatar(studentId, blob){
     const res = await fetch(`/api/students/photo?studentId=${encodeURIComponent(studentId)}`, {
       method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob
     });
-    if(!res.ok) return;
+    if(!res.ok) throw new Error("upload failed: " + res.status);
     const data = await res.json();
     const st = rosterCache.find(s => s.id === studentId);
     if(st) st.photoKey = data.key;
     renderRoster();
     renderStudentsGrid();
-  }catch(e){}
+  }catch(e){
+    alert("照片上傳失敗,請檢查網路連線後再試一次。");
+  }
 }
 
 // Hands photo capture off to the phone's native camera app via <input capture>,
@@ -1428,22 +1416,34 @@ async function handlePickedFiles(files){
   camAvatarStudentId = null;
   camTargetSeat = null;
   const file = files[0];
+
+  let jpegBlob;
   try{
-    const jpegBlob = await normalizeToJpeg(file);
-    if(avatarStudentId){
-      await uploadAvatar(avatarStudentId, jpegBlob);
-      return;
-    }
-    const entry = { dataUrl: URL.createObjectURL(jpegBlob), photoKey: null };
-    fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(pendingTier)}`, {
-      method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
-    }).then(r => r.ok ? r.json() : null)
-      .then(res => { if(res) entry.photoKey = res.key; })
-      .catch(()=>{});
-    openAssignForm(entry, seat);
+    jpegBlob = await normalizeToJpeg(file);
   }catch(err){
-    alert("這張照片讀取失敗，請重新拍照");
+    alert("這張照片讀取失敗，請確認選擇的是JPG或PNG格式的照片。若是用iPhone選相簿照片,可到「設定→相機→格式」改成「最相容」後再試一次。");
+    return;
   }
+
+  if(avatarStudentId){
+    await uploadAvatar(avatarStudentId, jpegBlob);
+    return;
+  }
+
+  let photoKey;
+  try{
+    const res = await fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(pendingTier)}`, {
+      method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
+    });
+    if(!res.ok) throw new Error("upload failed: " + res.status);
+    const data = await res.json();
+    photoKey = data.key;
+  }catch(err){
+    alert("照片上傳失敗,請檢查網路連線後再試一次。");
+    return;
+  }
+
+  openAssignForm({ dataUrl: URL.createObjectURL(jpegBlob), photoKey }, seat);
 }
 
 document.getElementById("cameraInput").addEventListener("change", (e) => handlePickedFiles(e.target.files));
