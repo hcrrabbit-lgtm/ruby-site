@@ -351,6 +351,13 @@
     width:52px;font-size:13px;padding:4px;border-radius:6px;border:1px solid var(--line);
     text-align:center;background:var(--card);color:var(--ink);
   }
+  .stats-score-cell{display:flex;align-items:center;justify-content:center;gap:4px;}
+  .stats-photo-btn{
+    width:24px;height:24px;border-radius:6px;border:1px solid var(--line);
+    background:var(--paper);font-size:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .stats-photo-btn.empty{opacity:0.3;cursor:default;}
   .stats-clickable{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
   .attend-detail-list{
     max-height:280px;overflow-y:auto;margin-top:10px;text-align:left;width:100%;
@@ -534,6 +541,7 @@ let rosterCache = [];
 let statsBehaviorTotals = {}; // { studentId: { plus, minus } } cumulative since records began
 let statsAssignments = [];    // [{ id, name }] assignments for the current class
 let statsScores = {};         // { studentId: { assignmentId: score } }
+let statsPhotos = {};         // { studentId: { assignmentId: photoKey } }
 let statsSearchTerm = "";
 let statsSortKey = "seat";    // "seat" | "name" | "plus" | "minus" | "late" | "absent" | assignmentId
 let statsSortAsc = true;
@@ -930,6 +938,7 @@ async function loadStatsData(){
   statsBehaviorTotals = {};
   statsAssignments = [];
   statsScores = {};
+  statsPhotos = {};
   if(currentClassId){
     try{
       statsBehaviorTotals = await apiGet(`/api/behavior/summary?classId=${encodeURIComponent(currentClassId)}`);
@@ -938,6 +947,7 @@ async function loadStatsData(){
       const res = await apiGet(`/api/assignments/scores?classId=${encodeURIComponent(currentClassId)}`);
       statsAssignments = res.assignments || [];
       statsScores = res.scores || {};
+      statsPhotos = res.photos || {};
     }catch(e){}
   }
   renderStatsTable();
@@ -1019,7 +1029,13 @@ function renderStatsTable(){
     const beh = statsBehaviorFor(st.id);
     const assignmentCells = statsAssignments.map(a => {
       const score = statsScores[st.id] && statsScores[st.id][a.id];
-      return `<td><input type="number" class="stats-score-input" data-student="${st.id}" data-assignment="${a.id}" value="${score != null ? score : ""}"></td>`;
+      const photoKey = statsPhotos[st.id] && statsPhotos[st.id][a.id];
+      return `<td>
+        <div class="stats-score-cell">
+          <input type="number" class="stats-score-input" data-student="${st.id}" data-assignment="${a.id}" value="${score != null ? score : ""}">
+          <button type="button" class="stats-photo-btn no-print${photoKey ? "" : " empty"}" data-photo="${photoKey || ""}" data-student="${st.id}" title="${photoKey ? "查看作品照片" : "尚無照片"}">📷</button>
+        </div>
+      </td>`;
     }).join("");
     return `<tr>
       <td class="stats-seat">${st.seat}</td>
@@ -1117,6 +1133,14 @@ function renderStatsTable(){
       if(!nextStudent) return;
       const nextInput = root.querySelector(`.stats-score-input[data-student="${nextStudent.id}"][data-assignment="${inp.dataset.assignment}"]`);
       if(nextInput){ nextInput.focus(); nextInput.select(); }
+    });
+  });
+
+  root.querySelectorAll(".stats-photo-btn:not(.empty)").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const st = rosterCache.find(s => s.id === btn.dataset.student);
+      openArtworkPhoto(btn.dataset.photo, st ? `${st.seat} 號・${st.name}` : "");
     });
   });
 
@@ -1288,6 +1312,30 @@ function openStudentPhoto(studentId){
     modal.remove();
     openAvatarCamera(studentId);
   });
+}
+
+function openArtworkPhoto(photoKey, label){
+  if(!photoKey) return;
+  const existing = document.getElementById("artworkPhotoModal");
+  if(existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "artworkPhotoModal";
+  modal.className = "photo-modal";
+  modal.innerHTML = `
+    <div class="photo-modal-box">
+      <img src="/api/photo/${photoKey}">
+      <div class="photo-modal-name">${label}</div>
+      <div class="photo-modal-actions">
+        <button class="photo-modal-close" id="artworkPhotoCloseBtn">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.addEventListener("click", (e) => {
+    if(e.target === modal) modal.remove();
+  });
+  document.getElementById("artworkPhotoCloseBtn").addEventListener("click", () => modal.remove());
 }
 
 /* ---------- Artwork grading ---------- */

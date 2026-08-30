@@ -189,18 +189,23 @@ async function handleAssignmentScores(env, url) {
   ).bind(classId).all()).results;
 
   const subs = (await env.DB.prepare(
-    `SELECT sub.student_id as studentId, sub.assignment_id as assignmentId, sub.score as score
+    `SELECT sub.student_id as studentId, sub.assignment_id as assignmentId, sub.score as score, sub.photo_key as photoKey
      FROM submissions sub JOIN students s ON s.id = sub.student_id
      WHERE s.class_id = ?`
   ).bind(classId).all()).results;
 
   const scores = {};
+  const photos = {};
   subs.forEach(r => {
     if (!scores[r.studentId]) scores[r.studentId] = {};
     scores[r.studentId][r.assignmentId] = r.score;
+    if (r.photoKey) {
+      if (!photos[r.studentId]) photos[r.studentId] = {};
+      photos[r.studentId][r.assignmentId] = r.photoKey;
+    }
   });
 
-  return json({ assignments, scores });
+  return json({ assignments, scores, photos });
 }
 
 async function handleAttendancePost(env, request) {
