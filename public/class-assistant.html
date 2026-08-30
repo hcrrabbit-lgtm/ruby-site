@@ -351,6 +351,14 @@
     width:52px;font-size:13px;padding:4px;border-radius:6px;border:1px solid var(--line);
     text-align:center;background:var(--card);color:var(--ink);
   }
+  .stats-clickable{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
+  .attend-detail-list{
+    max-height:280px;overflow-y:auto;margin-top:10px;text-align:left;width:100%;
+  }
+  .attend-detail-item{
+    padding:8px 10px;border-bottom:1px solid var(--line);font-size:14px;
+  }
+  .attend-detail-item:last-child{border-bottom:none;}
   .print-only{display:none;}
   @media print{
     body *{visibility:hidden;}
@@ -988,8 +996,8 @@ function renderStatsTable(){
       <td class="stats-name">${st.name}</td>
       <td class="stats-plus">${beh.plus}</td>
       <td class="stats-minus">${beh.minus}</td>
-      <td>${statsLateFor(st.id)}</td>
-      <td>${statsAbsentFor(st.id)}</td>
+      <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="late" title="點擊查看遲到日期">${statsLateFor(st.id)}</td>
+      <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="absent" title="點擊查看缺席日期">${statsAbsentFor(st.id)}</td>
       ${assignmentCells}
       <td class="no-print"></td>
     </tr>`;
@@ -1089,6 +1097,49 @@ function renderStatsTable(){
       renderUnassigned();
       await loadSubmissionsForCurrentAssignment();
     });
+  }
+
+  root.querySelectorAll(".stats-clickable").forEach(td => {
+    td.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openAttendanceDetail(td.dataset.detailStudent, td.dataset.detailStatus);
+    });
+  });
+}
+
+async function openAttendanceDetail(studentId, status){
+  const st = rosterCache.find(s => s.id === studentId);
+  if(!st) return;
+  const statusLabel = status === "absent" ? "缺席" : "遲到";
+
+  const existing = document.getElementById("attendDetailModal");
+  if(existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "attendDetailModal";
+  modal.className = "photo-modal";
+  modal.innerHTML = `
+    <div class="photo-modal-box">
+      <div class="photo-modal-name">${st.seat} 號・${st.name}・${statusLabel}紀錄</div>
+      <div id="attendDetailList" class="attend-detail-list">載入中...</div>
+      <div class="photo-modal-actions">
+        <button class="photo-modal-close" id="attendDetailCloseBtn">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
+  document.getElementById("attendDetailCloseBtn").addEventListener("click", () => modal.remove());
+
+  try{
+    const dates = await apiGet(`/api/attendance/detail?studentId=${encodeURIComponent(studentId)}&status=${status}`);
+    const listEl = document.getElementById("attendDetailList");
+    if(!listEl) return;
+    listEl.innerHTML = dates.length
+      ? dates.map(d => `<div class="attend-detail-item">${d}(星期${weekdayLabel(d)})</div>`).join("")
+      : `<div class="attend-detail-item">目前沒有${statusLabel}紀錄</div>`;
+  }catch(err){
+    const listEl = document.getElementById("attendDetailList");
+    if(listEl) listEl.textContent = "載入失敗,請稍後再試";
   }
 }
 
