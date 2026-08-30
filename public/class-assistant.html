@@ -347,11 +347,18 @@
   .attend-detail-item:last-child{border-bottom:none;}
   .print-only{display:none;}
   @media print{
+    @page{size:A4 landscape;margin:8mm;}
     body *{visibility:hidden;}
     #panel-stats, #panel-stats *{visibility:visible;}
     #panel-stats{position:absolute;left:0;top:0;width:100%;}
     .no-print{display:none !important;}
-    .print-only{display:block;margin-bottom:10px;font-size:16px;font-weight:700;}
+    .print-only{display:block;margin-bottom:6px;font-size:14px;font-weight:700;}
+    .stats-table-wrap{overflow:visible;}
+    .stats-table{font-size:9px;min-width:0;}
+    .stats-table th, .stats-table td{padding:2px 4px;}
+    .stats-table thead th.assignment-col{padding:2px;}
+    .stats-table thead th .col-sub{font-size:6px;}
+    .stats-score-input{width:30px;font-size:9px;padding:1px;}
   }
 
   .photo-modal{
