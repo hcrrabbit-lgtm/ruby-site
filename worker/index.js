@@ -441,6 +441,18 @@ async function handleScoreUpdate(env, request) {
   return json({ ok: true });
 }
 
+async function handleNoteUpdate(env, request) {
+  // upsert：既有建檔的只更新備註；沒有建檔過的(例如作品庫直接輸入備註)就新建一筆空白紀錄
+  const { assignmentId, studentId, note } = await request.json();
+  const id = assignmentId + "_" + studentId;
+  await env.DB.prepare(
+    `INSERT INTO submissions (id, assignment_id, student_id, tier, score, note, photo_key)
+     VALUES (?, ?, ?, '', 0, ?, NULL)
+     ON CONFLICT(assignment_id, student_id) DO UPDATE SET note = excluded.note`
+  ).bind(id, assignmentId, studentId, note || "").run();
+  return json({ ok: true });
+}
+
 function classifySourceUrl(url) {
   try {
     const host = new URL(url).hostname;
@@ -630,6 +642,7 @@ export default {
       if (path === "/api/submissions" && request.method === "POST") return await handleSubmissionsPost(env, request);
       if (path === "/api/submissions" && request.method === "DELETE") return await handleSubmissionsDelete(env, request);
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
+      if (path === "/api/submissions/note" && request.method === "POST") return await handleNoteUpdate(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 
