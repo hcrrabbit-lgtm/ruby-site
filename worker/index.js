@@ -251,13 +251,15 @@ async function handleBehaviorGet(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const date = url.searchParams.get("date");
   const res = await env.DB.prepare(
-    `SELECT b.student_id as studentId, SUM(b.delta) as total FROM behavior_events b
-     JOIN students s ON s.id = b.student_id
+    `SELECT b.student_id as studentId,
+            SUM(CASE WHEN b.delta > 0 THEN b.delta ELSE 0 END) as plusTotal,
+            SUM(CASE WHEN b.delta < 0 THEN -b.delta ELSE 0 END) as minusTotal
+     FROM behavior_events b JOIN students s ON s.id = b.student_id
      WHERE s.class_id = ? AND b.date = ?
      GROUP BY b.student_id`
   ).bind(classId, date).all();
   const map = {};
-  res.results.forEach(r => { map[r.studentId] = r.total; });
+  res.results.forEach(r => { map[r.studentId] = { plus: r.plusTotal || 0, minus: r.minusTotal || 0 }; });
   return json(map);
 }
 
@@ -267,6 +269,17 @@ async function handleBehaviorPost(env, request) {
     "INSERT INTO behavior_events (student_id, date, delta, created_at) VALUES (?, ?, ?, ?)"
   ).bind(studentId, date, delta, new Date().toISOString()).run();
   return json({ ok: true });
+}
+
+async function handleBehaviorUndo(env, request) {
+  // 復原該生當天最後一次加/扣分紀錄，避免點錯無法修正
+  const { studentId, date } = await request.json();
+  const row = await env.DB.prepare(
+    "SELECT id, delta FROM behavior_events WHERE student_id = ? AND date = ? ORDER BY id DESC LIMIT 1"
+  ).bind(studentId, date).first();
+  if (!row) return json({ error: "沒有可復原的紀錄" }, { status: 404 });
+  await env.DB.prepare("DELETE FROM behavior_events WHERE id = ?").bind(row.id).run();
+  return json({ ok: true, delta: row.delta });
 }
 
 async function handleAssignmentsGet(env, url) {
@@ -594,6 +607,7 @@ export default {
 
       if (path === "/api/behavior" && request.method === "GET") return await handleBehaviorGet(env, url);
       if (path === "/api/behavior" && request.method === "POST") return await handleBehaviorPost(env, request);
+      if (path === "/api/behavior/undo" && request.method === "POST") return await handleBehaviorUndo(env, request);
       if (path === "/api/behavior/summary" && request.method === "GET") return await handleBehaviorSummary(env, url);
 
       if (path === "/api/assignments" && request.method === "GET") return await handleAssignmentsGet(env, url);

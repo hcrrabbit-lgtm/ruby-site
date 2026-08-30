@@ -154,6 +154,11 @@
   }
   .beh-minus{background:var(--clay);}
   .beh-plus{background:var(--sage);}
+  .beh-undo-btn{
+    width:28px;height:28px;border-radius:50%;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink-soft);font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
 
   .footer-note{
     margin-top:22px;font-size:12px;color:var(--ink-soft);text-align:center;line-height:1.6;
@@ -520,7 +525,7 @@ let currentClassId = null;
 let currentClasses = [];   // classes list from the latest /api/schedule response
 let weeklySchedule = [];   // { classId, className, weekday, start, end, label }[] from the latest /api/schedule response
 let attendance = {};   // { studentId: 'late' | 'absent' }
-let behavior = {};     // { studentId: number }
+let behavior = {};     // { studentId: { plus, minus } } for the selected date only
 let lateTotals = {};   // { studentId: { late, absent } } cumulative counts since records began
 let selectedDate = "";  // "YYYY-MM-DD", defaults to today, changeable via the date picker
 let rosterSortMode = "seat"; // "seat" | "scoreDesc" | "scoreAsc"
@@ -783,10 +788,14 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
 /* ---------- Attendance + behavior (combined roster) ---------- */
 function renderRoster(){
   const list = [...studentsFor(currentClassId)];
+  const netScoreFor = (id) => {
+    const b = behavior[id];
+    return b ? (b.plus || 0) - (b.minus || 0) : 0;
+  };
   if(rosterSortMode === "scoreDesc"){
-    list.sort((a,b) => (behavior[b.id] || 0) - (behavior[a.id] || 0) || a.seat - b.seat);
+    list.sort((a,b) => netScoreFor(b.id) - netScoreFor(a.id) || a.seat - b.seat);
   }else if(rosterSortMode === "scoreAsc"){
-    list.sort((a,b) => (behavior[a.id] || 0) - (behavior[b.id] || 0) || a.seat - b.seat);
+    list.sort((a,b) => netScoreFor(a.id) - netScoreFor(b.id) || a.seat - b.seat);
   }
 
   document.getElementById("scoreDescSortBtn").classList.toggle("active", rosterSortMode === "scoreDesc");
@@ -802,7 +811,7 @@ function renderRoster(){
   const root = document.getElementById("attRoster");
   root.innerHTML = list.map(st => {
     const state = attendance[st.id];
-    const behTotals = statsBehaviorFor(st.id);
+    const behToday = behavior[st.id] || { plus: 0, minus: 0 };
     const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `
       <div class="student-row">
@@ -818,8 +827,9 @@ function renderRoster(){
           </div>
           <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0} 次</div>
           <div class="beh-controls">
-            <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－ ${behTotals.minus}</button>
-            <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋ ${behTotals.plus}</button>
+            <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－ ${behToday.minus}</button>
+            <button class="beh-undo-btn" data-id="${st.id}" title="復原今天最後一次加/扣分">↺</button>
+            <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋ ${behToday.plus}</button>
           </div>
         </div>
       </div>`;
@@ -853,7 +863,9 @@ function renderRoster(){
   root.querySelectorAll(".beh-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
-      behavior[id] = (behavior[id] || 0) + delta;
+      if(!behavior[id]) behavior[id] = { plus: 0, minus: 0 };
+      if(delta > 0) behavior[id].plus += delta;
+      else behavior[id].minus += -delta;
       if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0 };
       if(delta > 0) statsBehaviorTotals[id].plus += delta;
       else statsBehaviorTotals[id].minus += -delta;
@@ -862,6 +874,28 @@ function renderRoster(){
       apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
         .then(() => loadStatsData())
         .catch(()=>{});
+    });
+  });
+
+  root.querySelectorAll(".beh-undo-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      try{
+        const res = await apiPost("/api/behavior/undo", { studentId: id, date: selectedDate });
+        const delta = res.delta;
+        if(behavior[id]){
+          if(delta > 0) behavior[id].plus = Math.max(0, behavior[id].plus - delta);
+          else behavior[id].minus = Math.max(0, behavior[id].minus - (-delta));
+        }
+        if(statsBehaviorTotals[id]){
+          if(delta > 0) statsBehaviorTotals[id].plus = Math.max(0, statsBehaviorTotals[id].plus - delta);
+          else statsBehaviorTotals[id].minus = Math.max(0, statsBehaviorTotals[id].minus - (-delta));
+        }
+        renderRoster();
+        renderStatsTable();
+      }catch(err){
+        alert("今天沒有可復原的加/扣分紀錄");
+      }
     });
   });
 }
@@ -907,7 +941,6 @@ async function loadStatsData(){
     }catch(e){}
   }
   renderStatsTable();
-  renderRoster();
 }
 
 function statsBehaviorFor(studentId){
