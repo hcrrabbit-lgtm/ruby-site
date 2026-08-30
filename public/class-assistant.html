@@ -82,6 +82,12 @@
     background:#FBF0E4;border:1px dashed var(--ochre);color:#7A5522;
     padding:10px 14px;border-radius:10px;font-size:14px;margin-top:10px;
   }
+  .class-progress{margin-top:10px;}
+  .class-progress label{font-size:12px;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:4px;}
+  .class-progress textarea{
+    width:100%;font-size:13px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
+  }
 
   nav.tabs{
     display:flex;gap:8px;margin-bottom:16px;
@@ -419,6 +425,10 @@
     <div class="class-buttons" id="classButtons"></div>
     <div class="no-class-banner" id="noClassBanner" style="display:none;">
       這個時段課表上沒有排課,已切換為手動選擇班級。
+    </div>
+    <div class="class-progress">
+      <label for="classProgressNote">📝 上次進度</label>
+      <textarea id="classProgressNote" rows="2" placeholder="下課後隨手記,下次選這班就會看到..."></textarea>
     </div>
   </header>
 
@@ -1680,7 +1690,23 @@ async function loadRoster(){
   renderStudentsGrid();
   await loadAssignments();
   await loadSubmissionsForCurrentAssignment();
+  await loadClassNote();
 }
+
+async function loadClassNote(){
+  const box = document.getElementById("classProgressNote");
+  box.value = "";
+  if(!currentClassId) return;
+  try{
+    const res = await apiGet(`/api/class-notes?classId=${encodeURIComponent(currentClassId)}`);
+    box.value = res.note || "";
+  }catch(e){}
+}
+
+document.getElementById("classProgressNote").addEventListener("change", (e) => {
+  if(!currentClassId) return;
+  apiPost("/api/class-notes", { classId: currentClassId, note: e.target.value }).catch(()=>{});
+});
 
 document.getElementById("resetTestDataBtn").addEventListener("click", async () => {
   const warning = "即將清除以下資料(全部班級,無法復原):\n\n"
