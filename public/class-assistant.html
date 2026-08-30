@@ -163,6 +163,11 @@
   .footer-note{
     margin-top:22px;font-size:12px;color:var(--ink-soft);text-align:center;line-height:1.6;
   }
+  .danger-reset-btn{
+    display:block;margin:14px auto 0;padding:6px 12px;font-size:11px;
+    background:none;border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);cursor:pointer;
+  }
+  .danger-reset-btn:hover{border-color:var(--clay);color:var(--clay);}
 
   .summary-bar{
     display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;
@@ -485,6 +490,7 @@
   <div class="footer-note">
     出席、秩序評分、作業成績都會即時存到資料庫，拍照評分完成後也會立即建檔。
   </div>
+  <button type="button" class="danger-reset-btn" id="resetTestDataBtn">🗑 清除測試資料(開學前用)</button>
 </div>
 
 <script>
@@ -1675,6 +1681,32 @@ async function loadRoster(){
   await loadAssignments();
   await loadSubmissionsForCurrentAssignment();
 }
+
+document.getElementById("resetTestDataBtn").addEventListener("click", async () => {
+  const warning = "即將清除以下資料(全部班級,無法復原):\n\n"
+    + "・所有作品照片、分數、等第、備註(作業欄位本身會保留)\n"
+    + "・所有學生大頭照\n"
+    + "・所有加分/扣分紀錄\n"
+    + "・所有遲到/缺席紀錄\n\n"
+    + "確定要繼續嗎?";
+  if(!confirm(warning)) return;
+  const typed = prompt("請輸入「RESET」以確認清除(區分大小寫):");
+  if(typed !== "RESET"){ alert("輸入不符,已取消。"); return; }
+
+  const btn = document.getElementById("resetTestDataBtn");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "清除中...";
+  try{
+    const res = await apiPost("/api/admin/reset-test-data", { confirm: "RESET" });
+    alert(`清除完成!\n刪除作品紀錄 ${res.deletedSubmissions} 筆\n刪除大頭照 ${res.deletedAvatars} 張\n刪除加扣分紀錄 ${res.deletedBehavior} 筆\n刪除出缺席紀錄 ${res.deletedAttendance} 筆`);
+    location.reload();
+  }catch(e){
+    alert("清除失敗,請檢查網路連線後再試一次。");
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
 
 /* ---------- Init ---------- */
 (async function init(){
