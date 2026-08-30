@@ -177,19 +177,18 @@
   .sort-label{font-size:13px;color:var(--ink-soft);}
   .summary-chip b{color:var(--ink);}
 
-  /* artwork grading */
-  .assignment-bar{display:flex;gap:8px;margin-bottom:14px;}
-  .assignment-bar select{flex:1;}
-
-  .tier-buttons{display:flex;gap:8px;margin-bottom:16px;}
-  .tier-btn{
-    flex:1;border:none;border-radius:12px;padding:14px 6px;color:#fff;cursor:pointer;
-    display:flex;flex-direction:column;align-items:center;gap:2px;font-size:15px;font-weight:700;
+  /* artwork library */
+  .assignment-buttons{
+    display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-bottom:14px;
   }
-  .tier-btn span{font-size:11px;font-weight:400;opacity:.9;}
-  .tier-btn.superb{background:var(--clay);}
-  .tier-btn.great{background:var(--ochre);}
-  .tier-btn.good{background:var(--sky);}
+  .assignment-btn{
+    flex:1;min-width:72px;font-size:14px;font-weight:600;padding:9px 10px;
+    border-radius:10px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink-soft);cursor:pointer;transition:all .15s;
+  }
+  .assignment-btn.active{
+    background:var(--sage);border-color:var(--sage);color:#fff;
+  }
 
   .section-title{font-size:14px;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;overflow:auto;}
 
@@ -401,7 +400,7 @@
 
   <nav class="tabs">
     <button data-tab="attendance" class="active">課堂表現</button>
-    <button data-tab="artwork">作品評分</button>
+    <button data-tab="artwork">作品庫</button>
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
     <button data-tab="stats">統計表</button>
@@ -424,9 +423,7 @@
 
   <section class="panel" id="panel-artwork">
 
-    <div class="assignment-bar">
-      <select class="override" id="assignmentSelect"></select>
-    </div>
+    <div class="assignment-buttons" id="assignmentButtons"></div>
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 
     <div class="toolbar">
@@ -1279,20 +1276,27 @@ function openArtworkPhoto(photoKey, label){
   document.getElementById("artworkPhotoCloseBtn").addEventListener("click", () => modal.remove());
 }
 
-/* ---------- Artwork grading ---------- */
+/* ---------- Artwork library ---------- */
 let assignments = [];
 let currentAssignmentId = null;
 let submissions = {};        // { assignmentId: { studentId: {tier, score, note, dataUrl, photoKey} } }
 let pendingTier = null;
 
-const TIER_DEFAULT_SCORE = { "特優": 100, "優等": 90, "甲等": 80 };
-const TIER_ORDER = ["特優", "優等", "甲等"];
+const ARTWORK_PHOTO_TAG = "作品";
 const TIER_CLASS = { "特優": "superb", "優等": "great", "甲等": "good" };
 
-function renderAssignmentSelect(){
-  const sel = document.getElementById("assignmentSelect");
-  sel.innerHTML = assignments.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
-  sel.value = currentAssignmentId;
+function renderAssignmentButtons(){
+  const root = document.getElementById("assignmentButtons");
+  root.innerHTML = assignments.map(a =>
+    `<button type="button" class="assignment-btn ${a.id === currentAssignmentId ? "active" : ""}" data-id="${a.id}">${a.name}</button>`
+  ).join("");
+  root.querySelectorAll(".assignment-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      currentAssignmentId = btn.dataset.id;
+      renderAssignmentButtons();
+      await loadSubmissionsForCurrentAssignment();
+    });
+  });
 }
 
 async function loadAssignments(){
@@ -1307,13 +1311,8 @@ async function loadAssignments(){
       }
     }catch(e){}
   }
-  renderAssignmentSelect();
+  renderAssignmentButtons();
 }
-
-document.getElementById("assignmentSelect").addEventListener("change", async (e) => {
-  currentAssignmentId = e.target.value;
-  await loadSubmissionsForCurrentAssignment();
-});
 
 let camTargetSeat = null;
 
@@ -1388,7 +1387,7 @@ async function handlePickedFiles(files){
       await uploadAvatar(avatarStudentId, jpegBlob);
       return;
     }
-    const entry = { tier: pendingTier, dataUrl: URL.createObjectURL(jpegBlob), photoKey: null };
+    const entry = { dataUrl: URL.createObjectURL(jpegBlob), photoKey: null };
     fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(pendingTier)}`, {
       method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
     }).then(r => r.ok ? r.json() : null)
@@ -1412,18 +1411,12 @@ function openAssignForm(entry, presetSeat){
   wrap.innerHTML = `
     <img src="${entry.dataUrl}">
     <div class="assign-row">
-      <label>等第</label>
-      <select id="assignTier">
-        ${TIER_ORDER.map(t => `<option value="${t}" ${t===entry.tier?"selected":""}>${t}</option>`).join("")}
-      </select>
-    </div>
-    <div class="assign-row">
       <label>座號</label>
       <input type="number" id="assignSeat" min="1" max="${rosterCache.length}" placeholder="輸入座號" value="${presetSeat || ''}">
     </div>
     <div class="assign-row">
       <label>分數</label>
-      <input type="number" id="assignScore" value="${TIER_DEFAULT_SCORE[entry.tier]}">
+      <input type="number" id="assignScore" placeholder="選填">
     </div>
     <div class="assign-row">
       <label>備註</label>
@@ -1438,25 +1431,20 @@ function openAssignForm(entry, presetSeat){
   wrap.scrollIntoView({ behavior: "smooth", block: "center" });
   if(!presetSeat) document.getElementById("assignSeat").focus();
 
-  document.getElementById("assignTier").addEventListener("change", (e) => {
-    document.getElementById("assignScore").value = TIER_DEFAULT_SCORE[e.target.value];
-  });
-
   document.getElementById("assignCancelBtn").addEventListener("click", () => wrap.remove());
 
   document.getElementById("assignConfirmBtn").addEventListener("click", async () => {
     const seat = parseInt(document.getElementById("assignSeat").value, 10);
     const st = rosterCache.find(s => s.seat === seat);
     if(!st){ alert("查無座號 " + seat); return; }
-    const tier = document.getElementById("assignTier").value;
-    const score = parseInt(document.getElementById("assignScore").value, 10);
+    const score = parseInt(document.getElementById("assignScore").value, 10) || 0;
     const note = document.getElementById("assignNote").value;
 
     if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
-    if(submissions[currentAssignmentId][st.id] && !confirm(`${st.name}(座號${st.seat})這項作業已經建檔過,要覆蓋嗎?`)){
+    if(submissions[currentAssignmentId][st.id] && !confirm(`${st.name}(座號${st.seat})這項作品已經建檔過,要覆蓋嗎?`)){
       return;
     }
-    submissions[currentAssignmentId][st.id] = { tier, score, note, dataUrl: entry.dataUrl, photoKey: entry.photoKey };
+    submissions[currentAssignmentId][st.id] = { tier: "", score, note, dataUrl: entry.dataUrl, photoKey: entry.photoKey };
     wrap.remove();
     renderArtRoster();
 
@@ -1464,41 +1452,10 @@ function openAssignForm(entry, presetSeat){
       assignmentId: currentAssignmentId,
       classId: currentClassId,
       seat,
-      tier, score, note,
+      tier: "", score, note,
       photoKey: entry.photoKey
     }).catch(()=>{});
   });
-}
-
-function chooseTierThenCapture(seat){
-  const st = rosterCache.find(s => s.seat === seat);
-  if(!st) return;
-  const existing = document.getElementById("tierPickerWrap");
-  if(existing) existing.remove();
-
-  const wrap = document.createElement("div");
-  wrap.id = "tierPickerWrap";
-  wrap.className = "assign-form";
-  wrap.innerHTML = `
-    <p style="margin:0 0 10px;font-weight:700;">${st.seat} 號・${st.name} — 選擇要拍的等第</p>
-    <div class="tier-buttons">
-      <button class="tier-btn superb" data-tier="特優">特優</button>
-      <button class="tier-btn great" data-tier="優等">優等</button>
-      <button class="tier-btn good" data-tier="甲等">甲等</button>
-    </div>
-    <div class="assign-actions" style="margin-top:10px;">
-      <button class="assign-cancel" id="tierPickerCancelBtn">取消</button>
-    </div>
-  `;
-  document.getElementById("artRoster").before(wrap);
-  wrap.scrollIntoView({ behavior: "smooth", block: "center" });
-  wrap.querySelectorAll(".tier-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      wrap.remove();
-      startPhotoCapture(btn.dataset.tier, { seat });
-    });
-  });
-  document.getElementById("tierPickerCancelBtn").addEventListener("click", () => wrap.remove());
 }
 
 function renderArtRoster(){
@@ -1512,9 +1469,11 @@ function renderArtRoster(){
     const e = data[st.id];
     const imgSrc = e ? (e.photoKey ? `/api/photo/${e.photoKey}` : (e.dataUrl || "")) : "";
     const photoInner = imgSrc ? `<img src="${imgSrc}">` : `<div class="art-row-noPhoto">🧑</div>`;
-    const statusHtml = e
-      ? `${e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : ""}分數 ${e.score}${e.note ? "・" + e.note : ""}`
-      : `尚未評分`;
+    const detailParts = [];
+    if(e && e.score) detailParts.push(`分數 ${e.score}`);
+    if(e && e.note) detailParts.push(e.note);
+    const tierBadge = e && e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : "";
+    const statusHtml = e ? (tierBadge + (detailParts.length ? detailParts.join("・") : "已建檔")) : "尚未建檔";
     return `
       <div class="art-row" data-student="${st.id}">
         ${photoInner}
@@ -1522,21 +1481,21 @@ function renderArtRoster(){
           <div class="art-row-name">${st.seat} 號・${st.name}</div>
           <div class="art-row-meta">${statusHtml}</div>
         </div>
-        <button class="art-row-capture" data-seat="${st.seat}">${e ? "🔄 重拍" : "📷 拍照評分"}</button>
+        <button class="art-row-capture" data-seat="${st.seat}">${e ? "🔄 重拍" : "📷 拍照建檔"}</button>
         ${e ? `<button class="art-row-remove" data-student="${st.id}" title="刪除">✕</button>` : ""}
       </div>`;
   }).join("");
 
   root.querySelectorAll(".art-row-capture").forEach(btn => {
     btn.addEventListener("click", () => {
-      chooseTierThenCapture(parseInt(btn.dataset.seat, 10));
+      startPhotoCapture(ARTWORK_PHOTO_TAG, { seat: parseInt(btn.dataset.seat, 10) });
     });
   });
   root.querySelectorAll(".art-row-remove").forEach(btn => {
     btn.addEventListener("click", (e) => {
       const sid = e.target.dataset.student;
       const st = rosterCache.find(s => s.id === sid);
-      if(confirm(`刪除 ${st.name} 這項作業的建檔紀錄?`)){
+      if(confirm(`刪除 ${st.name} 這項作品的建檔紀錄?`)){
         delete submissions[currentAssignmentId][sid];
         renderArtRoster();
         apiDelete("/api/submissions", { assignmentId: currentAssignmentId, studentId: sid }).catch(()=>{});
