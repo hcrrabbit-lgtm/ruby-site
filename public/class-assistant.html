@@ -318,6 +318,7 @@
     flex:1;min-width:140px;font-size:14px;padding:8px 10px;border-radius:8px;
     border:1px solid var(--line);background:var(--card);color:var(--ink);
   }
+  .stats-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .stats-table-wrap{
     overflow-x:auto;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
@@ -330,11 +331,34 @@
     background:var(--paper);color:var(--ink-soft);cursor:pointer;user-select:none;
   }
   .stats-table thead th.sorted{color:var(--sage-dark);}
+  .stats-table thead th .col-sub{display:block;font-size:9px;font-weight:400;color:var(--ink-soft);}
+  .stats-table thead th.assignment-col{padding:4px;}
+  .stats-assignment-head{display:flex;align-items:center;justify-content:center;gap:4px;}
+  .stats-rename-btn{
+    border:none;background:none;color:var(--ink-soft);cursor:pointer;font-size:12px;padding:2px;
+  }
+  .stats-add-col{width:36px;}
+  .stats-add-btn{
+    width:26px;height:26px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card);color:var(--sage-dark);font-size:16px;font-weight:700;cursor:pointer;
+  }
   .stats-table td.stats-name{text-align:left;font-weight:600;}
   .stats-table td.stats-seat{color:var(--ink-soft);}
   .stats-table td.stats-plus{color:var(--sage-dark);font-weight:600;}
   .stats-table td.stats-minus{color:var(--clay);font-weight:600;}
   .stats-table tfoot td{background:var(--paper);font-weight:700;}
+  .stats-score-input{
+    width:52px;font-size:13px;padding:4px;border-radius:6px;border:1px solid var(--line);
+    text-align:center;background:var(--card);color:var(--ink);
+  }
+  .print-only{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #panel-stats, #panel-stats *{visibility:visible;}
+    #panel-stats{position:absolute;left:0;top:0;width:100%;}
+    .no-print{display:none !important;}
+    .print-only{display:block;margin-bottom:10px;font-size:16px;font-weight:700;}
+  }
 
   .photo-modal{
     position:fixed;inset:0;background:rgba(0,0,0,0.75);
@@ -467,9 +491,14 @@
   </section>
 
   <section class="panel" id="panel-stats">
+    <div class="print-only" id="statsPrintHeader"></div>
     <div class="stats-toolbar">
-      <input type="text" id="statsSearch" class="stats-search" placeholder="搜尋座號或姓名">
+      <input type="text" id="statsSearch" class="stats-search no-print" placeholder="搜尋座號或姓名">
       <span class="count" id="statsCount">0 位學生</span>
+      <div class="stats-actions no-print">
+        <button type="button" class="sort-btn" id="statsExportBtn">匯出CSV</button>
+        <button type="button" class="sort-btn" id="statsPrintBtn">列印</button>
+      </div>
     </div>
     <div class="stats-table-wrap">
       <table class="stats-table" id="statsTable"></table>
@@ -826,7 +855,9 @@ function renderRoster(){
       behavior[id] = (behavior[id] || 0) + delta;
       playBeep(delta > 0 ? 880 : 330, 0.05);
       renderRoster();
-      apiPost("/api/behavior", { studentId: id, date: selectedDate, delta }).catch(()=>{});
+      apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
+        .then(() => loadStatsData())
+        .catch(()=>{});
     });
   });
 }
@@ -895,41 +926,61 @@ function statsValueFor(st, key){
   return score != null ? score : -1;
 }
 
-function renderStatsTable(){
-  const root = document.getElementById("statsTable");
-  if(!root) return;
-
+function getStatsList(){
   const term = statsSearchTerm.trim();
-  let list = rosterCache.filter(st => !term || String(st.seat).includes(term) || st.name.includes(term));
-
+  const list = rosterCache.filter(st => !term || String(st.seat).includes(term) || st.name.includes(term));
   list.sort((a, b) => {
     const va = statsValueFor(a, statsSortKey), vb = statsValueFor(b, statsSortKey);
     const cmp = typeof va === "string" ? va.localeCompare(vb, "zh-Hant") : va - vb;
     return statsSortAsc ? cmp : -cmp;
   });
+  return list;
+}
 
+const STATS_FIXED_COLUMNS = [
+  { key: "seat", label: "座號" },
+  { key: "name", label: "姓名" },
+  { key: "plus", label: "加分", sub: "累計" },
+  { key: "minus", label: "扣分", sub: "累計" },
+  { key: "late", label: "遲到", sub: "累計" },
+  { key: "absent", label: "缺席", sub: "累計" }
+];
+
+function renderStatsTable(){
+  const root = document.getElementById("statsTable");
+  if(!root) return;
+
+  const list = getStatsList();
   document.getElementById("statsCount").textContent = list.length + " 位學生";
 
-  const columns = [
-    { key: "seat", label: "座號" },
-    { key: "name", label: "姓名" },
-    { key: "plus", label: "加分累計" },
-    { key: "minus", label: "扣分累計" },
-    { key: "late", label: "遲到累計" },
-    { key: "absent", label: "缺席累計" },
-    ...statsAssignments.map(a => ({ key: a.id, label: a.name }))
-  ];
+  const clsName = (currentClasses.find(c => c.id === currentClassId) || {}).name || currentClassId || "";
+  document.getElementById("statsPrintHeader").textContent = clsName ? `統計表・${clsName}・${todayStr()}` : `統計表・${todayStr()}`;
 
-  const headHtml = columns.map(c => {
+  const sortArrow = (key) => statsSortKey === key ? (statsSortAsc ? " ▲" : " ▼") : "";
+
+  const fixedHeadHtml = STATS_FIXED_COLUMNS.map(c => {
     const isSorted = statsSortKey === c.key;
-    return `<th data-key="${c.key}" class="${isSorted ? "sorted" : ""}">${c.label}${isSorted ? (statsSortAsc ? " ▲" : " ▼") : ""}</th>`;
+    const labelHtml = c.sub ? `${c.label}<span class="col-sub">${c.sub}</span>` : c.label;
+    return `<th data-key="${c.key}" class="${isSorted ? "sorted" : ""}">${labelHtml}${sortArrow(c.key)}</th>`;
   }).join("");
+
+  const assignmentHeadHtml = statsAssignments.map(a => {
+    const isSorted = statsSortKey === a.id;
+    return `<th data-key="${a.id}" class="assignment-col ${isSorted ? "sorted" : ""}">
+      <span class="stats-assignment-head">
+        <span>${a.name}${sortArrow(a.id)}</span>
+        <button type="button" class="stats-rename-btn no-print" data-rename="${a.id}" title="改名(所有班級同步)">✎</button>
+      </span>
+    </th>`;
+  }).join("");
+
+  const addColHtml = `<th class="stats-add-col no-print"><button type="button" id="statsAddAssignmentBtn" class="stats-add-btn" title="新增作業欄位(所有班級同步)">＋</button></th>`;
 
   const bodyHtml = list.map(st => {
     const beh = statsBehaviorFor(st.id);
     const assignmentCells = statsAssignments.map(a => {
       const score = statsScores[st.id] && statsScores[st.id][a.id];
-      return `<td>${score != null ? score : "-"}</td>`;
+      return `<td><input type="number" class="stats-score-input" data-student="${st.id}" data-assignment="${a.id}" value="${score != null ? score : ""}"></td>`;
     }).join("");
     return `<tr>
       <td class="stats-seat">${st.seat}</td>
@@ -939,6 +990,7 @@ function renderStatsTable(){
       <td>${statsLateFor(st.id)}</td>
       <td>${statsAbsentFor(st.id)}</td>
       ${assignmentCells}
+      <td class="no-print"></td>
     </tr>`;
   }).join("");
 
@@ -959,11 +1011,12 @@ function renderStatsTable(){
     <td>${sum(st => statsLateFor(st.id))}</td>
     <td>${sum(st => statsAbsentFor(st.id))}</td>
     ${avgCells}
+    <td class="no-print"></td>
   </tr>`;
 
-  root.innerHTML = `<thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody><tfoot>${footHtml}</tfoot>`;
+  root.innerHTML = `<thead><tr>${fixedHeadHtml}${assignmentHeadHtml}${addColHtml}</tr></thead><tbody>${bodyHtml}</tbody><tfoot>${footHtml}</tfoot>`;
 
-  root.querySelectorAll("thead th").forEach(th => {
+  root.querySelectorAll("thead th[data-key]").forEach(th => {
     th.addEventListener("click", () => {
       const key = th.dataset.key;
       if(statsSortKey === key) statsSortAsc = !statsSortAsc;
@@ -971,7 +1024,84 @@ function renderStatsTable(){
       renderStatsTable();
     });
   });
+
+  root.querySelectorAll(".stats-rename-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const assignmentId = btn.dataset.rename;
+      const current = statsAssignments.find(a => a.id === assignmentId);
+      if(!current) return;
+      const newName = prompt("修改作業名稱(所有班級會一起更新)", current.name);
+      if(!newName || newName === current.name) return;
+      current.name = newName;
+      renderStatsTable();
+      apiPost("/api/assignments/rename", { id: assignmentId, name: newName }).catch(()=>{});
+    });
+  });
+
+  root.querySelectorAll(".stats-score-input").forEach(inp => {
+    inp.addEventListener("change", async (e) => {
+      e.stopPropagation();
+      const studentId = inp.dataset.student, assignmentId = inp.dataset.assignment;
+      if(inp.value === "") return;
+      const val = parseInt(inp.value, 10);
+      if(Number.isNaN(val)) return;
+      if(!statsScores[studentId]) statsScores[studentId] = {};
+      statsScores[studentId][assignmentId] = val;
+      try{
+        await apiPost("/api/submissions/score", { assignmentId, studentId, score: val });
+      }catch(err){}
+      renderStatsTable();
+    });
+    inp.addEventListener("click", (e) => e.stopPropagation());
+  });
+
+  const addBtn = root.querySelector("#statsAddAssignmentBtn");
+  if(addBtn){
+    addBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if(!currentClassId){ alert("請先選擇班級"); return; }
+      const name = prompt("新作業/欄位的名稱?(所有班級會一起新增)", "作業" + (statsAssignments.length + 1));
+      if(!name) return;
+      try{
+        await apiPost("/api/assignments", { classId: currentClassId, name });
+      }catch(err){}
+      await loadStatsData();
+      await loadAssignments();
+      renderUnassigned();
+      await loadSubmissionsForCurrentAssignment();
+    });
+  }
 }
+
+function exportStatsCsv(){
+  const list = getStatsList();
+  const header = ["座號", "姓名", "加分累計", "扣分累計", "遲到累計", "缺席累計", ...statsAssignments.map(a => a.name)];
+  const rows = [header];
+  list.forEach(st => {
+    const beh = statsBehaviorFor(st.id);
+    const row = [st.seat, st.name, beh.plus, beh.minus, statsLateFor(st.id), statsAbsentFor(st.id)];
+    statsAssignments.forEach(a => {
+      const score = statsScores[st.id] && statsScores[st.id][a.id];
+      row.push(score != null ? score : "");
+    });
+    rows.push(row);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const clsName = (currentClasses.find(c => c.id === currentClassId) || {}).name || currentClassId || "班級";
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `統計表_${clsName}_${todayStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("statsExportBtn").addEventListener("click", exportStatsCsv);
+document.getElementById("statsPrintBtn").addEventListener("click", () => window.print());
 
 document.getElementById("statsSearch").addEventListener("input", (e) => {
   statsSearchTerm = e.target.value;
@@ -1399,7 +1529,7 @@ function renderAssignedList(){
         <div class="art-row-main">
           <div class="art-row-name">${e.student.seat} 號・${e.student.name}</div>
           <div class="art-row-meta">
-            <span class="art-tier-badge ${TIER_CLASS[e.tier]}">${e.tier}</span>
+            ${e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : ""}
             ${e.note ? e.note : ""}
           </div>
         </div>
@@ -1417,6 +1547,11 @@ function renderAssignedList(){
         html += group.map(rowHtml).join("");
       }
     });
+    const untiered = entries.filter(e => !TIER_ORDER.includes(e.tier)).sort((a,b) => a.student.seat - b.student.seat);
+    if(untiered.length){
+      html += `<div class="group-heading">未分類(${untiered.length})</div>`;
+      html += untiered.map(rowHtml).join("");
+    }
   }else{
     entries.sort((a,b) => a.student.seat - b.student.seat);
     html = entries.map(rowHtml).join("");
