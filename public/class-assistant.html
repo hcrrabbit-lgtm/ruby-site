@@ -230,13 +230,8 @@
     width:52px;height:52px;border-radius:8px;flex-shrink:0;background:var(--paper);
     display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink-soft);
   }
-  .art-row-actions{display:flex;flex-direction:column;gap:4px;}
   .art-row-capture{
-    background:var(--sage);color:#fff;border:none;border-radius:8px;padding:6px 10px;
-    font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
-  }
-  .art-row-upload{
-    background:var(--paper);color:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+    background:var(--sage);color:#fff;border:none;border-radius:8px;padding:8px 10px;
     font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
   }
   .art-row-remove{background:none;border:none;color:var(--clay);font-size:18px;cursor:pointer;padding:4px;}
@@ -1396,12 +1391,13 @@ function startPhotoCapture(tier, opts){
   input.click();
 }
 
-// Same flow as startPhotoCapture, but targets the album-picker input (no "capture"
-// attribute) so the OS shows the normal photo library instead of forcing the camera.
-function startAlbumUpload(opts){
+// Artwork photos use an input with no "capture" attribute, so the OS shows its own
+// action sheet offering both "take photo" and "photo library" in one tap target
+// (unlike startPhotoCapture, which forces the camera app directly for avatar shots).
+function startArtworkPhoto(opts){
   opts = opts || {};
   camTargetSeat = opts.seat || null;
-  camAvatarStudentId = opts.studentId || null;
+  camAvatarStudentId = null;
   pendingTier = ARTWORK_PHOTO_TAG;
   const input = document.getElementById("albumInput");
   input.value = "";
@@ -1529,10 +1525,7 @@ function renderArtRoster(){
           </div>
           <div class="art-row-meta">${statusHtml}</div>
         </div>
-        <div class="art-row-actions">
-          <button class="art-row-capture" data-seat="${st.seat}">${hasPhoto ? "🔄 重拍" : "📷 拍照"}</button>
-          <button class="art-row-upload" data-seat="${st.seat}" title="從手機相簿上傳">🖼 相簿</button>
-        </div>
+        <button class="art-row-capture" data-seat="${st.seat}">${hasPhoto ? "🔄 重拍" : "📷 拍照"}</button>
         ${e ? `<button class="art-row-remove" data-student="${st.id}" title="刪除">✕</button>` : ""}
       </div>`;
   }).join("");
@@ -1545,12 +1538,7 @@ function renderArtRoster(){
   });
   root.querySelectorAll(".art-row-capture").forEach(btn => {
     btn.addEventListener("click", () => {
-      startPhotoCapture(ARTWORK_PHOTO_TAG, { seat: parseInt(btn.dataset.seat, 10) });
-    });
-  });
-  root.querySelectorAll(".art-row-upload").forEach(btn => {
-    btn.addEventListener("click", () => {
-      startAlbumUpload({ seat: parseInt(btn.dataset.seat, 10) });
+      startArtworkPhoto({ seat: parseInt(btn.dataset.seat, 10) });
     });
   });
   root.querySelectorAll(".art-score-input").forEach(inp => {
