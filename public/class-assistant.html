@@ -217,7 +217,12 @@
   .art-row-photo{cursor:pointer;}
   .art-row-main{flex:1;min-width:0;}
   .art-row-name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;}
-  .art-row-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .art-row-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;display:flex;align-items:center;gap:6px;}
+  .art-row-status{white-space:nowrap;}
+  .art-note-input{
+    flex:1;min-width:60px;font-size:12px;padding:3px 6px;border-radius:6px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);
+  }
   .art-score-input{
     width:48px;font-size:13px;font-weight:400;padding:3px 4px;border-radius:6px;
     border:1px solid var(--line);text-align:center;background:var(--card);color:var(--ink);
@@ -1458,10 +1463,6 @@ function openAssignForm(entry, presetSeat){
       <label>座號</label>
       <input type="number" id="assignSeat" min="1" max="${rosterCache.length}" placeholder="輸入座號" value="${presetSeat || ''}">
     </div>
-    <div class="assign-row">
-      <label>備註</label>
-      <input type="text" id="assignNote" placeholder="選填">
-    </div>
     <div class="assign-actions">
       <button class="assign-cancel" id="assignCancelBtn">取消</button>
       <button class="assign-confirm" id="assignConfirmBtn">確認建檔</button>
@@ -1477,7 +1478,6 @@ function openAssignForm(entry, presetSeat){
     const seat = parseInt(document.getElementById("assignSeat").value, 10);
     const st = rosterCache.find(s => s.seat === seat);
     if(!st){ alert("查無座號 " + seat); return; }
-    const note = document.getElementById("assignNote").value;
 
     if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
     const existing = submissions[currentAssignmentId][st.id];
@@ -1485,6 +1485,7 @@ function openAssignForm(entry, presetSeat){
       return;
     }
     const score = existing && existing.score != null ? existing.score : 0;
+    const note = existing && existing.note ? existing.note : "";
     submissions[currentAssignmentId][st.id] = { tier: "", score, note, dataUrl: entry.dataUrl, photoKey: entry.photoKey };
     wrap.remove();
     renderArtRoster();
@@ -1514,7 +1515,7 @@ function renderArtRoster(){
       ? `<img src="${imgSrc}" class="art-row-photo" data-student="${st.id}">`
       : `<div class="art-row-noPhoto">🧑</div>`;
     const tierBadge = e && e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : "";
-    const statusHtml = tierBadge + (e && e.note ? e.note : (hasPhoto ? "已建檔" : (e ? "尚未拍照" : "尚未建檔")));
+    const statusText = hasPhoto ? "已建檔" : (e ? "尚未拍照" : "尚未建檔");
     return `
       <div class="art-row" data-student="${st.id}">
         ${photoInner}
@@ -1523,7 +1524,10 @@ function renderArtRoster(){
             ${st.seat} 號・${st.name}
             <input type="number" class="art-score-input" data-student="${st.id}" value="${e && e.score ? e.score : ""}" placeholder="分數">
           </div>
-          <div class="art-row-meta">${statusHtml}</div>
+          <div class="art-row-meta">
+            ${tierBadge}<span class="art-row-status">${statusText}</span>
+            <input type="text" class="art-note-input" data-student="${st.id}" value="${e && e.note ? e.note : ""}" placeholder="備註">
+          </div>
         </div>
         <button class="art-row-capture" data-seat="${st.seat}">${hasPhoto ? "🔄 重拍" : "📷 拍照"}</button>
         ${e ? `<button class="art-row-remove" data-student="${st.id}" title="刪除">✕</button>` : ""}
@@ -1555,6 +1559,21 @@ function renderArtRoster(){
         submissions[currentAssignmentId][sid].score = score;
       }
       apiPost("/api/submissions/score", { assignmentId: currentAssignmentId, studentId: sid, score }).catch(()=>{});
+      renderArtRoster();
+    });
+  });
+  root.querySelectorAll(".art-note-input").forEach(inp => {
+    inp.addEventListener("click", (e) => e.stopPropagation());
+    inp.addEventListener("change", (e) => {
+      const sid = inp.dataset.student;
+      const note = inp.value;
+      if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
+      if(!submissions[currentAssignmentId][sid]){
+        submissions[currentAssignmentId][sid] = { tier: "", score: 0, note, photoKey: null };
+      }else{
+        submissions[currentAssignmentId][sid].note = note;
+      }
+      apiPost("/api/submissions/note", { assignmentId: currentAssignmentId, studentId: sid, note }).catch(()=>{});
       renderArtRoster();
     });
   });
