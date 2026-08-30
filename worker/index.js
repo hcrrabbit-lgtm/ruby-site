@@ -455,6 +455,42 @@ async function handleNoteUpdate(env, request) {
   return json({ ok: true });
 }
 
+async function handleResetTestData(env, request) {
+  // 開學前一鍵清除測試資料：作品照片/分數/等第/備註、學生大頭照、加扣分、遲到缺席
+  // 保留：班級、學生名冊、課表、作業欄位定義本身
+  const body = await request.json().catch(() => ({}));
+  if (body.confirm !== "RESET") {
+    return json({ error: "缺少確認碼" }, { status: 400 });
+  }
+
+  const submissionCount = (await env.DB.prepare("SELECT COUNT(*) as c FROM submissions").first()).c || 0;
+  const behaviorCount = (await env.DB.prepare("SELECT COUNT(*) as c FROM behavior_events").first()).c || 0;
+  const attendanceCount = (await env.DB.prepare("SELECT COUNT(*) as c FROM attendance").first()).c || 0;
+
+  const photoRows = (await env.DB.prepare("SELECT photo_key FROM submissions WHERE photo_key IS NOT NULL").all()).results;
+  const avatarRows = (await env.DB.prepare("SELECT photo_key FROM students WHERE photo_key IS NOT NULL").all()).results;
+
+  for (const row of photoRows) {
+    try { await env.PHOTOS.delete(`photos/${row.photo_key}`); } catch (e) {}
+  }
+  for (const row of avatarRows) {
+    try { await env.PHOTOS.delete(`photos/${row.photo_key}`); } catch (e) {}
+  }
+
+  await env.DB.prepare("DELETE FROM submissions").run();
+  await env.DB.prepare("UPDATE students SET photo_key = NULL").run();
+  await env.DB.prepare("DELETE FROM behavior_events").run();
+  await env.DB.prepare("DELETE FROM attendance").run();
+
+  return json({
+    ok: true,
+    deletedSubmissions: submissionCount,
+    deletedAvatars: avatarRows.length,
+    deletedBehavior: behaviorCount,
+    deletedAttendance: attendanceCount
+  });
+}
+
 function classifySourceUrl(url) {
   try {
     const host = new URL(url).hostname;
@@ -716,6 +752,7 @@ export default {
       if (path === "/api/submissions" && request.method === "DELETE") return await handleSubmissionsDelete(env, request);
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
       if (path === "/api/submissions/note" && request.method === "POST") return await handleNoteUpdate(env, request);
+      if (path === "/api/admin/reset-test-data" && request.method === "POST") return await handleResetTestData(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 
