@@ -268,15 +268,23 @@ async function handleAssignmentsGet(env, url) {
 }
 
 async function handleAssignmentsPost(env, request) {
+  // 每班的作業都一樣：新增作業會一次幫所有班級建立同名的一筆，維持各班同步
   const { classId, name } = await request.json();
-  const id = "hw_" + Date.now();
+  const classes = (await env.DB.prepare("SELECT id FROM classes").all()).results;
   const countRes = await env.DB.prepare(
-    "SELECT COUNT(*) as c FROM assignments WHERE class_id = ?"
+    "SELECT COALESCE(MAX(order_no), 0) as maxOrder FROM assignments WHERE class_id = ?"
   ).bind(classId).first();
-  await env.DB.prepare(
-    "INSERT INTO assignments (id, class_id, name, order_no) VALUES (?, ?, ?, ?)"
-  ).bind(id, classId, name, (countRes.c || 0) + 1).run();
-  return json({ id, name });
+  const orderNo = (countRes.maxOrder || 0) + 1;
+
+  let newId = null;
+  for (const cls of classes) {
+    const id = "hw_" + Date.now() + "_" + cls.id;
+    await env.DB.prepare(
+      "INSERT INTO assignments (id, class_id, name, order_no) VALUES (?, ?, ?, ?)"
+    ).bind(id, cls.id, name, orderNo).run();
+    if (cls.id === classId) newId = id;
+  }
+  return json({ id: newId || ("hw_" + Date.now()), name });
 }
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
@@ -286,9 +294,12 @@ function isJpegMagicBytes(bytes) {
 }
 
 async function handleAssignmentsRename(env, request) {
+  // 每班的作業都一樣：依目前名稱找出所有班級同名的那一筆一起改名，維持各班同步
   const { id, name } = await request.json();
   if (!id || !name) return json({ error: "缺少 id 或 name" }, { status: 400 });
-  await env.DB.prepare("UPDATE assignments SET name = ? WHERE id = ?").bind(name, id).run();
+  const current = await env.DB.prepare("SELECT name FROM assignments WHERE id = ?").bind(id).first();
+  if (!current) return json({ error: "查無此作業" }, { status: 404 });
+  await env.DB.prepare("UPDATE assignments SET name = ? WHERE name = ?").bind(name, current.name).run();
   return json({ ok: true });
 }
 
@@ -377,10 +388,14 @@ async function handleSubmissionsDelete(env, request) {
 }
 
 async function handleScoreUpdate(env, request) {
+  // upsert：既有建檔（有等第/照片）只更新分數；沒有建檔過的（例如統計表直接輸入分數）就新建一筆空白等第的紀錄
   const { assignmentId, studentId, score } = await request.json();
+  const id = assignmentId + "_" + studentId;
   await env.DB.prepare(
-    "UPDATE submissions SET score = ? WHERE assignment_id = ? AND student_id = ?"
-  ).bind(score, assignmentId, studentId).run();
+    `INSERT INTO submissions (id, assignment_id, student_id, tier, score, note, photo_key)
+     VALUES (?, ?, ?, '', ?, '', NULL)
+     ON CONFLICT(assignment_id, student_id) DO UPDATE SET score = excluded.score`
+  ).bind(id, assignmentId, studentId, score).run();
   return json({ ok: true });
 }
 
