@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS behavior_events (id INTEGER PRIMARY KEY AUTOINCREMENT
 CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, name TEXT NOT NULL, order_no INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS class_notes (class_id TEXT PRIMARY KEY, note TEXT NOT NULL DEFAULT '', updated_at TEXT);
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
@@ -455,6 +456,22 @@ async function handleNoteUpdate(env, request) {
   return json({ ok: true });
 }
 
+async function handleClassNoteGet(env, url) {
+  const classId = url.searchParams.get("classId") || "5-1";
+  const row = await env.DB.prepare("SELECT note, updated_at as updatedAt FROM class_notes WHERE class_id = ?").bind(classId).first();
+  return json({ note: (row && row.note) || "", updatedAt: (row && row.updatedAt) || null });
+}
+
+async function handleClassNotePost(env, request) {
+  const { classId, note } = await request.json();
+  if (!classId) return json({ error: "缺少 classId" }, { status: 400 });
+  await env.DB.prepare(
+    `INSERT INTO class_notes (class_id, note, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(class_id) DO UPDATE SET note = excluded.note, updated_at = excluded.updated_at`
+  ).bind(classId, note || "", new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
 async function handleResetTestData(env, request) {
   // 開學前一鍵清除測試資料：作品照片/分數/等第/備註、學生大頭照、加扣分、遲到缺席
   // 保留：班級、學生名冊、課表、作業欄位定義本身
@@ -753,6 +770,8 @@ export default {
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
       if (path === "/api/submissions/note" && request.method === "POST") return await handleNoteUpdate(env, request);
       if (path === "/api/admin/reset-test-data" && request.method === "POST") return await handleResetTestData(env, request);
+      if (path === "/api/class-notes" && request.method === "GET") return await handleClassNoteGet(env, url);
+      if (path === "/api/class-notes" && request.method === "POST") return await handleClassNotePost(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 
