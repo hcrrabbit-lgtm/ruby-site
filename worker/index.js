@@ -303,6 +303,20 @@ async function handleAssignmentsRename(env, request) {
   return json({ ok: true });
 }
 
+async function handleAssignmentsDelete(env, request) {
+  // 每班的作業都一樣：依目前名稱刪除所有班級同名的作業與對應的作品紀錄，維持各班同步
+  const { id } = await request.json();
+  if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  const current = await env.DB.prepare("SELECT name FROM assignments WHERE id = ?").bind(id).first();
+  if (!current) return json({ error: "查無此作業" }, { status: 404 });
+  const rows = (await env.DB.prepare("SELECT id FROM assignments WHERE name = ?").bind(current.name).all()).results;
+  for (const row of rows) {
+    await env.DB.prepare("DELETE FROM submissions WHERE assignment_id = ?").bind(row.id).run();
+  }
+  await env.DB.prepare("DELETE FROM assignments WHERE name = ?").bind(current.name).run();
+  return json({ ok: true });
+}
+
 async function handleStudentPhotoUpload(env, request, url) {
   const studentId = url.searchParams.get("studentId");
   if (!studentId) return json({ error: "缺少 studentId" }, { status: 400 });
@@ -574,6 +588,7 @@ export default {
       if (path === "/api/assignments" && request.method === "GET") return await handleAssignmentsGet(env, url);
       if (path === "/api/assignments" && request.method === "POST") return await handleAssignmentsPost(env, request);
       if (path === "/api/assignments/rename" && request.method === "POST") return await handleAssignmentsRename(env, request);
+      if (path === "/api/assignments" && request.method === "DELETE") return await handleAssignmentsDelete(env, request);
       if (path === "/api/assignments/scores" && request.method === "GET") return await handleAssignmentScores(env, url);
 
       if (path === "/api/photo" && request.method === "POST") return await handlePhotoUpload(env, request, url);
