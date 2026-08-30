@@ -193,20 +193,6 @@
 
   .section-title{font-size:14px;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;overflow:auto;}
 
-  .thumb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px;}
-  .thumb-card{
-    background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;
-    position:relative;
-  }
-  .thumb-card img{width:100%;height:90px;object-fit:cover;display:block;}
-  .thumb-tier-tag{
-    position:absolute;top:4px;left:4px;font-size:10px;font-weight:700;color:#fff;
-    padding:2px 6px;border-radius:6px;
-  }
-  .thumb-tier-tag.superb{background:var(--clay);}
-  .thumb-tier-tag.great{background:var(--ochre);}
-  .thumb-tier-tag.good{background:var(--sky);}
-
   .assign-form{
     background:var(--card);border:1px solid var(--sage);border-radius:12px;padding:14px;margin-bottom:12px;
   }
@@ -236,32 +222,15 @@
   .art-tier-badge.superb{background:var(--clay);}
   .art-tier-badge.great{background:var(--ochre);}
   .art-tier-badge.good{background:var(--sky);}
-  .art-row input.score-input{width:52px;font-size:14px;padding:5px;border-radius:6px;border:1px solid var(--line);text-align:center;}
+  .art-row-noPhoto{
+    width:52px;height:52px;border-radius:8px;flex-shrink:0;background:var(--paper);
+    display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink-soft);
+  }
+  .art-row-capture{
+    background:var(--sage);color:#fff;border:none;border-radius:8px;padding:8px 10px;
+    font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
   .art-row-remove{background:none;border:none;color:var(--clay);font-size:18px;cursor:pointer;padding:4px;}
-  .group-heading{font-size:13px;font-weight:700;color:var(--ink-soft);margin:10px 0 2px;}
-
-  .seat-grid{
-    display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;
-  }
-  .seat-cell{
-    display:flex;flex-direction:column;
-    border-radius:8px;overflow:hidden;cursor:pointer;text-align:center;
-    border:2px solid transparent;
-  }
-  .seat-cell .seat-photo{
-    width:100%;aspect-ratio:1;background:var(--paper);
-    display:flex;align-items:center;justify-content:center;
-    font-size:22px;color:var(--ink-soft);overflow:hidden;
-  }
-  .seat-cell .seat-photo img{width:100%;height:100%;object-fit:cover;}
-  .seat-cell .seat-info{padding:3px 2px;color:#fff;}
-  .seat-cell .seat-num{font-size:13px;font-weight:700;line-height:1.2;}
-  .seat-cell .seat-name{font-size:10.5px;line-height:1.2;opacity:.95;word-break:break-all;}
-  .seat-cell.submitted{border-color:var(--sage);}
-  .seat-cell.submitted .seat-info{background:var(--sage);}
-  .seat-cell.missing{border-color:var(--clay);}
-  .seat-cell.missing .seat-info{background:var(--clay);}
-  .seat-cell:active{opacity:0.75;}
 
   .student-grid{
     display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
@@ -457,38 +426,13 @@
 
     <div class="assignment-bar">
       <select class="override" id="assignmentSelect"></select>
-      <button class="sort-btn" id="renameAssignmentBtn">✎ 改名</button>
-      <button class="sort-btn" id="addAssignmentBtn">＋ 新增作業</button>
     </div>
-
-    <div class="tier-buttons">
-      <button class="tier-btn superb" data-tier="特優">📷 特優<span>拍照 / 上傳</span></button>
-      <button class="tier-btn great" data-tier="優等">📷 優等<span>拍照 / 上傳</span></button>
-      <button class="tier-btn good" data-tier="甲等">📷 甲等<span>拍照 / 上傳</span></button>
-    </div>
-    <button class="sort-btn" id="pickFromAlbumBtn" style="width:100%;margin-top:8px;">🖼 從相簿選多張(不開相機)</button>
-    <input type="file" id="photoInput" accept="image/*" multiple style="display:none;">
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 
-    <div class="section-title" style="margin-top:16px;">
-      全班繳交狀況
-      <span style="float:right;font-weight:400;font-size:12px;color:var(--ink-soft);">
-        <span style="display:inline-block;width:10px;height:10px;background:var(--sage);border-radius:3px;"></span> 已交
-        <span style="display:inline-block;width:10px;height:10px;background:var(--clay);border-radius:3px;margin-left:8px;"></span> 未交
-      </span>
+    <div class="toolbar">
+      <span class="count" id="artCount">0 位學生</span>
     </div>
-    <div class="seat-grid" id="seatStatusGrid"></div>
-
-    <div id="unassignedSection" style="display:none;">
-      <div class="section-title">待歸戶照片(<span id="unassignedCount">0</span> 張)— 點照片來指定座號</div>
-      <div class="thumb-grid" id="unassignedGrid"></div>
-    </div>
-
-    <div class="section-title" style="margin-top:18px;">
-      已建檔作品
-      <button class="sort-btn" id="artSortBtn" style="float:right;">依等第分區</button>
-    </div>
-    <div class="art-list" id="assignedList"></div>
+    <div class="art-list" id="artRoster"></div>
   </section>
 
   <section class="panel" id="panel-students">
@@ -521,8 +465,7 @@
   </section>
 
   <div class="footer-note">
-    出席、秩序評分、作業成績都會即時存到資料庫。<br>
-    只有「待歸戶照片」(已拍但還沒指定座號)是暫存在這個分頁裡,重新整理會消失,記得拍完就盡快指定座號。
+    出席、秩序評分、作業成績都會即時存到資料庫，拍照評分完成後也會立即建檔。
   </div>
 </div>
 
@@ -1106,7 +1049,6 @@ function renderStatsTable(){
       }catch(err){}
       await loadStatsData();
       await loadAssignments();
-      renderUnassigned();
       await loadSubmissionsForCurrentAssignment();
     });
   });
@@ -1156,7 +1098,6 @@ function renderStatsTable(){
       }catch(err){}
       await loadStatsData();
       await loadAssignments();
-      renderUnassigned();
       await loadSubmissionsForCurrentAssignment();
     });
   }
@@ -1341,10 +1282,8 @@ function openArtworkPhoto(photoKey, label){
 /* ---------- Artwork grading ---------- */
 let assignments = [];
 let currentAssignmentId = null;
-let unassignedPhotos = [];   // { id, tier, dataUrl, assignmentId }
-let submissions = {};        // { assignmentId: { studentId: {tier, score, note, dataUrl} } }
+let submissions = {};        // { assignmentId: { studentId: {tier, score, note, dataUrl, photoKey} } }
 let pendingTier = null;
-let artSortByTier = true;
 
 const TIER_DEFAULT_SCORE = { "特優": 100, "優等": 90, "甲等": 80 };
 const TIER_ORDER = ["特優", "優等", "甲等"];
@@ -1373,36 +1312,7 @@ async function loadAssignments(){
 
 document.getElementById("assignmentSelect").addEventListener("change", async (e) => {
   currentAssignmentId = e.target.value;
-  renderUnassigned();
   await loadSubmissionsForCurrentAssignment();
-});
-
-document.getElementById("renameAssignmentBtn").addEventListener("click", async () => {
-  const current = assignments.find(a => a.id === currentAssignmentId);
-  if(!current) return;
-  const newName = prompt("修改作業名稱", current.name);
-  if(!newName || newName === current.name) return;
-  current.name = newName;
-  renderAssignmentSelect();
-  try{
-    await apiPost("/api/assignments/rename", { id: currentAssignmentId, name: newName });
-  }catch(e){}
-});
-
-document.getElementById("addAssignmentBtn").addEventListener("click", async () => {
-  if(!currentClassId){ alert("請先選擇班級"); return; }
-  const name = prompt("新作業的名稱?(例如:作業2、期末創作)", "作業" + (assignments.length + 1));
-  if(!name) return;
-  let id = "hw" + (assignments.length + 1) + "_" + Date.now();
-  try{
-    const created = await apiPost("/api/assignments", { classId: currentClassId, name });
-    id = created.id;
-  }catch(e){}
-  assignments.push({ id, name });
-  currentAssignmentId = id;
-  renderAssignmentSelect();
-  renderUnassigned();
-  renderAssignedList();
 });
 
 let camTargetSeat = null;
@@ -1429,23 +1339,6 @@ async function normalizeToJpeg(blobOrFile){
   canvas.width = width; canvas.height = height;
   canvas.getContext("2d").drawImage(img, 0, 0, width, height);
   return await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85));
-}
-
-function addCapturedPhoto(jpegBlob, tier){
-  const entry = {
-    id: "p" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
-    tier,
-    assignmentId: currentAssignmentId,
-    dataUrl: URL.createObjectURL(jpegBlob),
-    photoKey: null
-  };
-  unassignedPhotos.push(entry);
-  fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(tier)}`, {
-    method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
-  }).then(r => r.ok ? r.json() : null)
-    .then(res => { if(res) entry.photoKey = res.key; })
-    .catch(()=>{});
-  return entry;
 }
 
 let camAvatarStudentId = null;
@@ -1488,59 +1381,28 @@ async function handlePickedFiles(files){
   const seat = camTargetSeat;
   camAvatarStudentId = null;
   camTargetSeat = null;
-  for(const file of files){
-    try{
-      const jpegBlob = await normalizeToJpeg(file);
-      if(avatarStudentId){
-        await uploadAvatar(avatarStudentId, jpegBlob);
-      }else{
-        addCapturedPhoto(jpegBlob, pendingTier);
-      }
-    }catch(err){
-      alert("這張照片讀取失敗，請換一張試試：" + file.name);
+  const file = files[0];
+  try{
+    const jpegBlob = await normalizeToJpeg(file);
+    if(avatarStudentId){
+      await uploadAvatar(avatarStudentId, jpegBlob);
+      return;
     }
-  }
-  renderUnassigned();
-  if(seat && unassignedPhotos.length){
-    const last = unassignedPhotos[unassignedPhotos.length - 1];
-    openAssignForm(last.id, seat);
+    const entry = { tier: pendingTier, dataUrl: URL.createObjectURL(jpegBlob), photoKey: null };
+    fetch(`/api/photo?ext=jpg&tier=${encodeURIComponent(pendingTier)}`, {
+      method: "POST", headers: { "Content-Type": "image/jpeg" }, body: jpegBlob
+    }).then(r => r.ok ? r.json() : null)
+      .then(res => { if(res) entry.photoKey = res.key; })
+      .catch(()=>{});
+    openAssignForm(entry, seat);
+  }catch(err){
+    alert("這張照片讀取失敗，請重新拍照");
   }
 }
 
-document.getElementById("photoInput").addEventListener("change", (e) => handlePickedFiles(e.target.files));
 document.getElementById("cameraInput").addEventListener("change", (e) => handlePickedFiles(e.target.files));
 
-document.getElementById("pickFromAlbumBtn").addEventListener("click", () => {
-  const input = document.getElementById("photoInput");
-  input.value = "";
-  input.click();
-});
-
-document.querySelectorAll(".tier-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    startPhotoCapture(btn.dataset.tier);
-  });
-});
-
-function renderUnassigned(){
-  const list = unassignedPhotos.filter(p => p.assignmentId === currentAssignmentId);
-  const section = document.getElementById("unassignedSection");
-  section.style.display = list.length ? "block" : "none";
-  document.getElementById("unassignedCount").textContent = list.length;
-  const grid = document.getElementById("unassignedGrid");
-  grid.innerHTML = list.map(p => `
-    <div class="thumb-card" data-id="${p.id}">
-      <span class="thumb-tier-tag ${TIER_CLASS[p.tier]}">${p.tier}</span>
-      <img src="${p.dataUrl}">
-    </div>`).join("");
-  grid.querySelectorAll(".thumb-card").forEach(card => {
-    card.addEventListener("click", () => openAssignForm(card.dataset.id));
-  });
-}
-
-function openAssignForm(photoId, presetSeat){
-  const photo = unassignedPhotos.find(p => p.id === photoId);
-  if(!photo) return;
+function openAssignForm(entry, presetSeat){
   const existingForm = document.getElementById("assignFormWrap");
   if(existingForm) existingForm.remove();
 
@@ -1548,11 +1410,11 @@ function openAssignForm(photoId, presetSeat){
   wrap.id = "assignFormWrap";
   wrap.className = "assign-form";
   wrap.innerHTML = `
-    <img src="${photo.dataUrl}">
+    <img src="${entry.dataUrl}">
     <div class="assign-row">
       <label>等第</label>
       <select id="assignTier">
-        ${TIER_ORDER.map(t => `<option value="${t}" ${t===photo.tier?"selected":""}>${t}</option>`).join("")}
+        ${TIER_ORDER.map(t => `<option value="${t}" ${t===entry.tier?"selected":""}>${t}</option>`).join("")}
       </select>
     </div>
     <div class="assign-row">
@@ -1561,7 +1423,7 @@ function openAssignForm(photoId, presetSeat){
     </div>
     <div class="assign-row">
       <label>分數</label>
-      <input type="number" id="assignScore" value="${TIER_DEFAULT_SCORE[photo.tier]}">
+      <input type="number" id="assignScore" value="${TIER_DEFAULT_SCORE[entry.tier]}">
     </div>
     <div class="assign-row">
       <label>備註</label>
@@ -1572,7 +1434,7 @@ function openAssignForm(photoId, presetSeat){
       <button class="assign-confirm" id="assignConfirmBtn">確認建檔</button>
     </div>
   `;
-  document.getElementById("unassignedSection").after(wrap);
+  document.getElementById("artRoster").before(wrap);
   wrap.scrollIntoView({ behavior: "smooth", block: "center" });
   if(!presetSeat) document.getElementById("assignSeat").focus();
 
@@ -1594,41 +1456,17 @@ function openAssignForm(photoId, presetSeat){
     if(submissions[currentAssignmentId][st.id] && !confirm(`${st.name}(座號${st.seat})這項作業已經建檔過,要覆蓋嗎?`)){
       return;
     }
-    submissions[currentAssignmentId][st.id] = { tier, score, note, dataUrl: photo.dataUrl, photoKey: photo.photoKey };
-    unassignedPhotos = unassignedPhotos.filter(p => p.id !== photoId);
+    submissions[currentAssignmentId][st.id] = { tier, score, note, dataUrl: entry.dataUrl, photoKey: entry.photoKey };
     wrap.remove();
-    renderUnassigned();
-    renderAssignedList();
+    renderArtRoster();
 
     apiPost("/api/submissions", {
       assignmentId: currentAssignmentId,
       classId: currentClassId,
       seat,
       tier, score, note,
-      photoKey: photo.photoKey
+      photoKey: entry.photoKey
     }).catch(()=>{});
-  });
-}
-
-function renderSeatStatusGrid(){
-  const data = submissions[currentAssignmentId] || {};
-  const root = document.getElementById("seatStatusGrid");
-  if(!root) return;
-  root.innerHTML = rosterCache.map(st => {
-    const done = !!data[st.id];
-    const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
-    return `<div class="seat-cell ${done ? 'submitted' : 'missing'}" data-seat="${st.seat}">
-      <div class="seat-photo">${photoInner}</div>
-      <div class="seat-info">
-        <div class="seat-num">${st.seat}</div>
-        <div class="seat-name">${st.name}</div>
-      </div>
-    </div>`;
-  }).join("");
-  root.querySelectorAll(".seat-cell").forEach(cell => {
-    cell.addEventListener("click", () => {
-      chooseTierThenCapture(parseInt(cell.dataset.seat, 10));
-    });
   });
 }
 
@@ -1652,7 +1490,8 @@ function chooseTierThenCapture(seat){
       <button class="assign-cancel" id="tierPickerCancelBtn">取消</button>
     </div>
   `;
-  document.getElementById("seatStatusGrid").after(wrap);
+  document.getElementById("artRoster").before(wrap);
+  wrap.scrollIntoView({ behavior: "smooth", block: "center" });
   wrap.querySelectorAll(".tier-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       wrap.remove();
@@ -1662,63 +1501,35 @@ function chooseTierThenCapture(seat){
   document.getElementById("tierPickerCancelBtn").addEventListener("click", () => wrap.remove());
 }
 
-function renderAssignedList(){
-  renderSeatStatusGrid();
+function renderArtRoster(){
   const data = submissions[currentAssignmentId] || {};
-  const entries = Object.keys(data).map(studentId => {
-    const st = rosterCache.find(s => s.id === studentId);
-    return { studentId, student: st, ...data[studentId] };
-  }).filter(e => e.student);
+  const root = document.getElementById("artRoster");
+  if(!root) return;
+  document.getElementById("artCount").textContent = rosterCache.length + " 位學生";
 
-  const root = document.getElementById("assignedList");
-  if(!entries.length){
-    root.innerHTML = `<div class="class-sub" style="padding:10px 2px;">這項作業還沒有建檔的作品。</div>`;
-    return;
-  }
-
-  function rowHtml(e){
-    const imgSrc = e.photoKey ? `/api/photo/${e.photoKey}` : (e.dataUrl || "");
+  const list = [...rosterCache].sort((a,b) => a.seat - b.seat);
+  root.innerHTML = list.map(st => {
+    const e = data[st.id];
+    const imgSrc = e ? (e.photoKey ? `/api/photo/${e.photoKey}` : (e.dataUrl || "")) : "";
+    const photoInner = imgSrc ? `<img src="${imgSrc}">` : `<div class="art-row-noPhoto">🧑</div>`;
+    const statusHtml = e
+      ? `${e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : ""}分數 ${e.score}${e.note ? "・" + e.note : ""}`
+      : `尚未評分`;
     return `
-      <div class="art-row" data-student="${e.studentId}">
-        <img src="${imgSrc}">
+      <div class="art-row" data-student="${st.id}">
+        ${photoInner}
         <div class="art-row-main">
-          <div class="art-row-name">${e.student.seat} 號・${e.student.name}</div>
-          <div class="art-row-meta">
-            ${e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : ""}
-            ${e.note ? e.note : ""}
-          </div>
+          <div class="art-row-name">${st.seat} 號・${st.name}</div>
+          <div class="art-row-meta">${statusHtml}</div>
         </div>
-        <input type="number" class="score-input" value="${e.score}" data-student="${e.studentId}">
-        <button class="art-row-remove" data-student="${e.studentId}" title="刪除">✕</button>
+        <button class="art-row-capture" data-seat="${st.seat}">${e ? "🔄 重拍" : "📷 拍照評分"}</button>
+        ${e ? `<button class="art-row-remove" data-student="${st.id}" title="刪除">✕</button>` : ""}
       </div>`;
-  }
+  }).join("");
 
-  let html = "";
-  if(artSortByTier){
-    TIER_ORDER.forEach(tier => {
-      const group = entries.filter(e => e.tier === tier).sort((a,b) => a.student.seat - b.student.seat);
-      if(group.length){
-        html += `<div class="group-heading">${tier}(${group.length})</div>`;
-        html += group.map(rowHtml).join("");
-      }
-    });
-    const untiered = entries.filter(e => !TIER_ORDER.includes(e.tier)).sort((a,b) => a.student.seat - b.student.seat);
-    if(untiered.length){
-      html += `<div class="group-heading">未分類(${untiered.length})</div>`;
-      html += untiered.map(rowHtml).join("");
-    }
-  }else{
-    entries.sort((a,b) => a.student.seat - b.student.seat);
-    html = entries.map(rowHtml).join("");
-  }
-  root.innerHTML = html;
-
-  root.querySelectorAll(".score-input").forEach(inp => {
-    inp.addEventListener("change", (e) => {
-      const sid = e.target.dataset.student;
-      const score = parseInt(e.target.value, 10) || 0;
-      submissions[currentAssignmentId][sid].score = score;
-      apiPost("/api/submissions/score", { assignmentId: currentAssignmentId, studentId: sid, score }).catch(()=>{});
+  root.querySelectorAll(".art-row-capture").forEach(btn => {
+    btn.addEventListener("click", () => {
+      chooseTierThenCapture(parseInt(btn.dataset.seat, 10));
     });
   });
   root.querySelectorAll(".art-row-remove").forEach(btn => {
@@ -1727,7 +1538,7 @@ function renderAssignedList(){
       const st = rosterCache.find(s => s.id === sid);
       if(confirm(`刪除 ${st.name} 這項作業的建檔紀錄?`)){
         delete submissions[currentAssignmentId][sid];
-        renderAssignedList();
+        renderArtRoster();
         apiDelete("/api/submissions", { assignmentId: currentAssignmentId, studentId: sid }).catch(()=>{});
       }
     });
@@ -1735,7 +1546,7 @@ function renderAssignedList(){
 }
 
 async function loadSubmissionsForCurrentAssignment(){
-  if(!currentAssignmentId){ renderAssignedList(); return; }
+  if(!currentAssignmentId){ renderArtRoster(); return; }
   try{
     const list = await apiGet(`/api/submissions?assignmentId=${encodeURIComponent(currentAssignmentId)}`);
     const map = {};
@@ -1746,14 +1557,8 @@ async function loadSubmissionsForCurrentAssignment(){
   }catch(e){
     if(!submissions[currentAssignmentId]) submissions[currentAssignmentId] = {};
   }
-  renderAssignedList();
+  renderArtRoster();
 }
-
-document.getElementById("artSortBtn").addEventListener("click", () => {
-  artSortByTier = !artSortByTier;
-  document.getElementById("artSortBtn").textContent = artSortByTier ? "依等第分區" : "依座號排序";
-  renderAssignedList();
-});
 
 async function loadRoster(){
   rosterCache = await loadRosterFromApi(currentClassId);
@@ -1768,7 +1573,6 @@ async function loadRoster(){
 
   renderStudentsGrid();
   await loadAssignments();
-  renderUnassigned();
   await loadSubmissionsForCurrentAssignment();
 }
 
