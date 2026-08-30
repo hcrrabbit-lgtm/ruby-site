@@ -1496,7 +1496,7 @@ function openAssignForm(entry, presetSeat){
       seat,
       tier: "", score, note,
       photoKey: entry.photoKey
-    }).catch(()=>{});
+    }).then(() => loadStatsData()).catch(()=>{});
   });
 }
 
@@ -1558,7 +1558,9 @@ function renderArtRoster(){
       }else{
         submissions[currentAssignmentId][sid].score = score;
       }
-      apiPost("/api/submissions/score", { assignmentId: currentAssignmentId, studentId: sid, score }).catch(()=>{});
+      apiPost("/api/submissions/score", { assignmentId: currentAssignmentId, studentId: sid, score })
+        .then(() => loadStatsData())
+        .catch(()=>{});
       renderArtRoster();
     });
   });
@@ -1584,7 +1586,9 @@ function renderArtRoster(){
       if(confirm(`刪除 ${st.name} 這項作品的建檔紀錄?`)){
         delete submissions[currentAssignmentId][sid];
         renderArtRoster();
-        apiDelete("/api/submissions", { assignmentId: currentAssignmentId, studentId: sid }).catch(()=>{});
+        apiDelete("/api/submissions", { assignmentId: currentAssignmentId, studentId: sid })
+          .then(() => loadStatsData())
+          .catch(()=>{});
       }
     });
   });
