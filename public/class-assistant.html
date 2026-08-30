@@ -214,6 +214,7 @@
     border-radius:12px;padding:10px;
   }
   .art-row img{width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;}
+  .art-row-photo{cursor:pointer;}
   .art-row-main{flex:1;min-width:0;}
   .art-row-name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;}
   .art-row-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
@@ -229,8 +230,13 @@
     width:52px;height:52px;border-radius:8px;flex-shrink:0;background:var(--paper);
     display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--ink-soft);
   }
+  .art-row-actions{display:flex;flex-direction:column;gap:4px;}
   .art-row-capture{
-    background:var(--sage);color:#fff;border:none;border-radius:8px;padding:8px 10px;
+    background:var(--sage);color:#fff;border:none;border-radius:8px;padding:6px 10px;
+    font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .art-row-upload{
+    background:var(--paper);color:var(--ink-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
     font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
   }
   .art-row-remove{background:none;border:none;color:var(--clay);font-size:18px;cursor:pointer;padding:4px;}
@@ -254,6 +260,12 @@
   .student-card:active{opacity:0.75;}
 
   .schedule-note{font-size:13px;color:var(--ink-soft);margin-bottom:10px;}
+  .teacher-list{
+    display:flex;flex-direction:column;gap:6px;margin-top:14px;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;
+  }
+  .teacher-item{font-size:13px;color:var(--ink-soft);}
+  .teacher-class{font-weight:700;color:var(--ink);margin-right:8px;}
   .schedule-table-wrap{
     overflow-x:auto;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
@@ -429,6 +441,7 @@
 
     <div class="assignment-buttons" id="assignmentButtons"></div>
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="albumInput" accept="image/*" style="display:none;">
 
     <div class="toolbar">
       <span class="count" id="artCount">0 位學生</span>
@@ -448,6 +461,7 @@
     <div class="schedule-table-wrap">
       <table class="schedule-table" id="scheduleTable"></table>
     </div>
+    <div class="teacher-list" id="teacherList"></div>
   </section>
 
   <section class="panel" id="panel-stats">
@@ -625,10 +639,27 @@ async function tryFetchSchedule(){
   }
 }
 
+const HOMEROOM_TEACHERS = {
+  "四年1班": "廖苙均",
+  "四年2班": "何秀芳",
+  "四年3班": "洪肖蓮",
+  "四年4班": "曾協建",
+  "四年5班": "劉思妤"
+};
+
+function renderTeacherList(){
+  const root = document.getElementById("teacherList");
+  if(!root) return;
+  root.innerHTML = currentClasses.map(c =>
+    `<div class="teacher-item"><span class="teacher-class">${c.name}</span>導師：${HOMEROOM_TEACHERS[c.name] || "-"}</div>`
+  ).join("");
+}
+
 function renderHeader(scheduleResult){
   currentClasses = scheduleResult.classes || [];
   weeklySchedule = scheduleResult.schedule || [];
   renderWeeklySchedule();
+  renderTeacherList();
 
   if(scheduleResult.current){
     currentClassId = scheduleResult.current.classId;
@@ -1083,7 +1114,7 @@ function renderStatsTable(){
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const st = rosterCache.find(s => s.id === btn.dataset.student);
-      openArtworkPhoto(btn.dataset.photo, st ? `${st.seat} 號・${st.name}` : "");
+      openArtworkPhoto(`/api/photo/${btn.dataset.photo}`, st ? `${st.seat} 號・${st.name}` : "");
     });
   });
 
@@ -1256,8 +1287,8 @@ function openStudentPhoto(studentId){
   });
 }
 
-function openArtworkPhoto(photoKey, label){
-  if(!photoKey) return;
+function openArtworkPhoto(src, label){
+  if(!src) return;
   const existing = document.getElementById("artworkPhotoModal");
   if(existing) existing.remove();
 
@@ -1266,7 +1297,7 @@ function openArtworkPhoto(photoKey, label){
   modal.className = "photo-modal";
   modal.innerHTML = `
     <div class="photo-modal-box">
-      <img src="/api/photo/${photoKey}">
+      <img src="${src}">
       <div class="photo-modal-name">${label}</div>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="artworkPhotoCloseBtn">關閉</button>
@@ -1377,6 +1408,18 @@ function startPhotoCapture(tier, opts){
   input.click();
 }
 
+// Same flow as startPhotoCapture, but targets the album-picker input (no "capture"
+// attribute) so the OS shows the normal photo library instead of forcing the camera.
+function startAlbumUpload(opts){
+  opts = opts || {};
+  camTargetSeat = opts.seat || null;
+  camAvatarStudentId = opts.studentId || null;
+  pendingTier = ARTWORK_PHOTO_TAG;
+  const input = document.getElementById("albumInput");
+  input.value = "";
+  input.click();
+}
+
 async function handlePickedFiles(files){
   files = Array.from(files || []);
   if(!files.length) return;
@@ -1404,6 +1447,7 @@ async function handlePickedFiles(files){
 }
 
 document.getElementById("cameraInput").addEventListener("change", (e) => handlePickedFiles(e.target.files));
+document.getElementById("albumInput").addEventListener("change", (e) => handlePickedFiles(e.target.files));
 
 function openAssignForm(entry, presetSeat){
   const existingForm = document.getElementById("assignFormWrap");
@@ -1470,7 +1514,9 @@ function renderArtRoster(){
     const e = data[st.id];
     const hasPhoto = !!(e && (e.photoKey || e.dataUrl));
     const imgSrc = hasPhoto ? (e.photoKey ? `/api/photo/${e.photoKey}` : e.dataUrl) : "";
-    const photoInner = imgSrc ? `<img src="${imgSrc}">` : `<div class="art-row-noPhoto">🧑</div>`;
+    const photoInner = imgSrc
+      ? `<img src="${imgSrc}" class="art-row-photo" data-student="${st.id}">`
+      : `<div class="art-row-noPhoto">🧑</div>`;
     const tierBadge = e && e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : "";
     const statusHtml = tierBadge + (e && e.note ? e.note : (hasPhoto ? "已建檔" : (e ? "尚未拍照" : "尚未建檔")));
     return `
@@ -1483,14 +1529,28 @@ function renderArtRoster(){
           </div>
           <div class="art-row-meta">${statusHtml}</div>
         </div>
-        <button class="art-row-capture" data-seat="${st.seat}">${hasPhoto ? "🔄 重拍" : "📷 拍照建檔"}</button>
+        <div class="art-row-actions">
+          <button class="art-row-capture" data-seat="${st.seat}">${hasPhoto ? "🔄 重拍" : "📷 拍照"}</button>
+          <button class="art-row-upload" data-seat="${st.seat}" title="從手機相簿上傳">🖼 相簿</button>
+        </div>
         ${e ? `<button class="art-row-remove" data-student="${st.id}" title="刪除">✕</button>` : ""}
       </div>`;
   }).join("");
 
+  root.querySelectorAll(".art-row-photo").forEach(img => {
+    img.addEventListener("click", () => {
+      const st = rosterCache.find(s => s.id === img.dataset.student);
+      openArtworkPhoto(img.src, st ? `${st.seat} 號・${st.name}` : "");
+    });
+  });
   root.querySelectorAll(".art-row-capture").forEach(btn => {
     btn.addEventListener("click", () => {
       startPhotoCapture(ARTWORK_PHOTO_TAG, { seat: parseInt(btn.dataset.seat, 10) });
+    });
+  });
+  root.querySelectorAll(".art-row-upload").forEach(btn => {
+    btn.addEventListener("click", () => {
+      startAlbumUpload({ seat: parseInt(btn.dataset.seat, 10) });
     });
   });
   root.querySelectorAll(".art-score-input").forEach(inp => {
