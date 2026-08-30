@@ -148,17 +148,12 @@
   /* behavior controls */
   .beh-controls{display:flex;align-items:center;gap:8px;}
   .beh-btn{
-    width:32px;height:32px;border-radius:8px;border:none;
-    font-size:18px;font-weight:700;cursor:pointer;color:#fff;
-    display:flex;align-items:center;justify-content:center;
+    min-width:48px;height:32px;padding:0 10px;border-radius:8px;border:none;
+    font-size:14px;font-weight:700;cursor:pointer;color:#fff;
+    display:flex;align-items:center;justify-content:center;gap:4px;
   }
   .beh-minus{background:var(--clay);}
   .beh-plus{background:var(--sage);}
-  .beh-score{
-    min-width:28px;text-align:center;font-weight:700;font-size:15px;
-  }
-  .beh-score.pos{color:var(--sage-dark);}
-  .beh-score.neg{color:var(--clay);}
 
   .footer-note{
     margin-top:22px;font-size:12px;color:var(--ink-soft);text-align:center;line-height:1.6;
@@ -807,8 +802,7 @@ function renderRoster(){
   const root = document.getElementById("attRoster");
   root.innerHTML = list.map(st => {
     const state = attendance[st.id];
-    const score = behavior[st.id] || 0;
-    const scoreCls = score > 0 ? "pos" : (score < 0 ? "neg" : "");
+    const behTotals = statsBehaviorFor(st.id);
     const avatarInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : "🧑";
     return `
       <div class="student-row">
@@ -824,9 +818,8 @@ function renderRoster(){
           </div>
           <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0} 次</div>
           <div class="beh-controls">
-            <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－</button>
-            <div class="beh-score ${scoreCls}">${score > 0 ? "+" + score : score}</div>
-            <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋</button>
+            <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－ ${behTotals.minus}</button>
+            <button class="beh-btn beh-plus" data-id="${st.id}" data-delta="1">＋ ${behTotals.plus}</button>
           </div>
         </div>
       </div>`;
@@ -861,6 +854,9 @@ function renderRoster(){
     btn.addEventListener("click", () => {
       const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
       behavior[id] = (behavior[id] || 0) + delta;
+      if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0 };
+      if(delta > 0) statsBehaviorTotals[id].plus += delta;
+      else statsBehaviorTotals[id].minus += -delta;
       playBeep(delta > 0 ? 880 : 330, 0.05);
       renderRoster();
       apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
@@ -911,6 +907,7 @@ async function loadStatsData(){
     }catch(e){}
   }
   renderStatsTable();
+  renderRoster();
 }
 
 function statsBehaviorFor(studentId){
