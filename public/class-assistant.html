@@ -970,6 +970,7 @@ function renderStatsTable(){
       <span class="stats-assignment-head">
         <span>${a.name}${sortArrow(a.id)}</span>
         <button type="button" class="stats-rename-btn no-print" data-rename="${a.id}" title="改名(所有班級同步)">✎</button>
+        <button type="button" class="stats-rename-btn no-print" data-delete="${a.id}" title="刪除此作業(所有班級同步)">🗑</button>
       </span>
     </th>`;
   }).join("");
@@ -1036,6 +1037,23 @@ function renderStatsTable(){
       current.name = newName;
       renderStatsTable();
       apiPost("/api/assignments/rename", { id: assignmentId, name: newName }).catch(()=>{});
+    });
+  });
+
+  root.querySelectorAll("[data-delete]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const assignmentId = btn.dataset.delete;
+      const current = statsAssignments.find(a => a.id === assignmentId);
+      if(!current) return;
+      if(!confirm(`確定要刪除作業「${current.name}」嗎?(所有班級的這個作業與已評分紀錄都會一起刪除,無法復原)`)) return;
+      try{
+        await apiDelete("/api/assignments", { id: assignmentId });
+      }catch(err){}
+      await loadStatsData();
+      await loadAssignments();
+      renderUnassigned();
+      await loadSubmissionsForCurrentAssignment();
     });
   });
 
