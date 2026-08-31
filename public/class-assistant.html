@@ -309,6 +309,7 @@
     border:1px solid var(--line);background:var(--card);color:var(--ink);
   }
   .stats-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .students-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .stats-table-wrap{
     overflow-x:auto;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
@@ -503,6 +504,10 @@
   <section class="panel" id="panel-students">
     <div class="toolbar">
       <span class="count" id="studentsCount">30 位學生</span>
+      <div class="students-actions">
+        <button type="button" class="sort-btn" id="avatarDownloadBtn">📦 下載大頭照(ZIP)</button>
+        <button type="button" class="sort-btn" id="notesDownloadBtn">📋 下載個人紀錄(TXT)</button>
+      </div>
     </div>
     <div class="student-grid" id="studentGrid"></div>
   </section>
@@ -1810,6 +1815,98 @@ async function downloadArtworkPhotos(){
     btn.disabled = false;
   }
 }
+
+async function downloadAvatarPhotos(){
+  const withPhoto = rosterCache.filter(st => st.photoKey);
+  if(!withPhoto.length){ alert("目前還沒有任何大頭照可以下載"); return; }
+
+  const btn = document.getElementById("avatarDownloadBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "下載中...";
+  btn.disabled = true;
+
+  try{
+    const zip = new JSZip();
+    const clsName = (currentClasses.find(c => c.id === currentClassId) || {}).name || currentClassId || "班級";
+
+    for(const st of withPhoto){
+      const res = await fetch(`/api/photo/${st.photoKey}`);
+      if(!res.ok) continue;
+      const blob = await res.blob();
+      zip.file(`${clsName}_${st.seat}號_${st.name}.jpg`, blob);
+    }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${clsName}_大頭照.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert("下載失敗,請檢查網路連線後再試一次。");
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+async function downloadStudentNotesText(){
+  if(!currentClassId){ alert("請先選擇班級"); return; }
+
+  const btn = document.getElementById("notesDownloadBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "匯出中...";
+  btn.disabled = true;
+
+  try{
+    const rows = await apiGet(`/api/student-notes/class?classId=${encodeURIComponent(currentClassId)}`);
+    const byStudent = {};
+    rows.forEach(r => {
+      if(!byStudent[r.studentId]) byStudent[r.studentId] = [];
+      byStudent[r.studentId].push(r);
+    });
+
+    const clsName = (currentClasses.find(c => c.id === currentClassId) || {}).name || currentClassId || "班級";
+    const list = [...rosterCache].sort((a,b) => a.seat - b.seat);
+    const lines = [`${clsName} 個人紀錄`, `匯出時間：${new Date().toLocaleString("zh-TW")}`, ""];
+    list.forEach(st => {
+      lines.push(`${st.seat}號・${st.name}`);
+      const notes = byStudent[st.id];
+      if(notes && notes.length){
+        notes.forEach(n => {
+          lines.push(`  ${formatNoteDate(n.createdAt)}`);
+          lines.push(`  ${n.note}`);
+          lines.push("");
+        });
+      }else{
+        lines.push("  （無紀錄）");
+        lines.push("");
+      }
+    });
+
+    const text = lines.join("\n");
+    const blob = new Blob([String.fromCharCode(0xFEFF) + text], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${clsName}_個人紀錄_${todayStr()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert("匯出失敗,請檢查網路連線後再試一次。");
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("avatarDownloadBtn").addEventListener("click", downloadAvatarPhotos);
+document.getElementById("notesDownloadBtn").addEventListener("click", downloadStudentNotesText);
 
 document.getElementById("artDownloadBtn").addEventListener("click", downloadArtworkPhotos);
 

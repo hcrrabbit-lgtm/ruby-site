@@ -176,6 +176,17 @@ async function handleStudentNotesDelete(env, request) {
   return json({ ok: true });
 }
 
+async function handleStudentNotesForClass(env, url) {
+  const classId = url.searchParams.get("classId") || "5-1";
+  const res = await env.DB.prepare(
+    `SELECT sn.student_id as studentId, sn.note as note, sn.created_at as createdAt
+     FROM student_notes sn JOIN students s ON s.id = sn.student_id
+     WHERE s.class_id = ?
+     ORDER BY s.seat, sn.id DESC`
+  ).bind(classId).all();
+  return json(res.results);
+}
+
 async function handleAttendanceGet(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const date = url.searchParams.get("date");
@@ -791,6 +802,7 @@ export default {
       if (path === "/api/student-notes" && request.method === "GET") return await handleStudentNotesGet(env, url);
       if (path === "/api/student-notes" && request.method === "POST") return await handleStudentNotesPost(env, request);
       if (path === "/api/student-notes" && request.method === "DELETE") return await handleStudentNotesDelete(env, request);
+      if (path === "/api/student-notes/class" && request.method === "GET") return await handleStudentNotesForClass(env, url);
       if (path === "/api/students/photo" && request.method === "POST") return await handleStudentPhotoUpload(env, request, url);
 
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);
