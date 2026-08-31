@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT N
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS class_notes (class_id TEXT PRIMARY KEY, note TEXT NOT NULL DEFAULT '', updated_at TEXT);
+CREATE TABLE IF NOT EXISTS student_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
@@ -144,7 +145,34 @@ async function handleStudentDelete(env, request) {
   await env.DB.prepare("DELETE FROM attendance WHERE student_id = ?").bind(studentId).run();
   await env.DB.prepare("DELETE FROM behavior_events WHERE student_id = ?").bind(studentId).run();
   await env.DB.prepare("DELETE FROM submissions WHERE student_id = ?").bind(studentId).run();
+  await env.DB.prepare("DELETE FROM student_notes WHERE student_id = ?").bind(studentId).run();
   await env.DB.prepare("DELETE FROM students WHERE id = ?").bind(studentId).run();
+  return json({ ok: true });
+}
+
+async function handleStudentNotesGet(env, url) {
+  const studentId = url.searchParams.get("studentId");
+  if (!studentId) return json({ error: "缺少 studentId" }, { status: 400 });
+  const res = await env.DB.prepare(
+    "SELECT id, note, created_at as createdAt FROM student_notes WHERE student_id = ? ORDER BY id DESC"
+  ).bind(studentId).all();
+  return json(res.results);
+}
+
+async function handleStudentNotesPost(env, request) {
+  const { studentId, note } = await request.json();
+  if (!studentId || !note || !note.trim()) return json({ error: "缺少 studentId 或 note" }, { status: 400 });
+  const createdAt = new Date().toISOString();
+  const res = await env.DB.prepare(
+    "INSERT INTO student_notes (student_id, note, created_at) VALUES (?, ?, ?)"
+  ).bind(studentId, note.trim(), createdAt).run();
+  return json({ id: res.meta.last_row_id, note: note.trim(), createdAt });
+}
+
+async function handleStudentNotesDelete(env, request) {
+  const { id } = await request.json();
+  if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM student_notes WHERE id = ?").bind(id).run();
   return json({ ok: true });
 }
 
@@ -760,6 +788,9 @@ export default {
       if (path === "/api/schedule" && request.method === "GET") return await handleSchedule(env);
       if (path === "/api/roster" && request.method === "GET") return await handleRoster(env, url);
       if (path === "/api/students" && request.method === "DELETE") return await handleStudentDelete(env, request);
+      if (path === "/api/student-notes" && request.method === "GET") return await handleStudentNotesGet(env, url);
+      if (path === "/api/student-notes" && request.method === "POST") return await handleStudentNotesPost(env, request);
+      if (path === "/api/student-notes" && request.method === "DELETE") return await handleStudentNotesDelete(env, request);
       if (path === "/api/students/photo" && request.method === "POST") return await handleStudentPhotoUpload(env, request, url);
 
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);

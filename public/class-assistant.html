@@ -397,6 +397,33 @@
     background:none;border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);cursor:pointer;
   }
   .photo-modal-delete:hover{border-color:var(--clay);color:var(--clay);}
+  .photo-modal-notes{
+    display:block;width:100%;margin-top:8px;padding:10px;font-size:13px;font-weight:700;
+    background:var(--paper);border:1px solid var(--line);border-radius:8px;color:var(--ink);cursor:pointer;
+  }
+
+  .student-notes-list{
+    max-height:240px;overflow-y:auto;margin-top:10px;text-align:left;width:100%;
+  }
+  .student-note-item{
+    padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .student-note-item:last-child{border-bottom:none;}
+  .student-note-body{flex:1;min-width:0;}
+  .student-note-date{font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
+  .student-note-text{white-space:pre-wrap;word-break:break-word;}
+  .student-note-remove{background:none;border:none;color:var(--clay);font-size:14px;cursor:pointer;padding:2px;flex-shrink:0;}
+  .student-notes-empty{padding:10px 2px;font-size:13px;color:var(--ink-soft);text-align:center;}
+  .student-notes-add{width:100%;margin-top:12px;}
+  .student-notes-add textarea{
+    width:100%;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
+  }
+  .student-notes-add button{
+    width:100%;margin-top:8px;padding:10px;border-radius:8px;border:none;
+    background:var(--sage);color:#fff;font-weight:700;font-size:14px;cursor:pointer;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
@@ -1290,6 +1317,7 @@ function openStudentPhoto(studentId){
         <button class="photo-modal-close" id="photoModalCloseBtn">關閉</button>
         <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 重新拍照</button>
       </div>
+      <button class="photo-modal-notes" id="photoModalNotesBtn">📋 個人紀錄</button>
       <button class="photo-modal-delete" id="photoModalDeleteBtn">🗑 刪除學生(轉學/退選)</button>
     </div>`;
   document.body.appendChild(modal);
@@ -1302,6 +1330,10 @@ function openStudentPhoto(studentId){
     modal.remove();
     openAvatarCamera(studentId);
   });
+  document.getElementById("photoModalNotesBtn").addEventListener("click", () => {
+    modal.remove();
+    openStudentNotes(studentId);
+  });
   document.getElementById("photoModalDeleteBtn").addEventListener("click", async () => {
     if(!confirm(`確定要刪除「${st.seat}號・${st.name}」嗎?(轉學/退選時使用)\n\n這會一併刪除該生的出席、加扣分、作品評分等所有紀錄,無法復原。`)) return;
     modal.remove();
@@ -1312,6 +1344,91 @@ function openStudentPhoto(studentId){
       alert("刪除失敗,請檢查網路連線後再試一次。");
     }
   });
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatNoteDate(iso){
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function openStudentNotes(studentId){
+  const st = rosterCache.find(s => s.id === studentId);
+  if(!st) return;
+  const existing = document.getElementById("studentNotesModal");
+  if(existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "studentNotesModal";
+  modal.className = "photo-modal";
+  modal.innerHTML = `
+    <div class="photo-modal-box">
+      <div class="photo-modal-name">${st.seat} 號・${st.name}・個人紀錄</div>
+      <div class="student-notes-list" id="studentNotesList">載入中...</div>
+      <div class="student-notes-add">
+        <textarea id="studentNoteInput" rows="2" placeholder="輸入這次的觀察/紀錄..."></textarea>
+        <button type="button" id="studentNoteAddBtn">新增紀錄</button>
+      </div>
+      <div class="photo-modal-actions" style="margin-top:12px;">
+        <button class="photo-modal-close" id="studentNotesCloseBtn">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
+  document.getElementById("studentNotesCloseBtn").addEventListener("click", () => modal.remove());
+
+  async function refresh(){
+    const listEl = document.getElementById("studentNotesList");
+    if(!listEl) return;
+    try{
+      const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
+      listEl.innerHTML = notes.length
+        ? notes.map(n => `
+            <div class="student-note-item">
+              <div class="student-note-body">
+                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
+                <div class="student-note-text">${escapeHtml(n.note)}</div>
+              </div>
+              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
+            </div>`).join("")
+        : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
+          try{
+            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
+            await refresh();
+          }catch(e){
+            alert("刪除失敗,請稍後再試。");
+          }
+        });
+      });
+    }catch(e){
+      listEl.textContent = "載入失敗,請稍後再試";
+    }
+  }
+
+  document.getElementById("studentNoteAddBtn").addEventListener("click", async () => {
+    const input = document.getElementById("studentNoteInput");
+    const note = input.value.trim();
+    if(!note) return;
+    try{
+      await apiPost("/api/student-notes", { studentId, note });
+      input.value = "";
+      await refresh();
+    }catch(e){
+      alert("新增失敗,請檢查網路連線後再試一次。");
+    }
+  });
+
+  await refresh();
 }
 
 function openArtworkPhoto(src, label){
