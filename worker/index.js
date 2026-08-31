@@ -36,6 +36,16 @@ async function ensureSchema(env) {
     // column already exists, safe to ignore
   }
   try {
+    await env.DB.prepare("ALTER TABLE submissions ADD COLUMN photo_key_2 TEXT").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE submissions ADD COLUMN photo_key_3 TEXT").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
     await env.DB.prepare(
       "ALTER TABLE community_sources ADD COLUMN source_type TEXT NOT NULL DEFAULT 'community'"
     ).run();
@@ -249,7 +259,8 @@ async function handleAssignmentScores(env, url) {
   ).bind(classId).all()).results;
 
   const subs = (await env.DB.prepare(
-    `SELECT sub.student_id as studentId, sub.assignment_id as assignmentId, sub.score as score, sub.photo_key as photoKey
+    `SELECT sub.student_id as studentId, sub.assignment_id as assignmentId, sub.score as score,
+            sub.photo_key as photoKey, sub.photo_key_2 as photoKey2, sub.photo_key_3 as photoKey3
      FROM submissions sub JOIN students s ON s.id = sub.student_id
      WHERE s.class_id = ?`
   ).bind(classId).all()).results;
@@ -259,9 +270,10 @@ async function handleAssignmentScores(env, url) {
   subs.forEach(r => {
     if (!scores[r.studentId]) scores[r.studentId] = {};
     scores[r.studentId][r.assignmentId] = r.score;
-    if (r.photoKey) {
+    const keys = [r.photoKey, r.photoKey2, r.photoKey3].filter(Boolean);
+    if (keys.length) {
       if (!photos[r.studentId]) photos[r.studentId] = {};
-      photos[r.studentId][r.assignmentId] = r.photoKey;
+      photos[r.studentId][r.assignmentId] = keys;
     }
   });
 
@@ -457,15 +469,22 @@ async function handleSubmissionsGet(env, url) {
   const assignmentId = url.searchParams.get("assignmentId");
   const res = await env.DB.prepare(
     `SELECT sub.student_id as studentId, s.seat as seat, s.name as name,
-            sub.tier as tier, sub.score as score, sub.note as note, sub.photo_key as photoKey
+            sub.tier as tier, sub.score as score, sub.note as note,
+            sub.photo_key as photoKey, sub.photo_key_2 as photoKey2, sub.photo_key_3 as photoKey3
      FROM submissions sub JOIN students s ON s.id = sub.student_id
      WHERE sub.assignment_id = ?`
   ).bind(assignmentId).all();
-  return json(res.results);
+  const rows = res.results.map(r => {
+    const { photoKey, photoKey2, photoKey3, ...rest } = r;
+    return { ...rest, photoKeys: [photoKey, photoKey2, photoKey3].filter(Boolean) };
+  });
+  return json(rows);
 }
 
 async function handleSubmissionsPost(env, request) {
-  const { assignmentId, classId, seat, tier, score, note, photoKey } = await request.json();
+  const body = await request.json();
+  const { assignmentId, classId, seat, tier, score, note } = body;
+  const photoKeys = (Array.isArray(body.photoKeys) ? body.photoKeys : [body.photoKey]).filter(Boolean).slice(0, 3);
   const stu = await env.DB.prepare(
     "SELECT id FROM students WHERE class_id = ? AND seat = ?"
   ).bind(classId, seat).first();
@@ -473,11 +492,12 @@ async function handleSubmissionsPost(env, request) {
 
   const id = assignmentId + "_" + stu.id;
   await env.DB.prepare(
-    `INSERT INTO submissions (id, assignment_id, student_id, tier, score, note, photo_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO submissions (id, assignment_id, student_id, tier, score, note, photo_key, photo_key_2, photo_key_3)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(assignment_id, student_id) DO UPDATE SET
-       tier = excluded.tier, score = excluded.score, note = excluded.note, photo_key = excluded.photo_key`
-  ).bind(id, assignmentId, stu.id, tier, score, note || "", photoKey).run();
+       tier = excluded.tier, score = excluded.score, note = excluded.note,
+       photo_key = excluded.photo_key, photo_key_2 = excluded.photo_key_2, photo_key_3 = excluded.photo_key_3`
+  ).bind(id, assignmentId, stu.id, tier, score, note || "", photoKeys[0] || null, photoKeys[1] || null, photoKeys[2] || null).run();
   return json({ ok: true, studentId: stu.id });
 }
 
@@ -541,11 +561,16 @@ async function handleResetTestData(env, request) {
   const behaviorCount = (await env.DB.prepare("SELECT COUNT(*) as c FROM behavior_events").first()).c || 0;
   const attendanceCount = (await env.DB.prepare("SELECT COUNT(*) as c FROM attendance").first()).c || 0;
 
-  const photoRows = (await env.DB.prepare("SELECT photo_key FROM submissions WHERE photo_key IS NOT NULL").all()).results;
+  const photoRows = (await env.DB.prepare(
+    "SELECT photo_key, photo_key_2, photo_key_3 FROM submissions WHERE photo_key IS NOT NULL OR photo_key_2 IS NOT NULL OR photo_key_3 IS NOT NULL"
+  ).all()).results;
   const avatarRows = (await env.DB.prepare("SELECT photo_key FROM students WHERE photo_key IS NOT NULL").all()).results;
 
   for (const row of photoRows) {
-    try { await env.PHOTOS.delete(`photos/${row.photo_key}`); } catch (e) {}
+    for (const key of [row.photo_key, row.photo_key_2, row.photo_key_3]) {
+      if (!key) continue;
+      try { await env.PHOTOS.delete(`photos/${key}`); } catch (e) {}
+    }
   }
   for (const row of avatarRows) {
     try { await env.PHOTOS.delete(`photos/${row.photo_key}`); } catch (e) {}
