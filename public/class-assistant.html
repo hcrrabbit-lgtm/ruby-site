@@ -1057,7 +1057,7 @@ function renderStatsTable(){
     }).join("");
     return `<tr>
       <td class="stats-seat">${st.seat}</td>
-      <td class="stats-name">${st.name}</td>
+      <td class="stats-name stats-clickable" data-notes-student="${st.id}" title="點擊查看個人紀錄">${st.name}</td>
       <td class="stats-plus">${beh.plus}</td>
       <td class="stats-minus">${beh.minus}</td>
       <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="late" title="點擊查看遲到日期">${statsLateFor(st.id)}</td>
@@ -1180,7 +1180,11 @@ function renderStatsTable(){
   root.querySelectorAll(".stats-clickable").forEach(td => {
     td.addEventListener("click", (e) => {
       e.stopPropagation();
-      openAttendanceDetail(td.dataset.detailStudent, td.dataset.detailStatus);
+      if(td.dataset.notesStudent){
+        openStudentNotes(td.dataset.notesStudent);
+      }else{
+        openAttendanceDetail(td.dataset.detailStudent, td.dataset.detailStatus);
+      }
     });
   });
 }
