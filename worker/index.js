@@ -130,6 +130,24 @@ async function handleRoster(env, url) {
   return json(res.results);
 }
 
+async function handleStudentDelete(env, request) {
+  // 轉學/退選：連同該生的出席、加扣分、作品評分紀錄與大頭照一起刪除
+  const { studentId } = await request.json();
+  if (!studentId) return json({ error: "缺少 studentId" }, { status: 400 });
+
+  const stu = await env.DB.prepare("SELECT photo_key as photoKey FROM students WHERE id = ?").bind(studentId).first();
+  if (!stu) return json({ error: "查無此學生" }, { status: 404 });
+  if (stu.photoKey) {
+    try { await env.PHOTOS.delete(`photos/${stu.photoKey}`); } catch (e) {}
+  }
+
+  await env.DB.prepare("DELETE FROM attendance WHERE student_id = ?").bind(studentId).run();
+  await env.DB.prepare("DELETE FROM behavior_events WHERE student_id = ?").bind(studentId).run();
+  await env.DB.prepare("DELETE FROM submissions WHERE student_id = ?").bind(studentId).run();
+  await env.DB.prepare("DELETE FROM students WHERE id = ?").bind(studentId).run();
+  return json({ ok: true });
+}
+
 async function handleAttendanceGet(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const date = url.searchParams.get("date");
@@ -741,6 +759,7 @@ export default {
 
       if (path === "/api/schedule" && request.method === "GET") return await handleSchedule(env);
       if (path === "/api/roster" && request.method === "GET") return await handleRoster(env, url);
+      if (path === "/api/students" && request.method === "DELETE") return await handleStudentDelete(env, request);
       if (path === "/api/students/photo" && request.method === "POST") return await handleStudentPhotoUpload(env, request, url);
 
       if (path === "/api/attendance" && request.method === "GET") return await handleAttendanceGet(env, url);

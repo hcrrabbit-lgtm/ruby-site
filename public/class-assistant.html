@@ -392,6 +392,11 @@
   }
   .photo-modal-retake{background:var(--sage);color:#fff;}
   .photo-modal-close{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line) !important;}
+  .photo-modal-delete{
+    display:block;width:100%;margin-top:8px;padding:8px;font-size:12px;
+    background:none;border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);cursor:pointer;
+  }
+  .photo-modal-delete:hover{border-color:var(--clay);color:var(--clay);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
@@ -1285,6 +1290,7 @@ function openStudentPhoto(studentId){
         <button class="photo-modal-close" id="photoModalCloseBtn">關閉</button>
         <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 重新拍照</button>
       </div>
+      <button class="photo-modal-delete" id="photoModalDeleteBtn">🗑 刪除學生(轉學/退選)</button>
     </div>`;
   document.body.appendChild(modal);
 
@@ -1295,6 +1301,16 @@ function openStudentPhoto(studentId){
   document.getElementById("photoModalRetakeBtn").addEventListener("click", () => {
     modal.remove();
     openAvatarCamera(studentId);
+  });
+  document.getElementById("photoModalDeleteBtn").addEventListener("click", async () => {
+    if(!confirm(`確定要刪除「${st.seat}號・${st.name}」嗎?(轉學/退選時使用)\n\n這會一併刪除該生的出席、加扣分、作品評分等所有紀錄,無法復原。`)) return;
+    modal.remove();
+    try{
+      await apiDelete("/api/students", { studentId });
+      await loadRoster();
+    }catch(e){
+      alert("刪除失敗,請檢查網路連線後再試一次。");
+    }
   });
 }
 
