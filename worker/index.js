@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS assignments (id TEXT PRIMARY KEY, class_id TEXT NOT N
 CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, student_id TEXT NOT NULL, tier TEXT NOT NULL, score INTEGER NOT NULL, note TEXT, photo_key TEXT, UNIQUE(assignment_id, student_id));
 CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_weight REAL NOT NULL DEFAULT 0.1, assignment_weights TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS class_notes (class_id TEXT PRIMARY KEY, note TEXT NOT NULL DEFAULT '', updated_at TEXT);
+CREATE TABLE IF NOT EXISTS class_progress (class_id TEXT NOT NULL, week INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at TEXT, PRIMARY KEY(class_id, week));
+CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS student_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
@@ -44,6 +46,18 @@ async function ensureSchema(env) {
     await env.DB.prepare("ALTER TABLE submissions ADD COLUMN photo_key_3 TEXT").run();
   } catch (e) {
     // column already exists, safe to ignore
+  }
+  try {
+    // one-time carry-over: fold the old single-note "上次進度" into week 1 of the new
+    // per-week class_progress log, so nobody's already-typed note disappears
+    const oldNotes = (await env.DB.prepare("SELECT class_id, note, updated_at FROM class_notes WHERE note != ''").all()).results;
+    for (const row of oldNotes) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO class_progress (class_id, week, note, updated_at) VALUES (?, 1, ?, ?)"
+      ).bind(row.class_id, row.note, row.updated_at).run();
+    }
+  } catch (e) {
+    // best-effort; safe to skip if it already ran
   }
   try {
     await env.DB.prepare(
@@ -533,20 +547,49 @@ async function handleNoteUpdate(env, request) {
   return json({ ok: true });
 }
 
-async function handleClassNoteGet(env, url) {
-  const classId = url.searchParams.get("classId") || "5-1";
-  const row = await env.DB.prepare("SELECT note, updated_at as updatedAt FROM class_notes WHERE class_id = ?").bind(classId).first();
+const PROGRESS_WEEKS = 21;
+
+async function handleSemesterStartGet(env) {
+  const row = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'semester_start'").first();
+  return json({ date: (row && row.value) || null });
+}
+
+async function handleSemesterStartPost(env, request) {
+  const { date } = await request.json();
+  if (!date) return json({ error: "缺少 date" }, { status: 400 });
+  await env.DB.prepare(
+    `INSERT INTO app_settings (key, value) VALUES ('semester_start', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+  ).bind(date).run();
+  return json({ ok: true });
+}
+
+async function handleClassProgressGet(env, url) {
+  const classId = url.searchParams.get("classId");
+  const week = parseInt(url.searchParams.get("week"), 10);
+  if (!classId || !week) return json({ error: "缺少 classId 或 week" }, { status: 400 });
+  const row = await env.DB.prepare(
+    "SELECT note, updated_at as updatedAt FROM class_progress WHERE class_id = ? AND week = ?"
+  ).bind(classId, week).first();
   return json({ note: (row && row.note) || "", updatedAt: (row && row.updatedAt) || null });
 }
 
-async function handleClassNotePost(env, request) {
-  const { classId, note } = await request.json();
-  if (!classId) return json({ error: "缺少 classId" }, { status: 400 });
+async function handleClassProgressPost(env, request) {
+  const { classId, week, note } = await request.json();
+  const w = parseInt(week, 10);
+  if (!classId || !w || w < 1 || w > PROGRESS_WEEKS) return json({ error: "缺少班級或週次錯誤" }, { status: 400 });
   await env.DB.prepare(
-    `INSERT INTO class_notes (class_id, note, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(class_id) DO UPDATE SET note = excluded.note, updated_at = excluded.updated_at`
-  ).bind(classId, note || "", new Date().toISOString()).run();
+    `INSERT INTO class_progress (class_id, week, note, updated_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(class_id, week) DO UPDATE SET note = excluded.note, updated_at = excluded.updated_at`
+  ).bind(classId, w, note || "", new Date().toISOString()).run();
   return json({ ok: true });
+}
+
+async function handleClassProgressOverview(env) {
+  const rows = (await env.DB.prepare(
+    "SELECT class_id as classId, week, note, updated_at as updatedAt FROM class_progress"
+  ).all()).results;
+  return json(rows);
 }
 
 async function handleResetTestData(env, request) {
@@ -857,8 +900,11 @@ export default {
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
       if (path === "/api/submissions/note" && request.method === "POST") return await handleNoteUpdate(env, request);
       if (path === "/api/admin/reset-test-data" && request.method === "POST") return await handleResetTestData(env, request);
-      if (path === "/api/class-notes" && request.method === "GET") return await handleClassNoteGet(env, url);
-      if (path === "/api/class-notes" && request.method === "POST") return await handleClassNotePost(env, request);
+      if (path === "/api/settings/semester-start" && request.method === "GET") return await handleSemesterStartGet(env);
+      if (path === "/api/settings/semester-start" && request.method === "POST") return await handleSemesterStartPost(env, request);
+      if (path === "/api/class-progress/overview" && request.method === "GET") return await handleClassProgressOverview(env);
+      if (path === "/api/class-progress" && request.method === "GET") return await handleClassProgressGet(env, url);
+      if (path === "/api/class-progress" && request.method === "POST") return await handleClassProgressPost(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 
