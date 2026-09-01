@@ -359,6 +359,17 @@
     text-align:center;background:var(--card);color:var(--ink);
   }
   .stats-score-cell{display:flex;align-items:center;justify-content:center;gap:4px;}
+  .progress-settings{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);}
+  .progress-settings input[type=date]{
+    font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+  }
+  .progress-table th, .progress-table td{white-space:normal;}
+  .progress-table td.progress-week{color:var(--ink-soft);font-weight:700;white-space:nowrap;width:56px;}
+  .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
+  .progress-note-input{
+    width:100%;min-width:120px;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
+  }
   .stats-photo-btn{
     width:24px;height:24px;border-radius:6px;border:1px solid var(--line);
     background:var(--paper);font-size:13px;cursor:pointer;
@@ -482,7 +493,7 @@
       這個時段課表上沒有排課,已切換為手動選擇班級。
     </div>
     <div class="class-progress">
-      <label for="classProgressNote">📝 上次進度</label>
+      <label for="classProgressNote" id="classProgressLabel">📝 上次進度</label>
       <textarea id="classProgressNote" rows="2" placeholder="下課後隨手記,下次選這班就會看到..."></textarea>
     </div>
   </header>
@@ -493,6 +504,7 @@
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
     <button data-tab="stats">統計表</button>
+    <button data-tab="progress">總覽表</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
@@ -556,6 +568,19 @@
     </div>
   </section>
 
+  <section class="panel" id="panel-progress">
+    <div class="stats-toolbar">
+      <div class="progress-settings">
+        <label for="semesterStartInput">開學日期</label>
+        <input type="date" id="semesterStartInput">
+        <span class="count" id="progressWeekLabel"></span>
+      </div>
+    </div>
+    <div class="stats-table-wrap">
+      <table class="stats-table progress-table" id="progressTable"></table>
+    </div>
+  </section>
+
   <div class="footer-note">
     出席、秩序評分、作業成績都會即時存到資料庫，拍照評分完成後也會立即建檔。
   </div>
@@ -581,6 +606,93 @@ let statsPhotos = {};         // { studentId: { assignmentId: [photoKey, ...] } 
 let statsSearchTerm = "";
 let statsSortKey = "seat";    // "seat" | "name" | "plus" | "minus" | "late" | "absent" | assignmentId
 let statsSortAsc = true;
+
+const PROGRESS_WEEKS = 21;
+let semesterStart = null;     // "YYYY-MM-DD" or null if not set yet
+let progressData = {};        // { classId: { week: note } } — all classes/weeks, for the 總覽表 tab
+
+function computeCurrentWeek(){
+  if(!semesterStart) return 1;
+  const start = new Date(semesterStart + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((today - start) / 86400000);
+  const week = Math.floor(diffDays / 7) + 1;
+  return Math.min(PROGRESS_WEEKS, Math.max(1, week));
+}
+
+async function loadSemesterStart(){
+  try{
+    const res = await apiGet("/api/settings/semester-start");
+    semesterStart = res.date || null;
+  }catch(e){
+    semesterStart = null;
+  }
+  const input = document.getElementById("semesterStartInput");
+  if(input) input.value = semesterStart || "";
+}
+
+async function loadProgressOverview(){
+  try{
+    const rows = await apiGet("/api/class-progress/overview");
+    progressData = {};
+    rows.forEach(r => {
+      if(!progressData[r.classId]) progressData[r.classId] = {};
+      progressData[r.classId][r.week] = r.note;
+    });
+  }catch(e){
+    progressData = {};
+  }
+  renderProgressTable();
+}
+
+function renderProgressTable(){
+  const root = document.getElementById("progressTable");
+  if(!root) return;
+  const currentWeek = computeCurrentWeek();
+  const label = document.getElementById("progressWeekLabel");
+  if(label){
+    label.textContent = semesterStart ? `目前第 ${currentWeek} 週` : "尚未設定開學日期,預設從第1週開始記錄";
+  }
+
+  const headHtml = `<tr><th>週次</th>${currentClasses.map(c => `<th>${escapeHtml(c.name)}</th>`).join("")}</tr>`;
+  const bodyHtml = [];
+  for(let w = 1; w <= PROGRESS_WEEKS; w++){
+    const cells = currentClasses.map(c => {
+      const note = (progressData[c.id] && progressData[c.id][w]) || "";
+      return `<td><textarea class="progress-note-input" rows="2" data-class="${c.id}" data-week="${w}">${escapeHtml(note)}</textarea></td>`;
+    }).join("");
+    bodyHtml.push(`<tr class="${w === currentWeek ? "progress-current-week" : ""}"><td class="progress-week">第${w}週</td>${cells}</tr>`);
+  }
+  root.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml.join("")}</tbody>`;
+
+  root.querySelectorAll(".progress-note-input").forEach(inp => {
+    inp.addEventListener("change", (e) => {
+      const classId = inp.dataset.class;
+      const week = parseInt(inp.dataset.week, 10);
+      const note = inp.value;
+      if(!progressData[classId]) progressData[classId] = {};
+      progressData[classId][week] = note;
+      apiPost("/api/class-progress", { classId, week, note }).then(() => {
+        if(classId === currentClassId && week === computeCurrentWeek()){
+          const box = document.getElementById("classProgressNote");
+          if(box) box.value = note;
+        }
+      }).catch(()=>{});
+    });
+  });
+}
+
+document.getElementById("semesterStartInput").addEventListener("change", async (e) => {
+  const date = e.target.value;
+  if(!date) return;
+  semesterStart = date;
+  try{
+    await apiPost("/api/settings/semester-start", { date });
+  }catch(err){}
+  renderProgressTable();
+  if(currentClassId) loadClassNote();
+});
 
 let audioCtx = null;
 function playBeep(freq, volume){
@@ -835,6 +947,7 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
     document.querySelectorAll("section.panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    if(btn.dataset.tab === "progress") loadProgressOverview();
   });
 });
 
@@ -2024,17 +2137,24 @@ async function loadRoster(){
 
 async function loadClassNote(){
   const box = document.getElementById("classProgressNote");
+  const label = document.getElementById("classProgressLabel");
   box.value = "";
   if(!currentClassId) return;
+  const week = computeCurrentWeek();
+  label.textContent = `📝 上次進度(第${week}週)`;
   try{
-    const res = await apiGet(`/api/class-notes?classId=${encodeURIComponent(currentClassId)}`);
+    const res = await apiGet(`/api/class-progress?classId=${encodeURIComponent(currentClassId)}&week=${week}`);
     box.value = res.note || "";
   }catch(e){}
 }
 
 document.getElementById("classProgressNote").addEventListener("change", (e) => {
   if(!currentClassId) return;
-  apiPost("/api/class-notes", { classId: currentClassId, note: e.target.value }).catch(()=>{});
+  const week = computeCurrentWeek();
+  const note = e.target.value;
+  if(!progressData[currentClassId]) progressData[currentClassId] = {};
+  progressData[currentClassId][week] = note;
+  apiPost("/api/class-progress", { classId: currentClassId, week, note }).catch(()=>{});
 });
 
 document.getElementById("resetTestDataBtn").addEventListener("click", async () => {
@@ -2069,6 +2189,7 @@ document.getElementById("resetTestDataBtn").addEventListener("click", async () =
   setInterval(renderNowDate, 60000);
   const scheduleResult = await tryFetchSchedule();
   renderHeader(scheduleResult);
+  await loadSemesterStart();
   await loadRoster();
 })();
 </script>
