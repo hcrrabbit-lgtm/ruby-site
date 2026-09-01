@@ -28,6 +28,7 @@
     -webkit-font-smoothing:antialiased;
   }
   .app{max-width:720px;margin:0 auto;padding:20px 16px 60px;}
+  body.wide-panel .app{max-width:1100px;}
 
   header.top{
     display:flex;flex-direction:column;gap:6px;
@@ -368,7 +369,7 @@
   .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
   .progress-note-input{
     width:100%;min-width:120px;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);
-    background:var(--card);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
+    background:var(--card);color:var(--ink);resize:none;overflow:hidden;font-family:inherit;box-sizing:border-box;
   }
   .stats-photo-btn{
     width:24px;height:24px;border-radius:6px;border:1px solid var(--line);
@@ -621,6 +622,11 @@ function computeCurrentWeek(){
   return Math.min(PROGRESS_WEEKS, Math.max(1, week));
 }
 
+function autoGrowTextarea(el){
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 async function loadSemesterStart(){
   try{
     const res = await apiGet("/api/settings/semester-start");
@@ -667,6 +673,8 @@ function renderProgressTable(){
   root.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml.join("")}</tbody>`;
 
   root.querySelectorAll(".progress-note-input").forEach(inp => {
+    autoGrowTextarea(inp);
+    inp.addEventListener("input", () => autoGrowTextarea(inp));
     inp.addEventListener("change", (e) => {
       const classId = inp.dataset.class;
       const week = parseInt(inp.dataset.week, 10);
@@ -947,6 +955,7 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
     document.querySelectorAll("section.panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+    document.body.classList.toggle("wide-panel", btn.dataset.tab === "progress");
     if(btn.dataset.tab === "progress") loadProgressOverview();
   });
 });
