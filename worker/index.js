@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS grade_weights (class_id TEXT PRIMARY KEY, behavior_we
 CREATE TABLE IF NOT EXISTS class_notes (class_id TEXT PRIMARY KEY, note TEXT NOT NULL DEFAULT '', updated_at TEXT);
 CREATE TABLE IF NOT EXISTS class_progress (class_id TEXT NOT NULL, week INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', updated_at TEXT, PRIMARY KEY(class_id, week));
 CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT);
+CREATE TABLE IF NOT EXISTS seat_positions (class_id TEXT NOT NULL, position INTEGER NOT NULL, student_id TEXT, PRIMARY KEY(class_id, position));
 CREATE TABLE IF NOT EXISTS student_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
@@ -592,6 +593,26 @@ async function handleClassProgressOverview(env) {
   return json(rows);
 }
 
+async function handleSeatingGet(env, url) {
+  const classId = url.searchParams.get("classId");
+  if (!classId) return json({ error: "缺少 classId" }, { status: 400 });
+  const rows = (await env.DB.prepare(
+    "SELECT position, student_id as studentId FROM seat_positions WHERE class_id = ?"
+  ).bind(classId).all()).results;
+  return json(rows);
+}
+
+async function handleSeatingPost(env, request) {
+  const { classId, position, studentId } = await request.json();
+  const pos = parseInt(position, 10);
+  if (!classId || !pos) return json({ error: "缺少班級或座位編號" }, { status: 400 });
+  await env.DB.prepare(
+    `INSERT INTO seat_positions (class_id, position, student_id) VALUES (?, ?, ?)
+     ON CONFLICT(class_id, position) DO UPDATE SET student_id = excluded.student_id`
+  ).bind(classId, pos, studentId || null).run();
+  return json({ ok: true });
+}
+
 async function handleResetTestData(env, request) {
   // 開學前一鍵清除測試資料：作品照片/分數/等第/備註、學生大頭照、加扣分、遲到缺席
   // 保留：班級、學生名冊、課表、作業欄位定義本身
@@ -905,6 +926,8 @@ export default {
       if (path === "/api/class-progress/overview" && request.method === "GET") return await handleClassProgressOverview(env);
       if (path === "/api/class-progress" && request.method === "GET") return await handleClassProgressGet(env, url);
       if (path === "/api/class-progress" && request.method === "POST") return await handleClassProgressPost(env, request);
+      if (path === "/api/seating" && request.method === "GET") return await handleSeatingGet(env, url);
+      if (path === "/api/seating" && request.method === "POST") return await handleSeatingPost(env, request);
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 

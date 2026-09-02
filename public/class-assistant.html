@@ -360,6 +360,36 @@
     text-align:center;background:var(--card);color:var(--ink);
   }
   .stats-score-cell{display:flex;align-items:center;justify-content:center;gap:4px;}
+  .seating-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .seating-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .seating-room{display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .seating-groups{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;}
+  .seating-group{
+    display:grid;gap:5px;padding:7px;border:2px solid var(--ink-soft);border-radius:10px;background:var(--card);
+  }
+  .seat-cell{
+    display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;min-width:0;
+    border:1px dashed var(--line);border-radius:8px;background:var(--paper);
+  }
+  .seat-photo{
+    width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--card);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-soft);
+  }
+  .seat-photo img{width:100%;height:100%;object-fit:cover;}
+  .seat-select{
+    width:100%;font-size:10px;padding:2px;border-radius:5px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);
+  }
+  .seating-blackboard{
+    width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
+    background:var(--ink);color:#fff;font-weight:700;letter-spacing:6px;
+  }
+  @media (max-width:480px){
+    .seat-photo{width:32px;height:32px;font-size:14px;}
+    .seat-select{font-size:9px;}
+    .seating-group{padding:5px;gap:4px;}
+    .seat-cell{padding:2px;gap:2px;}
+  }
   .progress-settings{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);}
   .progress-settings input[type=date]{
     font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);
@@ -501,6 +531,7 @@
 
   <nav class="tabs">
     <button data-tab="attendance" class="active">課堂表現</button>
+    <button data-tab="seating">座位表</button>
     <button data-tab="artwork">作品庫</button>
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
@@ -521,6 +552,20 @@
       <button class="sort-btn" id="scoreAscSortBtn">扣分</button>
     </div>
     <div class="roster" id="attRoster"></div>
+  </section>
+
+  <section class="panel" id="panel-seating">
+    <div class="seating-toolbar">
+      <span class="count" id="seatingCount"></span>
+      <div class="seating-actions">
+        <button type="button" class="sort-btn" id="seatingAutoFillBtn">依座號自動排入空位</button>
+        <button type="button" class="sort-btn" id="seatingClearBtn">清空座位</button>
+      </div>
+    </div>
+    <div class="seating-room">
+      <div class="seating-groups" id="seatingGroups"></div>
+      <div class="seating-blackboard">黑板</div>
+    </div>
   </section>
 
   <section class="panel" id="panel-artwork">
@@ -612,6 +657,20 @@ const PROGRESS_WEEKS = 21;
 let semesterStart = null;     // "YYYY-MM-DD" or null if not set yet
 let progressData = {};        // { classId: { week: note } } — all classes/weeks, for the 總覽表 tab
 
+// Matches the teacher's hand-drawn room layout: 2 six-seat tables up top, 4 four-seat
+// tables around the sides/bottom, blackboard below. Positions are numbered sequentially
+// across groups in this order (1~6 in g1, 7~12 in g2, 13~16 in g3, ...).
+const SEATING_GROUPS = [
+  { cols: 3, rows: 2 }, // g1: 6 seats, top-left
+  { cols: 3, rows: 2 }, // g2: 6 seats, top-right
+  { cols: 2, rows: 2 }, // g3: 4 seats, middle-left
+  { cols: 2, rows: 2 }, // g4: 4 seats, middle-right
+  { cols: 2, rows: 2 }, // g5: 4 seats, bottom-left
+  { cols: 2, rows: 2 }  // g6: 4 seats, bottom-right
+];
+const SEATING_TOTAL = SEATING_GROUPS.reduce((sum, g) => sum + g.cols * g.rows, 0);
+let seatingData = {};          // { position: studentId } for the currently selected class
+
 function computeCurrentWeek(){
   if(!semesterStart) return 1;
   const start = new Date(semesterStart + "T00:00:00");
@@ -700,6 +759,103 @@ document.getElementById("semesterStartInput").addEventListener("change", async (
   }catch(err){}
   renderProgressTable();
   if(currentClassId) loadClassNote();
+});
+
+async function loadSeating(){
+  seatingData = {};
+  if(currentClassId){
+    try{
+      const rows = await apiGet(`/api/seating?classId=${encodeURIComponent(currentClassId)}`);
+      rows.forEach(r => { if(r.studentId) seatingData[r.position] = r.studentId; });
+    }catch(e){}
+  }
+  renderSeatingChart();
+}
+
+function saveSeat(position, studentId){
+  apiPost("/api/seating", { classId: currentClassId, position, studentId }).catch(()=>{});
+}
+
+function renderSeatingChart(){
+  const root = document.getElementById("seatingGroups");
+  if(!root) return;
+  const countEl = document.getElementById("seatingCount");
+  if(countEl){
+    const assignedCount = Object.keys(seatingData).length;
+    countEl.textContent = `${assignedCount} / ${rosterCache.length} 位學生已排位(共${SEATING_TOTAL}個座位)`;
+  }
+
+  const sortedRoster = [...rosterCache].sort((a,b) => a.seat - b.seat);
+  const optionsFor = (selectedId) => {
+    const opts = ['<option value="">(空位)</option>'];
+    sortedRoster.forEach(st => {
+      opts.push(`<option value="${st.id}"${st.id === selectedId ? " selected" : ""}>${st.seat}號 ${escapeHtml(st.name)}</option>`);
+    });
+    return opts.join("");
+  };
+
+  let position = 0;
+  const groupsHtml = SEATING_GROUPS.map(g => {
+    let cellsHtml = "";
+    for(let i = 0; i < g.cols * g.rows; i++){
+      position++;
+      const pos = position;
+      const studentId = seatingData[pos] || "";
+      const st = studentId ? rosterCache.find(x => x.id === studentId) : null;
+      const photoInner = st
+        ? (st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`)
+        : `<span>＋</span>`;
+      cellsHtml += `
+        <div class="seat-cell">
+          <div class="seat-photo">${photoInner}</div>
+          <select class="seat-select" data-position="${pos}">${optionsFor(studentId)}</select>
+        </div>`;
+    }
+    return `<div class="seating-group" style="grid-template-columns:repeat(${g.cols},1fr);grid-template-rows:repeat(${g.rows},1fr);">${cellsHtml}</div>`;
+  }).join("");
+
+  root.innerHTML = groupsHtml;
+
+  root.querySelectorAll(".seat-select").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const pos = parseInt(sel.dataset.position, 10);
+      const studentId = sel.value || null;
+      if(studentId){
+        Object.keys(seatingData).forEach(p => {
+          if(seatingData[p] === studentId && parseInt(p, 10) !== pos){
+            delete seatingData[p];
+            saveSeat(parseInt(p, 10), null);
+          }
+        });
+        seatingData[pos] = studentId;
+      }else{
+        delete seatingData[pos];
+      }
+      saveSeat(pos, studentId);
+      renderSeatingChart();
+    });
+  });
+}
+
+document.getElementById("seatingAutoFillBtn").addEventListener("click", () => {
+  const assignedIds = new Set(Object.values(seatingData));
+  const unassigned = [...rosterCache].filter(st => !assignedIds.has(st.id)).sort((a,b) => a.seat - b.seat);
+  let idx = 0;
+  for(let position = 1; position <= SEATING_TOTAL && idx < unassigned.length; position++){
+    if(seatingData[position]) continue;
+    const st = unassigned[idx++];
+    seatingData[position] = st.id;
+    saveSeat(position, st.id);
+  }
+  renderSeatingChart();
+});
+
+document.getElementById("seatingClearBtn").addEventListener("click", () => {
+  if(!Object.keys(seatingData).length) return;
+  if(!confirm("確定要清空目前班級的座位表嗎?")) return;
+  Object.keys(seatingData).forEach(p => saveSeat(parseInt(p, 10), null));
+  seatingData = {};
+  renderSeatingChart();
 });
 
 let audioCtx = null;
@@ -2142,6 +2298,7 @@ async function loadRoster(){
   await loadAssignments();
   await loadSubmissionsForCurrentAssignment();
   await loadClassNote();
+  await loadSeating();
 }
 
 async function loadClassNote(){
