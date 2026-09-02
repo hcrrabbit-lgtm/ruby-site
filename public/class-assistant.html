@@ -115,6 +115,7 @@
     background:var(--card);color:var(--ink);cursor:pointer;
   }
   .sort-btn.active{background:var(--sage);border-color:var(--sage);color:#fff;}
+  .sort-btn:disabled{opacity:0.4;cursor:default;}
 
   .roster{display:flex;flex-direction:column;gap:8px;}
   .student-row{
@@ -380,6 +381,9 @@
     width:100%;font-size:10px;padding:2px;border-radius:5px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);
   }
+  .seat-cell.locked{border:none;background:transparent;padding:2px;}
+  .seat-cell.locked.empty{visibility:hidden;}
+  .seat-label{font-size:10px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
     background:var(--ink);color:#fff;font-weight:700;letter-spacing:6px;
@@ -558,6 +562,7 @@
     <div class="seating-toolbar">
       <span class="count" id="seatingCount"></span>
       <div class="seating-actions">
+        <button type="button" class="sort-btn" id="seatingLockBtn">🔒 鎖定</button>
         <button type="button" class="sort-btn" id="seatingAutoFillBtn">依座號自動排入空位</button>
         <button type="button" class="sort-btn" id="seatingClearBtn">清空座位</button>
       </div>
@@ -671,6 +676,8 @@ const SEATING_GROUPS = [
 ];
 const SEATING_TOTAL = SEATING_GROUPS.reduce((sum, g) => sum + g.cols * g.rows, 0);
 let seatingData = {};          // { position: studentId } for the currently selected class
+let seatingLocked = false;
+try{ seatingLocked = localStorage.getItem("seatingLocked") === "1"; }catch(e){}
 
 function computeCurrentWeek(){
   if(!semesterStart) return 1;
@@ -777,9 +784,22 @@ function saveSeat(position, studentId){
   apiPost("/api/seating", { classId: currentClassId, position, studentId }).catch(()=>{});
 }
 
+function updateSeatingLockUI(){
+  const lockBtn = document.getElementById("seatingLockBtn");
+  const autoBtn = document.getElementById("seatingAutoFillBtn");
+  const clearBtn = document.getElementById("seatingClearBtn");
+  if(lockBtn){
+    lockBtn.textContent = seatingLocked ? "🔓 解鎖" : "🔒 鎖定";
+    lockBtn.classList.toggle("active", seatingLocked);
+  }
+  if(autoBtn) autoBtn.disabled = seatingLocked;
+  if(clearBtn) clearBtn.disabled = seatingLocked;
+}
+
 function renderSeatingChart(){
   const root = document.getElementById("seatingGroups");
   if(!root) return;
+  updateSeatingLockUI();
   const countEl = document.getElementById("seatingCount");
   if(countEl){
     const assignedCount = Object.keys(seatingData).length;
@@ -803,14 +823,28 @@ function renderSeatingChart(){
       const pos = position;
       const studentId = seatingData[pos] || "";
       const st = studentId ? rosterCache.find(x => x.id === studentId) : null;
-      const photoInner = st
-        ? (st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`)
-        : `<span>＋</span>`;
-      cellsHtml += `
-        <div class="seat-cell">
-          <div class="seat-photo">${photoInner}</div>
-          <select class="seat-select" data-position="${pos}">${optionsFor(studentId)}</select>
-        </div>`;
+
+      if(seatingLocked){
+        if(!st){
+          cellsHtml += `<div class="seat-cell locked empty"></div>`;
+        }else{
+          const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`;
+          cellsHtml += `
+            <div class="seat-cell locked">
+              <div class="seat-photo">${photoInner}</div>
+              <div class="seat-label">${st.seat}號 ${escapeHtml(st.name)}</div>
+            </div>`;
+        }
+      }else{
+        const photoInner = st
+          ? (st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`)
+          : `<span>＋</span>`;
+        cellsHtml += `
+          <div class="seat-cell">
+            <div class="seat-photo">${photoInner}</div>
+            <select class="seat-select" data-position="${pos}">${optionsFor(studentId)}</select>
+          </div>`;
+      }
     }
     return `<div class="seating-group" style="grid-template-columns:repeat(${g.cols},1fr);grid-template-rows:repeat(${g.rows},1fr);">${cellsHtml}</div>`;
   }).join("");
@@ -838,7 +872,14 @@ function renderSeatingChart(){
   });
 }
 
+document.getElementById("seatingLockBtn").addEventListener("click", () => {
+  seatingLocked = !seatingLocked;
+  try{ localStorage.setItem("seatingLocked", seatingLocked ? "1" : "0"); }catch(e){}
+  renderSeatingChart();
+});
+
 document.getElementById("seatingAutoFillBtn").addEventListener("click", () => {
+  if(seatingLocked) return;
   const assignedIds = new Set(Object.values(seatingData));
   const unassigned = [...rosterCache].filter(st => !assignedIds.has(st.id)).sort((a,b) => a.seat - b.seat);
   let idx = 0;
@@ -852,6 +893,7 @@ document.getElementById("seatingAutoFillBtn").addEventListener("click", () => {
 });
 
 document.getElementById("seatingClearBtn").addEventListener("click", () => {
+  if(seatingLocked) return;
   if(!Object.keys(seatingData).length) return;
   if(!confirm("確定要清空目前班級的座位表嗎?")) return;
   Object.keys(seatingData).forEach(p => saveSeat(parseInt(p, 10), null));
