@@ -383,7 +383,8 @@
   }
   .seat-cell.locked{border:none;background:transparent;padding:2px;}
   .seat-cell.locked.empty{visibility:hidden;}
-  .seat-label{font-size:10px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
+  .seat-cell.locked .seat-photo{width:48px;height:48px;font-size:20px;}
+  .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
     background:var(--ink);color:#fff;font-weight:700;letter-spacing:6px;
@@ -393,6 +394,8 @@
     .seat-select{font-size:9px;}
     .seating-group{padding:5px;gap:4px;}
     .seat-cell{padding:2px;gap:2px;}
+    .seat-cell.locked .seat-photo{width:54px;height:54px;font-size:22px;}
+    .seat-label{font-size:13px;}
   }
   .progress-settings{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);}
   .progress-settings input[type=date]{
@@ -810,7 +813,7 @@ function renderSeatingChart(){
   const optionsFor = (selectedId) => {
     const opts = ['<option value="">(空位)</option>'];
     sortedRoster.forEach(st => {
-      opts.push(`<option value="${st.id}"${st.id === selectedId ? " selected" : ""}>${st.seat}號 ${escapeHtml(st.name)}</option>`);
+      opts.push(`<option value="${st.id}"${st.id === selectedId ? " selected" : ""}>${st.seat} ${escapeHtml(st.name)}</option>`);
     });
     return opts.join("");
   };
@@ -832,7 +835,7 @@ function renderSeatingChart(){
           cellsHtml += `
             <div class="seat-cell locked">
               <div class="seat-photo">${photoInner}</div>
-              <div class="seat-label">${st.seat}號 ${escapeHtml(st.name)}</div>
+              <div class="seat-label">${st.seat} ${escapeHtml(st.name)}</div>
             </div>`;
         }
       }else{
