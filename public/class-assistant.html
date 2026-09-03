@@ -372,6 +372,7 @@
     display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;min-width:0;
     border:1px dashed var(--line);border-radius:8px;background:var(--paper);
   }
+  .seat-photo-wrap{position:relative;flex-shrink:0;}
   .seat-photo{
     width:40px;height:40px;border-radius:8px;overflow:hidden;background:var(--card);flex-shrink:0;
     display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-soft);
@@ -381,9 +382,17 @@
     width:100%;font-size:10px;padding:2px;border-radius:5px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);
   }
+  .seat-leader-badge{
+    position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;
+    background:var(--line);color:#fff;font-size:10px;line-height:16px;text-align:center;
+    border:none;padding:0;cursor:pointer;
+  }
+  .seat-leader-badge.active{background:var(--ochre);}
+  .seat-cell.leader{border-color:var(--ochre);}
   .seat-cell.locked{border:none;background:transparent;padding:2px;}
   .seat-cell.locked.empty{visibility:hidden;}
   .seat-cell.locked .seat-photo{width:48px;height:48px;font-size:20px;}
+  .seat-cell.locked.leader{border:1px solid var(--ochre);background:rgba(198,138,62,0.12);}
   .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
@@ -681,6 +690,7 @@ const SEATING_TOTAL = SEATING_GROUPS.reduce((sum, g) => sum + g.cols * g.rows, 0
 let seatingData = {};          // { position: studentId } for the currently selected class
 let seatingLocked = false;
 try{ seatingLocked = localStorage.getItem("seatingLocked") === "1"; }catch(e){}
+let groupLeaders = new Set();  // studentIds marked as 小組長 for the currently selected class
 
 function computeCurrentWeek(){
   if(!semesterStart) return 1;
@@ -787,6 +797,24 @@ function saveSeat(position, studentId){
   apiPost("/api/seating", { classId: currentClassId, position, studentId }).catch(()=>{});
 }
 
+async function loadGroupLeaders(){
+  groupLeaders = new Set();
+  if(currentClassId){
+    try{
+      const ids = await apiGet(`/api/group-leaders?classId=${encodeURIComponent(currentClassId)}`);
+      groupLeaders = new Set(ids);
+    }catch(e){}
+  }
+  renderSeatingChart();
+}
+
+function toggleGroupLeader(studentId){
+  const isLeader = !groupLeaders.has(studentId);
+  if(isLeader) groupLeaders.add(studentId); else groupLeaders.delete(studentId);
+  apiPost("/api/group-leaders", { classId: currentClassId, studentId, isLeader }).catch(()=>{});
+  renderSeatingChart();
+}
+
 function updateSeatingLockUI(){
   const lockBtn = document.getElementById("seatingLockBtn");
   const autoBtn = document.getElementById("seatingAutoFillBtn");
@@ -831,10 +859,15 @@ function renderSeatingChart(){
         if(!st){
           cellsHtml += `<div class="seat-cell locked empty"></div>`;
         }else{
+          const isLeader = groupLeaders.has(st.id);
           const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`;
+          const badge = isLeader ? `<span class="seat-leader-badge active" title="小組長">★</span>` : "";
           cellsHtml += `
-            <div class="seat-cell locked">
-              <div class="seat-photo">${photoInner}</div>
+            <div class="seat-cell locked${isLeader ? " leader" : ""}">
+              <div class="seat-photo-wrap">
+                <div class="seat-photo">${photoInner}</div>
+                ${badge}
+              </div>
               <div class="seat-label">${st.seat} ${escapeHtml(st.name)}</div>
             </div>`;
         }
@@ -842,9 +875,16 @@ function renderSeatingChart(){
         const photoInner = st
           ? (st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`)
           : `<span>＋</span>`;
+        const isLeader = st && groupLeaders.has(st.id);
+        const leaderBtn = st
+          ? `<button type="button" class="seat-leader-badge${isLeader ? " active" : ""}" data-student="${st.id}" title="${isLeader ? "取消小組長" : "設為小組長"}">★</button>`
+          : "";
         cellsHtml += `
-          <div class="seat-cell">
-            <div class="seat-photo">${photoInner}</div>
+          <div class="seat-cell${isLeader ? " leader" : ""}">
+            <div class="seat-photo-wrap">
+              <div class="seat-photo">${photoInner}</div>
+              ${leaderBtn}
+            </div>
             <select class="seat-select" data-position="${pos}">${optionsFor(studentId)}</select>
           </div>`;
       }
@@ -871,6 +911,13 @@ function renderSeatingChart(){
       }
       saveSeat(pos, studentId);
       renderSeatingChart();
+    });
+  });
+
+  root.querySelectorAll("button.seat-leader-badge").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleGroupLeader(btn.dataset.student);
     });
   });
 }
@@ -2350,7 +2397,8 @@ async function loadRoster(){
     loadStatsData(),
     loadAssignments().then(() => loadSubmissionsForCurrentAssignment()),
     loadClassNote(),
-    loadSeating()
+    loadSeating(),
+    loadGroupLeaders()
   ]);
 }
 
