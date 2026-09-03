@@ -1309,15 +1309,16 @@ async function loadStatsData(){
   statsScores = {};
   statsPhotos = {};
   if(currentClassId){
-    try{
-      statsBehaviorTotals = await apiGet(`/api/behavior/summary?classId=${encodeURIComponent(currentClassId)}`);
-    }catch(e){}
-    try{
-      const res = await apiGet(`/api/assignments/scores?classId=${encodeURIComponent(currentClassId)}`);
-      statsAssignments = res.assignments || [];
-      statsScores = res.scores || {};
-      statsPhotos = res.photos || {};
-    }catch(e){}
+    const [behRes, scoresRes] = await Promise.allSettled([
+      apiGet(`/api/behavior/summary?classId=${encodeURIComponent(currentClassId)}`),
+      apiGet(`/api/assignments/scores?classId=${encodeURIComponent(currentClassId)}`)
+    ]);
+    if(behRes.status === "fulfilled") statsBehaviorTotals = behRes.value;
+    if(scoresRes.status === "fulfilled"){
+      statsAssignments = scoresRes.value.assignments || [];
+      statsScores = scoresRes.value.scores || {};
+      statsPhotos = scoresRes.value.photos || {};
+    }
   }
   renderStatsTable();
 }
@@ -1615,12 +1616,12 @@ async function loadAttendanceAndBehaviorForDate(){
   attendance = {};
   behavior = {};
   if(currentClassId){
-    try{
-      attendance = await apiGet(`/api/attendance?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`);
-    }catch(e){}
-    try{
-      behavior = await apiGet(`/api/behavior?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`);
-    }catch(e){}
+    const [attRes, behRes] = await Promise.allSettled([
+      apiGet(`/api/attendance?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`),
+      apiGet(`/api/behavior?classId=${encodeURIComponent(currentClassId)}&date=${selectedDate}`)
+    ]);
+    if(attRes.status === "fulfilled") attendance = attRes.value;
+    if(behRes.status === "fulfilled") behavior = behRes.value;
   }
   renderRoster();
 }
@@ -2337,15 +2338,20 @@ async function loadRoster(){
   const dateInput = document.getElementById("dateInput");
   dateInput.max = selectedDate;
   dateInput.value = selectedDate;
-  await loadAttendanceAndBehaviorForDate();
-  await loadLateTotals();
-  await loadStatsData();
-
   renderStudentsGrid();
-  await loadAssignments();
-  await loadSubmissionsForCurrentAssignment();
-  await loadClassNote();
-  await loadSeating();
+
+  // Each of these hits its own /api/* endpoint and doesn't depend on the others'
+  // results (submissions is the one exception, so it's chained after assignments) —
+  // running them together instead of one-await-at-a-time is what got switching
+  // classes down from ~10 sequential round-trips to whichever branch is slowest.
+  await Promise.all([
+    loadAttendanceAndBehaviorForDate(),
+    loadLateTotals(),
+    loadStatsData(),
+    loadAssignments().then(() => loadSubmissionsForCurrentAssignment()),
+    loadClassNote(),
+    loadSeating()
+  ]);
 }
 
 async function loadClassNote(){
