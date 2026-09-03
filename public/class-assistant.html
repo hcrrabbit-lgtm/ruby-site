@@ -1913,6 +1913,7 @@ async function uploadAvatar(studentId, blob){
     if(st) st.photoKey = data.key;
     renderRoster();
     renderStudentsGrid();
+    renderSeatingChart();
   }catch(e){
     alert("照片上傳失敗,請檢查網路連線後再試一次。");
   }
