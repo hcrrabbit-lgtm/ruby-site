@@ -552,7 +552,7 @@
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
     <button data-tab="stats">統計表</button>
-    <button data-tab="progress">總覽表</button>
+    <button data-tab="progress">課程</button>
   </nav>
 
   <section class="panel active" id="panel-attendance">
@@ -672,7 +672,7 @@ let statsSortAsc = true;
 
 const PROGRESS_WEEKS = 21;
 let semesterStart = null;     // "YYYY-MM-DD" or null if not set yet
-let progressData = {};        // { classId: { week: note } } — all classes/weeks, for the 總覽表 tab
+let progressData = {};        // { classId: { week: note } } — all classes/weeks, for the 課程 tab
 
 // Matches the teacher's hand-drawn room layout: 2 six-seat tables up top (landscape,
 // 3 columns x 2 rows), 4 six-seat tables around the sides/bottom (portrait, 2 columns
