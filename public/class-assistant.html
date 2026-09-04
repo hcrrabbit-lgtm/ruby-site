@@ -411,8 +411,9 @@
     font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);
   }
   .progress-table th, .progress-table td{white-space:normal;}
-  .progress-table td.progress-week{color:var(--ink-soft);font-weight:700;white-space:nowrap;width:56px;}
+  .progress-table td.progress-week{color:var(--ink-soft);font-weight:700;white-space:nowrap;width:72px;}
   .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
+  .progress-week-range{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
   .progress-note-input{
     width:100%;min-width:120px;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);resize:none;overflow:hidden;font-family:inherit;box-sizing:border-box;
@@ -588,7 +589,7 @@
   <section class="panel" id="panel-artwork">
 
     <div class="assignment-buttons" id="assignmentButtons"></div>
-    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="cameraInput" accept="image/*" style="display:none;">
     <input type="file" id="albumInput" accept="image/*" style="display:none;">
 
     <div class="toolbar">
@@ -702,6 +703,16 @@ function computeCurrentWeek(){
   return Math.min(PROGRESS_WEEKS, Math.max(1, week));
 }
 
+function formatWeekRange(week){
+  if(!semesterStart) return "";
+  const rangeStart = new Date(semesterStart + "T00:00:00");
+  rangeStart.setDate(rangeStart.getDate() + (week - 1) * 7);
+  const rangeEnd = new Date(rangeStart);
+  rangeEnd.setDate(rangeEnd.getDate() + 6);
+  const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${fmt(rangeStart)}~${fmt(rangeEnd)}`;
+}
+
 function autoGrowTextarea(el){
   el.style.height = "auto";
   el.style.height = el.scrollHeight + "px";
@@ -748,7 +759,9 @@ function renderProgressTable(){
       const note = (progressData[c.id] && progressData[c.id][w]) || "";
       return `<td><textarea class="progress-note-input" rows="2" data-class="${c.id}" data-week="${w}">${escapeHtml(note)}</textarea></td>`;
     }).join("");
-    bodyHtml.push(`<tr class="${w === currentWeek ? "progress-current-week" : ""}"><td class="progress-week">第${w}週</td>${cells}</tr>`);
+    const range = formatWeekRange(w);
+    const weekLabel = `第${w}週${range ? `<span class="progress-week-range">${range}</span>` : ""}`;
+    bodyHtml.push(`<tr class="${w === currentWeek ? "progress-current-week" : ""}"><td class="progress-week">${weekLabel}</td>${cells}</tr>`);
   }
   root.innerHTML = `<thead>${headHtml}</thead><tbody>${bodyHtml.join("")}</tbody>`;
 
@@ -1719,7 +1732,7 @@ function openStudentPhoto(studentId){
       <div class="photo-modal-name">${st.seat} 號・${st.name}</div>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="photoModalCloseBtn">關閉</button>
-        <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 重新拍照</button>
+        <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 拍照/選照片</button>
       </div>
       <button class="photo-modal-notes" id="photoModalNotesBtn">📋 個人紀錄</button>
       <button class="photo-modal-delete" id="photoModalDeleteBtn">🗑 刪除學生(轉學/退選)</button>
@@ -1967,9 +1980,12 @@ async function uploadAvatar(studentId, blob){
   }
 }
 
-// Hands photo capture off to the phone's native camera app via <input capture>,
-// instead of building an in-page camera with getUserMedia — sidesteps per-site
-// camera permission/hardware-lock issues that getUserMedia is prone to.
+// No "capture" attribute on cameraInput, so the OS shows its own action sheet
+// offering both "take photo" and "photo library" in one tap target — same as
+// artwork photos — instead of forcing the camera app open directly. Hands photo
+// capture off to the OS entirely, instead of building an in-page camera with
+// getUserMedia — sidesteps per-site camera permission/hardware-lock issues that
+// getUserMedia is prone to.
 function startPhotoCapture(tier, opts){
   opts = opts || {};
   camTargetSeat = opts.seat || null;
