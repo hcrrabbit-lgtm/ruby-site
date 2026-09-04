@@ -414,6 +414,7 @@
   .progress-table td.progress-week{color:var(--ink-soft);font-weight:700;white-space:nowrap;width:72px;}
   .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
   .progress-week-range{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
+  .progress-class-weekday{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
   .progress-note-input{
     width:100%;min-width:120px;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);resize:none;overflow:hidden;font-family:inherit;box-sizing:border-box;
@@ -718,6 +719,11 @@ function autoGrowTextarea(el){
   el.style.height = el.scrollHeight + "px";
 }
 
+function classWeekdayLabel(classId){
+  const entry = weeklySchedule.find(s => s.classId === classId);
+  return entry ? (SCHEDULE_WEEKDAY_LABELS[entry.weekday] || "") : "";
+}
+
 async function loadSemesterStart(){
   try{
     const res = await apiGet("/api/settings/semester-start");
@@ -752,7 +758,10 @@ function renderProgressTable(){
     label.textContent = semesterStart ? `目前第 ${currentWeek} 週` : "尚未設定開學日期,預設從第1週開始記錄";
   }
 
-  const headHtml = `<tr><th>週次</th>${currentClasses.map(c => `<th>${escapeHtml(c.name)}</th>`).join("")}</tr>`;
+  const headHtml = `<tr><th>週次</th>${currentClasses.map(c => {
+    const wd = classWeekdayLabel(c.id);
+    return `<th>${escapeHtml(c.name)}${wd ? `<span class="progress-class-weekday">週${wd}</span>` : ""}</th>`;
+  }).join("")}</tr>`;
   const bodyHtml = [];
   for(let w = 1; w <= PROGRESS_WEEKS; w++){
     const cells = currentClasses.map(c => {
