@@ -151,6 +151,22 @@ async function ensureSchema(env) {
   } catch (e) {
     // best-effort one-time backfill only
   }
+  try {
+    // one-time rename: "數20min+5題" -> "數學"
+    const already = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'study_habits_rename_math_20250905'"
+    ).first();
+    if (!already) {
+      await env.DB.prepare(
+        `UPDATE study_habits SET name = '數學' WHERE name = '數20min+5題'`
+      ).run();
+      await env.DB.prepare(
+        "INSERT INTO app_settings (key, value) VALUES ('study_habits_rename_math_20250905', '1')"
+      ).run();
+    }
+  } catch (e) {
+    // best-effort one-time rename only
+  }
   schemaReady = true;
 }
 
