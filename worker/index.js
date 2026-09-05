@@ -114,6 +114,26 @@ async function ensureSchema(env) {
   } catch (e) {
     // column already exists, safe to ignore
   }
+  try {
+    // one-time backfill: habits that already existed but had never been checked off were
+    // showing as freshly "planted" (created today) instead of reflecting real neglect since
+    // 9/1. Backdate only the ones still untouched as of this migration; never re-runs, and
+    // habits added after this point keep their real creation date.
+    const already = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'study_habits_sep1_backfill'"
+    ).first();
+    if (!already) {
+      await env.DB.prepare(
+        `UPDATE study_habits SET created_at = '2026-09-01T00:00:00.000Z'
+         WHERE id NOT IN (SELECT DISTINCT habit_id FROM study_habit_logs)`
+      ).run();
+      await env.DB.prepare(
+        "INSERT INTO app_settings (key, value) VALUES ('study_habits_sep1_backfill', '1')"
+      ).run();
+    }
+  } catch (e) {
+    // best-effort one-time backfill only
+  }
   schemaReady = true;
 }
 
