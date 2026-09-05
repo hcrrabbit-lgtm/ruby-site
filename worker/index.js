@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS group_leaders (class_id TEXT NOT NULL, student_id TEX
 CREATE TABLE IF NOT EXISTS student_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, student_id TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
-CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
-CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -103,6 +103,16 @@ async function ensureSchema(env) {
     }
   } catch (e) {
     // best-effort schedule fix only
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE study_habits ADD COLUMN child TEXT").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE habits ADD COLUMN child TEXT").run();
+  } catch (e) {
+    // column already exists, safe to ignore
   }
   schemaReady = true;
 }
@@ -720,14 +730,14 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
   return {
     async get(env) {
       const res = await env.DB.prepare(
-        `SELECT h.id as id, h.name as name, MAX(l.date) as lastDate
+        `SELECT h.id as id, h.name as name, h.child as child, MAX(l.date) as lastDate
          FROM ${habitsTable} h LEFT JOIN ${logsTable} l ON l.habit_id = h.id
          GROUP BY h.id ORDER BY h.order_no`
       ).all();
       return json(res.results);
     },
     async post(env, request) {
-      const { name } = await request.json();
+      const { name, child } = await request.json();
       if (!name || !name.trim()) return json({ error: "缺少習慣名稱" }, { status: 400 });
       const countRes = await env.DB.prepare(
         `SELECT COALESCE(MAX(order_no), 0) as maxOrder FROM ${habitsTable}`
@@ -735,9 +745,9 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
       const orderNo = (countRes.maxOrder || 0) + 1;
       const id = idPrefix + "_" + Date.now();
       await env.DB.prepare(
-        `INSERT INTO ${habitsTable} (id, name, order_no, created_at) VALUES (?, ?, ?, ?)`
-      ).bind(id, name.trim(), orderNo, new Date().toISOString()).run();
-      return json({ id, name: name.trim() });
+        `INSERT INTO ${habitsTable} (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, ?)`
+      ).bind(id, name.trim(), orderNo, new Date().toISOString(), child || null).run();
+      return json({ id, name: name.trim(), child: child || null });
     },
     async del(env, request) {
       const { id } = await request.json();
@@ -774,7 +784,7 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
     async month(env, url) {
       const month = url.searchParams.get("month");
       if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
-      const habits = (await env.DB.prepare(`SELECT id, name FROM ${habitsTable} ORDER BY order_no`).all()).results;
+      const habits = (await env.DB.prepare(`SELECT id, name, child FROM ${habitsTable} ORDER BY order_no`).all()).results;
       const res = await env.DB.prepare(
         `SELECT habit_id as habitId, date FROM ${logsTable} WHERE date LIKE ? ORDER BY date`
       ).bind(month + "-%").all();
