@@ -360,12 +360,22 @@
 
   async function toggleHabit(id){
     const date = todayStr();
-    await fetch(API + '/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ habitId: id, date })
-    });
-    loadHabits();
+    // optimistic update: flip the local state and re-render immediately so the tap feels
+    // instant, instead of waiting on the round-trip (toggle -> refetch list -> refetch month)
+    const habit = habitState.habits.find(h => h.id === id);
+    if (habit) {
+      habit.lastDate = (habit.lastDate === date) ? null : date;
+      renderPlants();
+    }
+    try {
+      await fetch(API + '/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ habitId: id, date })
+      });
+    } finally {
+      loadHabits();
+    }
   }
 
   async function removeHabit(id){
