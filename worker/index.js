@@ -1038,12 +1038,13 @@ export default {
       if (path === "/api/habits/log" && request.method === "POST") return await healthHabitHandlers.logToggle(env, request);
       if (path === "/api/habits/month" && request.method === "GET") return await healthHabitHandlers.month(env, url);
 
-      if (path === "/api/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
-      if (path === "/api/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
-      if (path === "/api/study-habits" && request.method === "DELETE") return await studyHabitHandlers.del(env, request);
-      if (path === "/api/study-habits/log" && request.method === "GET") return await studyHabitHandlers.logGet(env, url);
-      if (path === "/api/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
-      if (path === "/api/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
+      // served from public/open/ and bypassed from Cloudflare Access, so kept under /api/open/
+      if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
+      if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
+      if (path === "/api/open/study-habits" && request.method === "DELETE") return await studyHabitHandlers.del(env, request);
+      if (path === "/api/open/study-habits/log" && request.method === "GET") return await studyHabitHandlers.logGet(env, url);
+      if (path === "/api/open/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
+      if (path === "/api/open/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
