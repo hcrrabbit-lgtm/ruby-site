@@ -55,7 +55,8 @@
     transition:transform .15s ease, border-color .15s ease;
   }
   .plant-card:hover{ transform:translateY(-2px); }
-  .plant-card .emoji{ font-size:28px; line-height:1; margin-bottom:6px; }
+  .plant-card .emoji{ line-height:1; margin-bottom:6px; display:flex; justify-content:center; }
+  .plant-card .emoji svg{ display:block; }
   .plant-card .name{ font-size:12.5px; font-weight:700; color:var(--ink); word-break:break-word; margin-bottom:2px; }
   .plant-card .status{ font-size:10.5px; color:var(--ink-soft); }
   .plant-card .remove{
@@ -260,19 +261,116 @@
   function plantStage(h){
     if (h.lastDate) {
       const days = daysSince(h.lastDate);
-      if (days <= 0) return { emoji: '😄', label: '今天澆過水', cls: 'bloom' };
-      if (days === 1) return { emoji: '🙂', label: '昨天澆過水', cls: 'healthy' };
-      if (days <= 3) return { emoji: '🙁', label: days + ' 天沒澆水', cls: 'fading' };
-      if (days <= 6) return { emoji: '😢', label: days + ' 天沒澆水', cls: 'wilting' };
-      return { emoji: '💀', label: days + ' 天沒澆水', cls: 'dead' };
+      if (days <= 0) return { label: '今天澆過水', cls: 'bloom' };
+      if (days === 1) return { label: '昨天澆過水', cls: 'healthy' };
+      if (days <= 3) return { label: days + ' 天沒澆水', cls: 'fading' };
+      if (days <= 6) return { label: days + ' 天沒澆水', cls: 'wilting' };
+      return { label: days + ' 天沒澆水', cls: 'dead' };
     }
     // never watered at all — measure neglect from when the habit was added, not forever "還沒開始"
     const days = daysSince(h.createdAt ? h.createdAt.slice(0, 10) : null);
-    if (days === null || days <= 0) return { emoji: '🌱', label: '還沒開始', cls: 'seed' };
-    if (days <= 3) return { emoji: '🙁', label: days + ' 天沒澆水', cls: 'fading' };
-    if (days <= 6) return { emoji: '😢', label: days + ' 天沒澆水', cls: 'wilting' };
-    return { emoji: '💀', label: days + ' 天沒澆水', cls: 'dead' };
+    if (days === null || days <= 0) return { label: '還沒開始', cls: 'seed' };
+    if (days <= 3) return { label: days + ' 天沒澆水', cls: 'fading' };
+    if (days <= 6) return { label: days + ' 天沒澆水', cls: 'wilting' };
+    return { label: days + ' 天沒澆水', cls: 'dead' };
   }
+
+  const PLANT_ICONS = {
+    seed: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#E4DED0"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#D2C9B4"/>
+      <ellipse cx="50" cy="56" rx="18" ry="5" fill="#7A6650"/>
+      <circle cx="42" cy="75" r="3" fill="#3A3A3A"/>
+      <circle cx="58" cy="75" r="3" fill="#3A3A3A"/>
+      <path d="M44,84 L56,84" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    bloom: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <g transform="translate(62,4) rotate(-15)">
+        <rect x="0" y="6" width="18" height="12" rx="4" fill="#6FA8D8"/>
+        <path d="M18,10 L28,6 L28,10 L20,13 Z" fill="#6FA8D8"/>
+        <rect x="4" y="0" width="6" height="6" rx="2" fill="#6FA8D8"/>
+      </g>
+      <g fill="#BEE0F5">
+        <circle cx="70" cy="20" r="2"/>
+        <circle cx="76" cy="26" r="2"/>
+        <circle cx="72" cy="32" r="2"/>
+      </g>
+      <g fill="#F5C84B">
+        <path d="M12,10 l1.5,4 4,1.5 -4,1.5 -1.5,4 -1.5,-4 -4,-1.5 4,-1.5 Z"/>
+        <path d="M86,50 l1,3 3,1 -3,1 -1,3 -1,-3 -3,-1 3,-1 Z"/>
+      </g>
+      <path d="M50,55 C50,45 50,35 50,24" stroke="#5FA85F" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="38" cy="30" rx="12" ry="7" fill="#7FBF7F" transform="rotate(-30 38 30)"/>
+      <ellipse cx="62" cy="30" rx="12" ry="7" fill="#7FBF7F" transform="rotate(30 62 30)"/>
+      <ellipse cx="50" cy="18" rx="9" ry="12" fill="#8FCB8F"/>
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#AFD3EC"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#8FBFE0"/>
+      <circle cx="40" cy="75" r="3.2" fill="#3A3A3A"/>
+      <circle cx="60" cy="75" r="3.2" fill="#3A3A3A"/>
+      <circle cx="33" cy="83" r="4.5" fill="#F6C8CB"/>
+      <circle cx="67" cy="83" r="4.5" fill="#F6C8CB"/>
+      <path d="M42,84 Q50,92 58,84" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    healthy: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <path d="M78,30 C78,26 82,24 84,27 C86,24 90,26 88,30 C86,33 82,34 78,30 Z" fill="#EBA9B8"/>
+      <path d="M84,14 L84,22 M80,18 L88,18" stroke="#8FCB8F" stroke-width="2" stroke-linecap="round"/>
+      <path d="M50,55 C50,45 50,35 50,24" stroke="#5FA85F" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="36" cy="32" rx="12" ry="7" fill="#8FCB8F" transform="rotate(-25 36 32)"/>
+      <ellipse cx="64" cy="32" rx="12" ry="7" fill="#8FCB8F" transform="rotate(25 64 32)"/>
+      <ellipse cx="50" cy="20" rx="9" ry="12" fill="#9AD69A"/>
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#C8E6C0"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#A8D9A0"/>
+      <path d="M34,74 Q40,70 46,74" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M54,74 Q60,70 66,74" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="33" cy="83" r="4.5" fill="#F6C8CB"/>
+      <circle cx="67" cy="83" r="4.5" fill="#F6C8CB"/>
+      <path d="M42,84 Q50,90 58,84" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    fading: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <path d="M82,14 q6,2 4,8 q-2,6 -8,4 q4,-2 4,-6 q0,-4 0,-6" stroke="#8B6B3D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M50,55 C50,45 51,36 54,26" stroke="#8FA85F" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="38" cy="33" rx="11" ry="6.5" fill="#C9B25B" transform="rotate(-15 38 33)"/>
+      <ellipse cx="63" cy="30" rx="11" ry="6.5" fill="#7FA85F" transform="rotate(20 63 30)"/>
+      <ellipse cx="53" cy="20" rx="8" ry="10" fill="#D0BE72"/>
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#F0DFAE"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#E3CB84"/>
+      <path d="M35,72 L44,76 M65,72 L56,76" stroke="#3A3A3A" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="40" cy="80" r="3" fill="#3A3A3A"/>
+      <circle cx="60" cy="80" r="3" fill="#3A3A3A"/>
+      <circle cx="33" cy="86" r="4" fill="#EAB98F"/>
+      <circle cx="67" cy="86" r="4" fill="#EAB98F"/>
+      <path d="M42,92 Q50,87 58,92" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    wilting: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <path d="M84,16 q8,3 6,10 q-2,7 -10,6" stroke="#8B6B3D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M50,55 C50,44 46,38 40,32" stroke="#9C7A4E" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M40,32 C34,30 28,33 26,40" stroke="#9C7A4E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M50,44 C55,40 62,40 66,46" stroke="#9C7A4E" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="24" cy="42" rx="8" ry="5" fill="#C9B25B" transform="rotate(50 24 42)"/>
+      <ellipse cx="68" cy="48" rx="8" ry="5" fill="#C9B25B" transform="rotate(-40 68 48)"/>
+      <ellipse cx="39" cy="30" rx="6" ry="8" fill="#B99A5C" transform="rotate(20 39 30)"/>
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#F0C6BE"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#E3A99C"/>
+      <path d="M36,73 Q40,69 44,73 M56,73 Q60,69 64,73" stroke="#3A3A3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M39,76 L37,84 M61,76 L63,84" stroke="#7FB6E0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="33" cy="88" r="4" fill="#EAA79A"/>
+      <circle cx="67" cy="88" r="4" fill="#EAA79A"/>
+      <path d="M42,92 Q50,88 58,92" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`,
+    dead: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
+      <path d="M78,10 Q90,8 90,18 Q90,26 80,26 L74,30 L76,24 Q70,20 72,14 Q74,10 78,10 Z" fill="#DCD8E6"/>
+      <path d="M79,15 L83,19 M83,15 L79,19" stroke="#3A3A3A" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M50,55 C48,46 40,42 33,44" stroke="#8B7355" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M50,55 C52,45 60,40 68,40" stroke="#8B7355" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M33,44 C28,44 24,48 24,52" stroke="#8B7355" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M68,40 C72,38 76,40 78,44" stroke="#8B7355" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#CFC9DA"/>
+      <rect x="21" y="52" width="58" height="10" rx="4" fill="#B7AFC9"/>
+      <path d="M35,73 L45,79 M45,73 L35,79" stroke="#3A3A3A" stroke-width="3" stroke-linecap="round"/>
+      <path d="M55,73 L65,79 M65,73 L55,79" stroke="#3A3A3A" stroke-width="3" stroke-linecap="round"/>
+      <path d="M42,88 Q50,84 58,88" stroke="#3A3A3A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </svg>`
+  };
 
   const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
   const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
@@ -325,7 +423,7 @@
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
-      <div class="emoji">${stage.emoji}</div>
+      <div class="emoji">${PLANT_ICONS[stage.cls]}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
     </div>`;
