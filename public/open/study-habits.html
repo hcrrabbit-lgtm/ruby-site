@@ -5,12 +5,23 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Better Me</title>
-<link rel="manifest" href="manifest-better-me.json">
+<link rel="manifest" href="manifest-better-me.json" id="pwaManifest">
 <meta name="theme-color" content="#5F8955">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Better Me">
+<meta name="apple-mobile-web-app-title" content="Better Me" id="pwaTitle">
+<script>
+  (function(){
+    // pick the per-child manifest/title so "Add to Home Screen" keeps the ?who=
+    // instead of falling back to the shared manifest's fixed start_url
+    var who = new URLSearchParams(location.search).get('who');
+    if (who === 'Cathy' || who === 'Rina') {
+      document.getElementById('pwaManifest').href = 'manifest-' + who.toLowerCase() + '.json';
+      document.getElementById('pwaTitle').content = 'Better Me - ' + who;
+    }
+  })();
+</script>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
