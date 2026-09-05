@@ -730,7 +730,7 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
   return {
     async get(env) {
       const res = await env.DB.prepare(
-        `SELECT h.id as id, h.name as name, h.child as child, MAX(l.date) as lastDate
+        `SELECT h.id as id, h.name as name, h.child as child, h.created_at as createdAt, MAX(l.date) as lastDate
          FROM ${habitsTable} h LEFT JOIN ${logsTable} l ON l.habit_id = h.id
          GROUP BY h.id ORDER BY h.order_no`
       ).all();
