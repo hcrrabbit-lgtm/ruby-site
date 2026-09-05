@@ -21,13 +21,31 @@
   .desc{color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7;}
 
   .habit-groups{ margin-bottom:16px; }
-  .child-group{ margin-bottom:20px; }
+  .child-group{
+    margin-bottom:20px;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:14px 14px 16px;
+    background:#fff;
+  }
+  .child-group.child-cathy{ --child-c:#C4557E; --child-bg:#FAEAF1; border-color:#EFC7D9; }
+  .child-group.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
+  .child-group.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
   .child-title{
     font-family:'Noto Serif TC',serif;
-    font-size:15px;
-    font-weight:700;
-    color:var(--study);
-    margin:0 0 8px;
+    font-size:18px;
+    font-weight:900;
+    color:var(--child-c, var(--study));
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .child-title .dot{
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--child-c, var(--study));
+    flex-shrink:0;
   }
   .plant-grid{
     display:grid;
@@ -55,8 +73,8 @@
   }
   .plant-card .remove:hover{ opacity:1; }
   .plant-card.seed{ border-style:dashed; }
-  .plant-card.bloom{ border-color:var(--study); background:var(--study-bg); }
-  .plant-card.healthy{ border-color:var(--study); }
+  .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
+  .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
   .plant-card.fading{ border-color:#C9A227; }
   .plant-card.fading .status{ color:#9C7F1E; }
   .plant-card.wilting{ border-color:#B96B77; }
@@ -81,15 +99,19 @@
     background:#fff;
     color:var(--ink);
   }
-  .habit-add select{
-    padding:8px 10px;
-    border:1px solid var(--line);
+  .child-picker{ display:flex; gap:6px; }
+  .child-btn{
+    padding:8px 14px;
     border-radius:8px;
-    font-size:14px;
-    font-family:inherit;
+    border:1.5px solid var(--line);
     background:#fff;
-    color:var(--ink);
+    color:var(--ink-soft);
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
   }
+  .child-btn.child-cathy.active{ border-color:#C4557E; background:#FAEAF1; color:#C4557E; }
+  .child-btn.child-rina.active{ border-color:#3B7EA8; background:#E6F0F6; color:#3B7EA8; }
   .habit-add button{
     padding:8px 16px;
     border-radius:8px;
@@ -161,10 +183,10 @@
   <div id="habitToday" class="habit-groups"></div>
   <div class="habit-add">
     <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
-    <select id="habitNewChild">
-      <option value="Cathy">Cathy</option>
-      <option value="Rina">Rina</option>
-    </select>
+    <div class="child-picker">
+      <button type="button" class="child-btn child-cathy active" data-child="Cathy">Cathy</button>
+      <button type="button" class="child-btn child-rina" data-child="Rina">Rina</button>
+    </div>
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
@@ -219,6 +241,7 @@
   }
 
   const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
+  const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
 
   function groupByChild(habits){
     const groups = { Cathy: [], Rina: [], '其他': [] };
@@ -247,8 +270,8 @@
     const groups = groupByChild(habitState.habits);
     wrap.innerHTML = CHILD_GROUPS
       .filter(name => groups[name].length > 0)
-      .map(name => `<div class="child-group">
-        <h2 class="child-title">${escapeHtml(name)}</h2>
+      .map(name => `<div class="child-group ${CHILD_SLUG[name]}">
+        <h2 class="child-title"><span class="dot"></span>${escapeHtml(name)}</h2>
         <div class="plant-grid">${groups[name].map(plantCardHtml).join('')}</div>
       </div>`)
       .join('');
@@ -277,7 +300,9 @@
   }
 
   async function removeHabit(id){
-    if (!confirm('確定要刪除這個習慣嗎？相關紀錄也會一併刪除。')) return;
+    const h = habitState.habits.find(x => x.id === id);
+    const label = h ? `${h.child || '其他'} 的『${h.name}』` : '這個習慣';
+    if (!confirm(`確定要刪除${label}嗎？相關紀錄也會一併刪除。`)) return;
     await fetch(API, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -286,15 +311,22 @@
     loadHabits();
   }
 
+  let selectedChild = 'Cathy';
+  document.querySelectorAll('.child-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedChild = btn.dataset.child;
+      document.querySelectorAll('.child-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+  });
+
   async function addHabit(){
     const input = document.getElementById('habitNewName');
-    const child = document.getElementById('habitNewChild').value;
     const name = input.value.trim();
     if (!name) return;
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, child })
+      body: JSON.stringify({ name, child: selectedChild })
     });
     const data = await res.json();
     if (data.id) {
