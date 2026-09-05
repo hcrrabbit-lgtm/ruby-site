@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>更好的自己習慣養成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --study:#5F8955; --study-bg:#EBF2E6;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:13px;}
+  h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:14px 0 4px;color:var(--study);}
+  .desc{color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7;}
+
+  .habit-today{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .habit-chip{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:999px;
+    padding:8px 14px 8px 10px;
+    cursor:pointer;
+    font-size:14px;
+    user-select:none;
+    transition:background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .habit-chip .dot{
+    width:18px; height:18px;
+    border-radius:50%;
+    border:2px solid var(--study);
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px;
+    color:#fff;
+  }
+  .habit-chip.done{ background:var(--study); border-color:var(--study); color:#fff; }
+  .habit-chip.done .dot{ background:#fff; color:var(--study); }
+  .habit-chip .remove{ margin-left:2px; opacity:.45; font-size:11px; }
+  .habit-chip .remove:hover{ opacity:1; }
+  .habit-add{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .habit-add input{
+    flex:1;
+    max-width:240px;
+    padding:8px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .habit-add button{
+    padding:8px 16px;
+    border-radius:8px;
+    border:1px solid var(--study);
+    background:var(--study-bg);
+    color:var(--study);
+    font-weight:700;
+    cursor:pointer;
+    font-size:14px;
+  }
+  .habit-month-nav{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .habit-month-nav button{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:8px;
+    padding:4px 12px;
+    cursor:pointer;
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+  .habit-month-nav .label{
+    font-family:'Noto Serif TC',serif;
+    font-weight:700;
+    color:var(--study);
+    font-size:16px;
+  }
+  .habit-table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:#fff;
+    box-shadow:var(--shadow);
+  }
+  table.habit-table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.habit-table th, table.habit-table td{
+    border-bottom:1px solid var(--line);
+    padding:7px 5px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  table.habit-table th.habit-name-col, table.habit-table td.habit-name-col{
+    text-align:left;
+    padding-left:12px;
+    position:sticky;
+    left:0;
+    background:#fff;
+    font-weight:700;
+    color:var(--ink);
+    min-width:110px;
+  }
+  table.habit-table th{ color:var(--ink-soft); font-weight:500; }
+  table.habit-table td.today-col, table.habit-table th.today-col{ background:var(--study-bg); }
+  table.habit-table td.mark{ color:var(--study); font-weight:700; }
+  table.habit-table td.total-col, table.habit-table th.total-col{ font-weight:700; color:var(--study); }
+  .habit-empty{ color:var(--ink-soft); font-size:13.5px; padding:16px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 回 Ruby 的個人工作台</a>
+  <h1>✅ 更好的自己習慣養成</h1>
+  <p class="desc">紀錄小孩每天的學習習慣（例如：閱讀30分鐘、複習功課、練習圍棋）。點一下打卡今天完成的習慣，下面會自動累積成本月統計表。</p>
+
+  <div id="habitToday" class="habit-today"></div>
+  <div class="habit-add">
+    <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
+    <button id="habitAddBtn" type="button">＋ 新增</button>
+  </div>
+
+  <div class="habit-month-nav">
+    <button id="habitPrevMonth" type="button">‹</button>
+    <span class="label" id="habitMonthLabel"></span>
+    <button id="habitNextMonth" type="button">›</button>
+  </div>
+  <div class="habit-table-wrap">
+    <table class="habit-table" id="habitTable"></table>
+  </div>
+</div>
+
+<script>
+  const API = '/api/study-habits';
+
+  function pad2(n){ return n.toString().padStart(2, '0'); }
+  function todayStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+  function monthStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; }
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  const habitState = { habits: [], todayLog: {}, viewDate: new Date() };
+
+  async function loadHabits(){
+    const [habits, todayLog] = await Promise.all([
+      fetch(API).then(r => r.json()),
+      fetch(API + '/log?date=' + todayStr()).then(r => r.json())
+    ]);
+    habitState.habits = habits;
+    habitState.todayLog = todayLog;
+    renderHabitToday();
+    loadHabitMonth();
+  }
+
+  function renderHabitToday(){
+    const wrap = document.getElementById('habitToday');
+    if (habitState.habits.length === 0) {
+      wrap.innerHTML = '<p class="habit-empty" style="padding:0;">還沒有習慣項目，先在下面新增一個吧。</p>';
+      return;
+    }
+    wrap.innerHTML = habitState.habits.map(h => {
+      const done = !!habitState.todayLog[h.id];
+      return `<span class="habit-chip ${done ? 'done' : ''}" data-id="${h.id}">
+        <span class="dot">${done ? '✓' : ''}</span>${escapeHtml(h.name)}
+        <span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>
+      </span>`;
+    }).join('');
+    wrap.querySelectorAll('.habit-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        if (e.target.dataset.remove) return;
+        toggleHabit(chip.dataset.id);
+      });
+    });
+    wrap.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeHabit(btn.dataset.remove);
+      });
+    });
+  }
+
+  async function toggleHabit(id){
+    const date = todayStr();
+    const res = await fetch(API + '/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habitId: id, date })
+    });
+    const data = await res.json();
+    if (data.done) { habitState.todayLog[id] = true; } else { delete habitState.todayLog[id]; }
+    renderHabitToday();
+    loadHabitMonth();
+  }
+
+  async function removeHabit(id){
+    if (!confirm('確定要刪除這個習慣嗎？相關紀錄也會一併刪除。')) return;
+    await fetch(API, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    habitState.habits = habitState.habits.filter(h => h.id !== id);
+    delete habitState.todayLog[id];
+    renderHabitToday();
+    loadHabitMonth();
+  }
+
+  async function addHabit(){
+    const input = document.getElementById('habitNewName');
+    const name = input.value.trim();
+    if (!name) return;
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.id) {
+      habitState.habits.push({ id: data.id, name: data.name });
+      input.value = '';
+      renderHabitToday();
+      loadHabitMonth();
+    }
+  }
+  document.getElementById('habitAddBtn').addEventListener('click', addHabit);
+  document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+
+  document.getElementById('habitPrevMonth').addEventListener('click', () => {
+    habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
+    loadHabitMonth();
+  });
+  document.getElementById('habitNextMonth').addEventListener('click', () => {
+    habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
+    loadHabitMonth();
+  });
+
+  async function loadHabitMonth(){
+    const label = document.getElementById('habitMonthLabel');
+    const m = monthStr(habitState.viewDate);
+    label.textContent = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
+    const data = await fetch(API + '/month?month=' + m).then(r => r.json());
+    renderHabitTable(data, m);
+  }
+
+  function renderHabitTable(data, month){
+    const wrap = document.querySelector('.habit-table-wrap');
+    const habits = data.habits || [];
+    if (habits.length === 0) {
+      wrap.innerHTML = '<p class="habit-empty">目前還沒有習慣項目可以統計。</p>';
+      return;
+    }
+    if (!wrap.querySelector('table')) wrap.innerHTML = '<table class="habit-table" id="habitTable"></table>';
+    const table = document.getElementById('habitTable');
+    const [y, mo] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const isCurrentMonth = monthStr(new Date()) === month;
+    const todayDate = new Date().getDate();
+
+    let thead = '<tr><th class="habit-name-col">習慣</th>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday = isCurrentMonth && d === todayDate;
+      thead += `<th class="${isToday ? 'today-col' : ''}">${d}</th>`;
+    }
+    thead += '<th class="total-col">完成</th></tr>';
+
+    let tbody = '';
+    habits.forEach(h => {
+      const doneDates = new Set(data.logs[h.id] || []);
+      let row = `<tr><td class="habit-name-col">${escapeHtml(h.name)}</td>`;
+      let count = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${y}-${pad2(mo)}-${pad2(d)}`;
+        const done = doneDates.has(dateStr);
+        if (done) count++;
+        const isToday = isCurrentMonth && d === todayDate;
+        row += `<td class="${done ? 'mark' : ''} ${isToday ? 'today-col' : ''}">${done ? '✓' : ''}</td>`;
+      }
+      row += `<td class="total-col">${count}/${daysInMonth}</td></tr>`;
+      tbody += row;
+    });
+
+    table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+  }
+
+  loadHabits();
+</script>
+</body>
+</html>
