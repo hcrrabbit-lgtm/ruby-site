@@ -21,13 +21,31 @@
   .desc{color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7;}
 
   .habit-groups{ margin-bottom:16px; }
-  .child-group{ margin-bottom:20px; }
+  .child-group{
+    margin-bottom:20px;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:14px 14px 16px;
+    background:#fff;
+  }
+  .child-group.child-cathy, .month-section.child-cathy{ --child-c:#C4557E; --child-bg:#FAEAF1; border-color:#EFC7D9; }
+  .child-group.child-rina, .month-section.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
+  .child-group.child-other, .month-section.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
   .child-title{
     font-family:'Noto Serif TC',serif;
-    font-size:15px;
-    font-weight:700;
-    color:var(--study);
-    margin:0 0 8px;
+    font-size:18px;
+    font-weight:900;
+    color:var(--child-c, var(--study));
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .child-title .dot{
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--child-c, var(--study));
+    flex-shrink:0;
   }
   .plant-grid{
     display:grid;
@@ -55,8 +73,8 @@
   }
   .plant-card .remove:hover{ opacity:1; }
   .plant-card.seed{ border-style:dashed; }
-  .plant-card.bloom{ border-color:var(--study); background:var(--study-bg); }
-  .plant-card.healthy{ border-color:var(--study); }
+  .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
+  .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
   .plant-card.fading{ border-color:#C9A227; }
   .plant-card.fading .status{ color:#9C7F1E; }
   .plant-card.wilting{ border-color:#B96B77; }
@@ -81,15 +99,19 @@
     background:#fff;
     color:var(--ink);
   }
-  .habit-add select{
-    padding:8px 10px;
-    border:1px solid var(--line);
+  .child-picker{ display:flex; gap:6px; }
+  .child-btn{
+    padding:8px 14px;
     border-radius:8px;
-    font-size:14px;
-    font-family:inherit;
+    border:1.5px solid var(--line);
     background:#fff;
-    color:var(--ink);
+    color:var(--ink-soft);
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
   }
+  .child-btn.child-cathy.active{ border-color:#C4557E; background:#FAEAF1; color:#C4557E; }
+  .child-btn.child-rina.active{ border-color:#3B7EA8; background:#E6F0F6; color:#3B7EA8; }
   .habit-add button{
     padding:8px 16px;
     border-radius:8px;
@@ -99,6 +121,13 @@
     font-weight:700;
     cursor:pointer;
     font-size:14px;
+  }
+  .month-section{
+    margin-bottom:24px;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:14px 14px 16px;
+    background:#fff;
   }
   .habit-month-nav{
     display:flex;
@@ -120,6 +149,13 @@
     font-weight:700;
     color:var(--study);
     font-size:16px;
+  }
+  .habit-month-nav .child-name{
+    font-family:'Noto Serif TC',serif;
+    font-weight:900;
+    color:var(--child-c, var(--study));
+    font-size:16px;
+    margin-left:4px;
   }
   .habit-table-wrap{
     overflow-x:auto;
@@ -161,21 +197,14 @@
   <div id="habitToday" class="habit-groups"></div>
   <div class="habit-add">
     <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
-    <select id="habitNewChild">
-      <option value="Cathy">Cathy</option>
-      <option value="Rina">Rina</option>
-    </select>
+    <div class="child-picker">
+      <button type="button" class="child-btn child-cathy active" data-child="Cathy">Cathy</button>
+      <button type="button" class="child-btn child-rina" data-child="Rina">Rina</button>
+    </div>
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
-  <div class="habit-month-nav">
-    <button id="habitPrevMonth" type="button">‹</button>
-    <span class="label" id="habitMonthLabel"></span>
-    <button id="habitNextMonth" type="button">›</button>
-  </div>
-  <div class="habit-table-wrap">
-    <table class="habit-table" id="habitTable"></table>
-  </div>
+  <div id="habitMonthSections"></div>
 </div>
 
 <script>
@@ -219,6 +248,7 @@
   }
 
   const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
+  const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
 
   function groupByChild(habits){
     const groups = { Cathy: [], Rina: [], '其他': [] };
@@ -247,8 +277,8 @@
     const groups = groupByChild(habitState.habits);
     wrap.innerHTML = CHILD_GROUPS
       .filter(name => groups[name].length > 0)
-      .map(name => `<div class="child-group">
-        <h2 class="child-title">${escapeHtml(name)}</h2>
+      .map(name => `<div class="child-group ${CHILD_SLUG[name]}">
+        <h2 class="child-title"><span class="dot"></span>${escapeHtml(name)}</h2>
         <div class="plant-grid">${groups[name].map(plantCardHtml).join('')}</div>
       </div>`)
       .join('');
@@ -277,7 +307,9 @@
   }
 
   async function removeHabit(id){
-    if (!confirm('確定要刪除這個習慣嗎？相關紀錄也會一併刪除。')) return;
+    const h = habitState.habits.find(x => x.id === id);
+    const label = h ? `${h.child || '其他'} 的『${h.name}』` : '這個習慣';
+    if (!confirm(`確定要刪除${label}嗎？相關紀錄也會一併刪除。`)) return;
     await fetch(API, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -286,15 +318,22 @@
     loadHabits();
   }
 
+  let selectedChild = 'Cathy';
+  document.querySelectorAll('.child-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedChild = btn.dataset.child;
+      document.querySelectorAll('.child-btn').forEach(b => b.classList.toggle('active', b === btn));
+    });
+  });
+
   async function addHabit(){
     const input = document.getElementById('habitNewName');
-    const child = document.getElementById('habitNewChild').value;
     const name = input.value.trim();
     if (!name) return;
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, child })
+      body: JSON.stringify({ name, child: selectedChild })
     });
     const data = await res.json();
     if (data.id) {
@@ -305,32 +344,13 @@
   document.getElementById('habitAddBtn').addEventListener('click', addHabit);
   document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
 
-  document.getElementById('habitPrevMonth').addEventListener('click', () => {
-    habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
-    loadHabitMonth();
-  });
-  document.getElementById('habitNextMonth').addEventListener('click', () => {
-    habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
-    loadHabitMonth();
-  });
-
   async function loadHabitMonth(){
-    const label = document.getElementById('habitMonthLabel');
     const m = monthStr(habitState.viewDate);
-    label.textContent = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
     const data = await fetch(API + '/month?month=' + m).then(r => r.json());
-    renderHabitTable(data, m);
+    renderMonthSections(data, m);
   }
 
-  function renderHabitTable(data, month){
-    const wrap = document.querySelector('.habit-table-wrap');
-    const habits = data.habits || [];
-    if (habits.length === 0) {
-      wrap.innerHTML = '<p class="habit-empty">目前還沒有習慣項目可以統計。</p>';
-      return;
-    }
-    if (!wrap.querySelector('table')) wrap.innerHTML = '<table class="habit-table" id="habitTable"></table>';
-    const table = document.getElementById('habitTable');
+  function habitTableHtml(habits, logs, month){
     const [y, mo] = month.split('-').map(Number);
     const daysInMonth = new Date(y, mo, 0).getDate();
     const isCurrentMonth = monthStr(new Date()) === month;
@@ -345,7 +365,7 @@
 
     let tbody = '';
     habits.forEach(h => {
-      const doneDates = new Set(data.logs[h.id] || []);
+      const doneDates = new Set(logs[h.id] || []);
       let row = `<tr><td class="habit-name-col">${escapeHtml(h.name)}</td>`;
       let count = 0;
       for (let d = 1; d <= daysInMonth; d++) {
@@ -359,7 +379,47 @@
       tbody += row;
     });
 
-    table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+    return `<table class="habit-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  function renderMonthSections(data, month){
+    const container = document.getElementById('habitMonthSections');
+    const habits = data.habits || [];
+    const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
+    if (habits.length === 0) {
+      container.innerHTML = `<div class="habit-month-nav">
+        <button class="habit-prev-month" type="button">‹</button>
+        <span class="label">${monthLabelText}</span>
+        <button class="habit-next-month" type="button">›</button>
+      </div>
+      <p class="habit-empty">目前還沒有習慣項目可以統計。</p>`;
+    } else {
+      const groups = groupByChild(habits);
+      container.innerHTML = CHILD_GROUPS
+        .filter(name => groups[name].length > 0)
+        .map(name => `<div class="month-section ${CHILD_SLUG[name]}">
+          <div class="habit-month-nav">
+            <button class="habit-prev-month" type="button">‹</button>
+            <span class="label">${monthLabelText}</span>
+            <span class="child-name">${escapeHtml(name)}</span>
+            <button class="habit-next-month" type="button">›</button>
+          </div>
+          <div class="habit-table-wrap">${habitTableHtml(groups[name], data.logs, month)}</div>
+        </div>`)
+        .join('');
+    }
+    container.querySelectorAll('.habit-prev-month').forEach(btn => {
+      btn.addEventListener('click', () => {
+        habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
+        loadHabitMonth();
+      });
+    });
+    container.querySelectorAll('.habit-next-month').forEach(btn => {
+      btn.addEventListener('click', () => {
+        habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
+        loadHabitMonth();
+      });
+    });
   }
 
   loadHabits();
