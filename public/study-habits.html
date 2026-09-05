@@ -494,15 +494,10 @@
     const habit = habitState.habits.find(h => h.id === id);
     if (habit) {
       const wasDoneToday = habit.lastDate === date;
-      if (wasDoneToday) {
-        // undoing today's tap should bring back whatever it was watered on before,
-        // not wipe it to "never watered" (which would wrongly show the seed stage)
-        habit.lastDate = ('_priorLastDate' in habit) ? habit._priorLastDate : null;
-        delete habit._priorLastDate;
-      } else {
-        habit._priorLastDate = habit.lastDate;
-        habit.lastDate = date;
-      }
+      // undoing today's tap should bring back whatever it was watered on before (the
+      // server-provided prevDate), not wipe it to "never watered" — that wrongly shows
+      // the seed stage even when the habit already has real history before today
+      habit.lastDate = wasDoneToday ? (habit.prevDate || null) : date;
       renderPlants();
       if (!wasDoneToday) playChime();
     }
