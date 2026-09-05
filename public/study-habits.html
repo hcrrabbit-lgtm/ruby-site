@@ -20,7 +20,7 @@
   h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:14px 0 4px;color:var(--study);}
   .desc{color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7;}
 
-  .habit-groups{ margin-bottom:16px; }
+  .child-tabs{ display:flex; gap:8px; margin-bottom:20px; }
   .child-group{
     margin-bottom:20px;
     border:1.5px solid var(--line);
@@ -31,22 +31,6 @@
   .child-group.child-cathy, .month-section.child-cathy{ --child-c:#C4557E; --child-bg:#FAEAF1; border-color:#EFC7D9; }
   .child-group.child-rina, .month-section.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
   .child-group.child-other, .month-section.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
-  .child-title{
-    font-family:'Noto Serif TC',serif;
-    font-size:18px;
-    font-weight:900;
-    color:var(--child-c, var(--study));
-    margin:0 0 12px;
-    display:flex;
-    align-items:center;
-    gap:8px;
-  }
-  .child-title .dot{
-    width:12px; height:12px;
-    border-radius:50%;
-    background:var(--child-c, var(--study));
-    flex-shrink:0;
-  }
   .plant-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(92px, 1fr));
@@ -99,19 +83,21 @@
     background:#fff;
     color:var(--ink);
   }
-  .child-picker{ display:flex; gap:6px; }
   .child-btn{
-    padding:8px 14px;
-    border-radius:8px;
+    flex:1;
+    padding:10px 14px;
+    border-radius:10px;
     border:1.5px solid var(--line);
     background:#fff;
     color:var(--ink-soft);
-    font-weight:700;
-    font-size:14px;
+    font-weight:900;
+    font-size:15px;
+    font-family:'Noto Serif TC',serif;
     cursor:pointer;
   }
   .child-btn.child-cathy.active{ border-color:#C4557E; background:#FAEAF1; color:#C4557E; }
   .child-btn.child-rina.active{ border-color:#3B7EA8; background:#E6F0F6; color:#3B7EA8; }
+  .child-btn.child-other.active{ border-color:var(--ink-soft); background:var(--paper-deep); color:var(--ink-soft); }
   .habit-add button{
     padding:8px 16px;
     border-radius:8px;
@@ -194,13 +180,11 @@
   <h1>✅ 更好的自己習慣養成</h1>
   <p class="desc">紀錄小孩每天的學習習慣（例如：閱讀30分鐘、複習功課、練習圍棋）。每個習慣是一株小植物，點一下代表今天澆水（完成打卡）；太久沒澆水植物會慢慢枯萎，提醒你哪個習慣被忽略了。下面會自動累積成本月統計表。</p>
 
-  <div id="habitToday" class="habit-groups"></div>
+  <div class="child-tabs" id="childTabs"></div>
+
+  <div id="habitToday"></div>
   <div class="habit-add">
     <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
-    <div class="child-picker">
-      <button type="button" class="child-btn child-cathy active" data-child="Cathy">Cathy</button>
-      <button type="button" class="child-btn child-rina" data-child="Rina">Rina</button>
-    </div>
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
@@ -241,14 +225,10 @@
     return { emoji: '💀', label: days + ' 天沒澆水，快枯掉了', cls: 'dead' };
   }
 
-  async function loadHabits(){
-    habitState.habits = await fetch(API).then(r => r.json());
-    renderPlants();
-    loadHabitMonth();
-  }
-
   const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
   const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
+  let activeChild = 'Cathy';
+  try { activeChild = localStorage.getItem('studyHabitActiveChild') || 'Cathy'; } catch (e) {}
 
   function groupByChild(habits){
     const groups = { Cathy: [], Rina: [], '其他': [] };
@@ -256,6 +236,32 @@
       (groups[h.child] || groups['其他']).push(h);
     });
     return groups;
+  }
+
+  async function loadHabits(){
+    habitState.habits = await fetch(API).then(r => r.json());
+    renderTabs();
+    renderPlants();
+    loadHabitMonth();
+  }
+
+  function renderTabs(){
+    const groups = groupByChild(habitState.habits);
+    const tabs = CHILD_GROUPS.filter(name => name !== '其他' || groups[name].length > 0);
+    if (!tabs.includes(activeChild)) activeChild = tabs[0] || 'Cathy';
+    const container = document.getElementById('childTabs');
+    container.innerHTML = tabs.map(name =>
+      `<button type="button" class="child-btn ${CHILD_SLUG[name]} ${name === activeChild ? 'active' : ''}" data-child="${name}">${escapeHtml(name)}</button>`
+    ).join('');
+    container.querySelectorAll('.child-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeChild = btn.dataset.child;
+        try { localStorage.setItem('studyHabitActiveChild', activeChild); } catch (e) {}
+        renderTabs();
+        renderPlants();
+        loadHabitMonth();
+      });
+    });
   }
 
   function plantCardHtml(h){
@@ -270,18 +276,14 @@
 
   function renderPlants(){
     const wrap = document.getElementById('habitToday');
-    if (habitState.habits.length === 0) {
-      wrap.innerHTML = '<p class="habit-empty" style="padding:0;">還沒有習慣項目，先在下面新增一個吧。</p>';
+    const list = groupByChild(habitState.habits)[activeChild] || [];
+    if (list.length === 0) {
+      wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}"><p class="habit-empty" style="padding:0;">${escapeHtml(activeChild)} 還沒有習慣項目，先在下面新增一個吧。</p></div>`;
       return;
     }
-    const groups = groupByChild(habitState.habits);
-    wrap.innerHTML = CHILD_GROUPS
-      .filter(name => groups[name].length > 0)
-      .map(name => `<div class="child-group ${CHILD_SLUG[name]}">
-        <h2 class="child-title"><span class="dot"></span>${escapeHtml(name)}</h2>
-        <div class="plant-grid">${groups[name].map(plantCardHtml).join('')}</div>
-      </div>`)
-      .join('');
+    wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
+      <div class="plant-grid">${list.map(plantCardHtml).join('')}</div>
+    </div>`;
     wrap.querySelectorAll('.plant-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.dataset.remove) return;
@@ -318,14 +320,6 @@
     loadHabits();
   }
 
-  let selectedChild = 'Cathy';
-  document.querySelectorAll('.child-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedChild = btn.dataset.child;
-      document.querySelectorAll('.child-btn').forEach(b => b.classList.toggle('active', b === btn));
-    });
-  });
-
   async function addHabit(){
     const input = document.getElementById('habitNewName');
     const name = input.value.trim();
@@ -333,7 +327,7 @@
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, child: selectedChild })
+      body: JSON.stringify({ name, child: activeChild })
     });
     const data = await res.json();
     if (data.id) {
@@ -384,41 +378,27 @@
 
   function renderMonthSections(data, month){
     const container = document.getElementById('habitMonthSections');
-    const habits = data.habits || [];
     const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
-    if (habits.length === 0) {
-      container.innerHTML = `<div class="habit-month-nav">
+    const list = groupByChild(data.habits || [])[activeChild] || [];
+    const bodyHtml = list.length === 0
+      ? `<p class="habit-empty">目前還沒有習慣項目可以統計。</p>`
+      : `<div class="habit-table-wrap">${habitTableHtml(list, data.logs, month)}</div>`;
+    container.innerHTML = `<div class="month-section ${CHILD_SLUG[activeChild]}">
+      <div class="habit-month-nav">
         <button class="habit-prev-month" type="button">‹</button>
         <span class="label">${monthLabelText}</span>
+        <span class="child-name">${escapeHtml(activeChild)}</span>
         <button class="habit-next-month" type="button">›</button>
       </div>
-      <p class="habit-empty">目前還沒有習慣項目可以統計。</p>`;
-    } else {
-      const groups = groupByChild(habits);
-      container.innerHTML = CHILD_GROUPS
-        .filter(name => groups[name].length > 0)
-        .map(name => `<div class="month-section ${CHILD_SLUG[name]}">
-          <div class="habit-month-nav">
-            <button class="habit-prev-month" type="button">‹</button>
-            <span class="label">${monthLabelText}</span>
-            <span class="child-name">${escapeHtml(name)}</span>
-            <button class="habit-next-month" type="button">›</button>
-          </div>
-          <div class="habit-table-wrap">${habitTableHtml(groups[name], data.logs, month)}</div>
-        </div>`)
-        .join('');
-    }
-    container.querySelectorAll('.habit-prev-month').forEach(btn => {
-      btn.addEventListener('click', () => {
-        habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
-        loadHabitMonth();
-      });
+      ${bodyHtml}
+    </div>`;
+    container.querySelector('.habit-prev-month').addEventListener('click', () => {
+      habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
+      loadHabitMonth();
     });
-    container.querySelectorAll('.habit-next-month').forEach(btn => {
-      btn.addEventListener('click', () => {
-        habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
-        loadHabitMonth();
-      });
+    container.querySelector('.habit-next-month').addEventListener('click', () => {
+      habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
+      loadHabitMonth();
     });
   }
 
