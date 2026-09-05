@@ -364,14 +364,37 @@
     });
   }
 
+  let audioCtx;
+  function playChime(){
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      [880, 1174.66].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const start = now + i * 0.08;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.25, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.28);
+      });
+    } catch (e) { /* Web Audio unavailable, skip sound */ }
+  }
+
   async function toggleHabit(id){
     const date = todayStr();
     // optimistic update: flip the local state and re-render immediately so the tap feels
     // instant, instead of waiting on the round-trip (toggle -> refetch list -> refetch month)
     const habit = habitState.habits.find(h => h.id === id);
     if (habit) {
-      habit.lastDate = (habit.lastDate === date) ? null : date;
+      const wasDoneToday = habit.lastDate === date;
+      habit.lastDate = wasDoneToday ? null : date;
       renderPlants();
+      if (!wasDoneToday) playChime();
     }
     try {
       await fetch(API + '/log', {
@@ -486,11 +509,15 @@
       loadHabitMonth();
     });
     container.querySelectorAll('td.fillable').forEach(td => {
-      td.addEventListener('click', () => toggleHabitDate(td.dataset.habit, td.dataset.date));
+      td.addEventListener('click', () => {
+        const turningOn = !td.classList.contains('mark');
+        toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn);
+      });
     });
   }
 
-  async function toggleHabitDate(habitId, date){
+  async function toggleHabitDate(habitId, date, turningOn){
+    if (turningOn) playChime();
     await fetch(API + '/log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
