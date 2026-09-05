@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREME
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
+CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -714,76 +716,80 @@ async function handleCommunitySourcesDelete(env, request) {
   return json({ ok: true });
 }
 
-async function handleHabitsGet(env) {
-  const res = await env.DB.prepare(
-    "SELECT id, name FROM habits ORDER BY order_no"
-  ).all();
-  return json(res.results);
+function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
+  return {
+    async get(env) {
+      const res = await env.DB.prepare(
+        `SELECT h.id as id, h.name as name, MAX(l.date) as lastDate
+         FROM ${habitsTable} h LEFT JOIN ${logsTable} l ON l.habit_id = h.id
+         GROUP BY h.id ORDER BY h.order_no`
+      ).all();
+      return json(res.results);
+    },
+    async post(env, request) {
+      const { name } = await request.json();
+      if (!name || !name.trim()) return json({ error: "缺少習慣名稱" }, { status: 400 });
+      const countRes = await env.DB.prepare(
+        `SELECT COALESCE(MAX(order_no), 0) as maxOrder FROM ${habitsTable}`
+      ).first();
+      const orderNo = (countRes.maxOrder || 0) + 1;
+      const id = idPrefix + "_" + Date.now();
+      await env.DB.prepare(
+        `INSERT INTO ${habitsTable} (id, name, order_no, created_at) VALUES (?, ?, ?, ?)`
+      ).bind(id, name.trim(), orderNo, new Date().toISOString()).run();
+      return json({ id, name: name.trim() });
+    },
+    async del(env, request) {
+      const { id } = await request.json();
+      if (!id) return json({ error: "缺少 id" }, { status: 400 });
+      await env.DB.prepare(`DELETE FROM ${logsTable} WHERE habit_id = ?`).bind(id).run();
+      await env.DB.prepare(`DELETE FROM ${habitsTable} WHERE id = ?`).bind(id).run();
+      return json({ ok: true });
+    },
+    async logGet(env, url) {
+      const date = url.searchParams.get("date");
+      if (!date) return json({ error: "缺少 date" }, { status: 400 });
+      const res = await env.DB.prepare(
+        `SELECT habit_id as habitId FROM ${logsTable} WHERE date = ?`
+      ).bind(date).all();
+      const map = {};
+      res.results.forEach(r => { map[r.habitId] = true; });
+      return json(map);
+    },
+    async logToggle(env, request) {
+      const { habitId, date } = await request.json();
+      if (!habitId || !date) return json({ error: "缺少 habitId 或 date" }, { status: 400 });
+      const existing = await env.DB.prepare(
+        `SELECT id FROM ${logsTable} WHERE habit_id = ? AND date = ?`
+      ).bind(habitId, date).first();
+      if (existing) {
+        await env.DB.prepare(`DELETE FROM ${logsTable} WHERE id = ?`).bind(existing.id).run();
+        return json({ ok: true, done: false });
+      }
+      await env.DB.prepare(
+        `INSERT INTO ${logsTable} (habit_id, date) VALUES (?, ?)`
+      ).bind(habitId, date).run();
+      return json({ ok: true, done: true });
+    },
+    async month(env, url) {
+      const month = url.searchParams.get("month");
+      if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
+      const habits = (await env.DB.prepare(`SELECT id, name FROM ${habitsTable} ORDER BY order_no`).all()).results;
+      const res = await env.DB.prepare(
+        `SELECT habit_id as habitId, date FROM ${logsTable} WHERE date LIKE ? ORDER BY date`
+      ).bind(month + "-%").all();
+      const logs = {};
+      res.results.forEach(r => {
+        if (!logs[r.habitId]) logs[r.habitId] = [];
+        logs[r.habitId].push(r.date);
+      });
+      return json({ habits, logs });
+    },
+  };
 }
 
-async function handleHabitsPost(env, request) {
-  const { name } = await request.json();
-  if (!name || !name.trim()) return json({ error: "缺少習慣名稱" }, { status: 400 });
-  const countRes = await env.DB.prepare(
-    "SELECT COALESCE(MAX(order_no), 0) as maxOrder FROM habits"
-  ).first();
-  const orderNo = (countRes.maxOrder || 0) + 1;
-  const id = "habit_" + Date.now();
-  await env.DB.prepare(
-    "INSERT INTO habits (id, name, order_no, created_at) VALUES (?, ?, ?, ?)"
-  ).bind(id, name.trim(), orderNo, new Date().toISOString()).run();
-  return json({ id, name: name.trim() });
-}
-
-async function handleHabitsDelete(env, request) {
-  const { id } = await request.json();
-  if (!id) return json({ error: "缺少 id" }, { status: 400 });
-  await env.DB.prepare("DELETE FROM habit_logs WHERE habit_id = ?").bind(id).run();
-  await env.DB.prepare("DELETE FROM habits WHERE id = ?").bind(id).run();
-  return json({ ok: true });
-}
-
-async function handleHabitLogGet(env, url) {
-  const date = url.searchParams.get("date");
-  if (!date) return json({ error: "缺少 date" }, { status: 400 });
-  const res = await env.DB.prepare(
-    "SELECT habit_id as habitId FROM habit_logs WHERE date = ?"
-  ).bind(date).all();
-  const map = {};
-  res.results.forEach(r => { map[r.habitId] = true; });
-  return json(map);
-}
-
-async function handleHabitLogToggle(env, request) {
-  const { habitId, date } = await request.json();
-  if (!habitId || !date) return json({ error: "缺少 habitId 或 date" }, { status: 400 });
-  const existing = await env.DB.prepare(
-    "SELECT id FROM habit_logs WHERE habit_id = ? AND date = ?"
-  ).bind(habitId, date).first();
-  if (existing) {
-    await env.DB.prepare("DELETE FROM habit_logs WHERE id = ?").bind(existing.id).run();
-    return json({ ok: true, done: false });
-  }
-  await env.DB.prepare(
-    "INSERT INTO habit_logs (habit_id, date) VALUES (?, ?)"
-  ).bind(habitId, date).run();
-  return json({ ok: true, done: true });
-}
-
-async function handleHabitMonth(env, url) {
-  const month = url.searchParams.get("month");
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
-  const habits = (await env.DB.prepare("SELECT id, name FROM habits ORDER BY order_no").all()).results;
-  const res = await env.DB.prepare(
-    "SELECT habit_id as habitId, date FROM habit_logs WHERE date LIKE ? ORDER BY date"
-  ).bind(month + "-%").all();
-  const logs = {};
-  res.results.forEach(r => {
-    if (!logs[r.habitId]) logs[r.habitId] = [];
-    logs[r.habitId].push(r.date);
-  });
-  return json({ habits, logs });
-}
+const healthHabitHandlers = makeHabitHandlers("habits", "habit_logs", "habit");
+const studyHabitHandlers = makeHabitHandlers("study_habits", "study_habit_logs", "shabit");
 
 async function handleGrades(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
@@ -959,12 +965,19 @@ export default {
 
       if (path === "/api/grades" && request.method === "GET") return await handleGrades(env, url);
 
-      if (path === "/api/habits" && request.method === "GET") return await handleHabitsGet(env);
-      if (path === "/api/habits" && request.method === "POST") return await handleHabitsPost(env, request);
-      if (path === "/api/habits" && request.method === "DELETE") return await handleHabitsDelete(env, request);
-      if (path === "/api/habits/log" && request.method === "GET") return await handleHabitLogGet(env, url);
-      if (path === "/api/habits/log" && request.method === "POST") return await handleHabitLogToggle(env, request);
-      if (path === "/api/habits/month" && request.method === "GET") return await handleHabitMonth(env, url);
+      if (path === "/api/habits" && request.method === "GET") return await healthHabitHandlers.get(env);
+      if (path === "/api/habits" && request.method === "POST") return await healthHabitHandlers.post(env, request);
+      if (path === "/api/habits" && request.method === "DELETE") return await healthHabitHandlers.del(env, request);
+      if (path === "/api/habits/log" && request.method === "GET") return await healthHabitHandlers.logGet(env, url);
+      if (path === "/api/habits/log" && request.method === "POST") return await healthHabitHandlers.logToggle(env, request);
+      if (path === "/api/habits/month" && request.method === "GET") return await healthHabitHandlers.month(env, url);
+
+      if (path === "/api/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
+      if (path === "/api/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
+      if (path === "/api/study-habits" && request.method === "DELETE") return await studyHabitHandlers.del(env, request);
+      if (path === "/api/study-habits/log" && request.method === "GET") return await studyHabitHandlers.logGet(env, url);
+      if (path === "/api/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
+      if (path === "/api/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
