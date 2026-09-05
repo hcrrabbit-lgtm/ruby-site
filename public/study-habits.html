@@ -249,10 +249,18 @@
     return Math.round((now - last) / 86400000);
   }
 
-  function plantStage(days){
-    if (days === null) return { emoji: '🌱', label: '還沒開始', cls: 'seed' };
-    if (days <= 0) return { emoji: '🌸', label: '今天已澆水', cls: 'bloom' };
-    if (days === 1) return { emoji: '🌿', label: '昨天澆過水', cls: 'healthy' };
+  function plantStage(h){
+    if (h.lastDate) {
+      const days = daysSince(h.lastDate);
+      if (days <= 0) return { emoji: '🌸', label: '今天已澆水', cls: 'bloom' };
+      if (days === 1) return { emoji: '🌿', label: '昨天澆過水', cls: 'healthy' };
+      if (days <= 3) return { emoji: '🍂', label: days + ' 天沒澆水', cls: 'fading' };
+      if (days <= 6) return { emoji: '🥀', label: days + ' 天沒澆水', cls: 'wilting' };
+      return { emoji: '💀', label: days + ' 天沒澆水，快枯掉了', cls: 'dead' };
+    }
+    // never watered at all — measure neglect from when the habit was added, not forever "還沒開始"
+    const days = daysSince(h.createdAt ? h.createdAt.slice(0, 10) : null);
+    if (days === null || days <= 0) return { emoji: '🌱', label: '還沒開始', cls: 'seed' };
     if (days <= 3) return { emoji: '🍂', label: days + ' 天沒澆水', cls: 'fading' };
     if (days <= 6) return { emoji: '🥀', label: days + ' 天沒澆水', cls: 'wilting' };
     return { emoji: '💀', label: days + ' 天沒澆水，快枯掉了', cls: 'dead' };
@@ -305,7 +313,7 @@
   let editMode = false;
 
   function plantCardHtml(h){
-    const stage = plantStage(daysSince(h.lastDate));
+    const stage = plantStage(h);
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
