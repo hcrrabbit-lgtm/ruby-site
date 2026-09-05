@@ -28,9 +28,9 @@
     padding:14px 14px 16px;
     background:#fff;
   }
-  .child-group.child-cathy{ --child-c:#C4557E; --child-bg:#FAEAF1; border-color:#EFC7D9; }
-  .child-group.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
-  .child-group.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
+  .child-group.child-cathy, .month-section.child-cathy{ --child-c:#C4557E; --child-bg:#FAEAF1; border-color:#EFC7D9; }
+  .child-group.child-rina, .month-section.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
+  .child-group.child-other, .month-section.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
   .child-title{
     font-family:'Noto Serif TC',serif;
     font-size:18px;
@@ -122,6 +122,13 @@
     cursor:pointer;
     font-size:14px;
   }
+  .month-section{
+    margin-bottom:24px;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:14px 14px 16px;
+    background:#fff;
+  }
   .habit-month-nav{
     display:flex;
     align-items:center;
@@ -142,6 +149,13 @@
     font-weight:700;
     color:var(--study);
     font-size:16px;
+  }
+  .habit-month-nav .child-name{
+    font-family:'Noto Serif TC',serif;
+    font-weight:900;
+    color:var(--child-c, var(--study));
+    font-size:16px;
+    margin-left:4px;
   }
   .habit-table-wrap{
     overflow-x:auto;
@@ -190,14 +204,7 @@
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
-  <div class="habit-month-nav">
-    <button id="habitPrevMonth" type="button">‹</button>
-    <span class="label" id="habitMonthLabel"></span>
-    <button id="habitNextMonth" type="button">›</button>
-  </div>
-  <div class="habit-table-wrap">
-    <table class="habit-table" id="habitTable"></table>
-  </div>
+  <div id="habitMonthSections"></div>
 </div>
 
 <script>
@@ -337,32 +344,13 @@
   document.getElementById('habitAddBtn').addEventListener('click', addHabit);
   document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
 
-  document.getElementById('habitPrevMonth').addEventListener('click', () => {
-    habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
-    loadHabitMonth();
-  });
-  document.getElementById('habitNextMonth').addEventListener('click', () => {
-    habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
-    loadHabitMonth();
-  });
-
   async function loadHabitMonth(){
-    const label = document.getElementById('habitMonthLabel');
     const m = monthStr(habitState.viewDate);
-    label.textContent = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
     const data = await fetch(API + '/month?month=' + m).then(r => r.json());
-    renderHabitTable(data, m);
+    renderMonthSections(data, m);
   }
 
-  function renderHabitTable(data, month){
-    const wrap = document.querySelector('.habit-table-wrap');
-    const habits = data.habits || [];
-    if (habits.length === 0) {
-      wrap.innerHTML = '<p class="habit-empty">目前還沒有習慣項目可以統計。</p>';
-      return;
-    }
-    if (!wrap.querySelector('table')) wrap.innerHTML = '<table class="habit-table" id="habitTable"></table>';
-    const table = document.getElementById('habitTable');
+  function habitTableHtml(habits, logs, month){
     const [y, mo] = month.split('-').map(Number);
     const daysInMonth = new Date(y, mo, 0).getDate();
     const isCurrentMonth = monthStr(new Date()) === month;
@@ -377,7 +365,7 @@
 
     let tbody = '';
     habits.forEach(h => {
-      const doneDates = new Set(data.logs[h.id] || []);
+      const doneDates = new Set(logs[h.id] || []);
       let row = `<tr><td class="habit-name-col">${escapeHtml(h.name)}</td>`;
       let count = 0;
       for (let d = 1; d <= daysInMonth; d++) {
@@ -391,7 +379,47 @@
       tbody += row;
     });
 
-    table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+    return `<table class="habit-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  function renderMonthSections(data, month){
+    const container = document.getElementById('habitMonthSections');
+    const habits = data.habits || [];
+    const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
+    if (habits.length === 0) {
+      container.innerHTML = `<div class="habit-month-nav">
+        <button class="habit-prev-month" type="button">‹</button>
+        <span class="label">${monthLabelText}</span>
+        <button class="habit-next-month" type="button">›</button>
+      </div>
+      <p class="habit-empty">目前還沒有習慣項目可以統計。</p>`;
+    } else {
+      const groups = groupByChild(habits);
+      container.innerHTML = CHILD_GROUPS
+        .filter(name => groups[name].length > 0)
+        .map(name => `<div class="month-section ${CHILD_SLUG[name]}">
+          <div class="habit-month-nav">
+            <button class="habit-prev-month" type="button">‹</button>
+            <span class="label">${monthLabelText}</span>
+            <span class="child-name">${escapeHtml(name)}</span>
+            <button class="habit-next-month" type="button">›</button>
+          </div>
+          <div class="habit-table-wrap">${habitTableHtml(groups[name], data.logs, month)}</div>
+        </div>`)
+        .join('');
+    }
+    container.querySelectorAll('.habit-prev-month').forEach(btn => {
+      btn.addEventListener('click', () => {
+        habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
+        loadHabitMonth();
+      });
+    });
+    container.querySelectorAll('.habit-next-month').forEach(btn => {
+      btn.addEventListener('click', () => {
+        habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
+        loadHabitMonth();
+      });
+    });
   }
 
   loadHabits();
