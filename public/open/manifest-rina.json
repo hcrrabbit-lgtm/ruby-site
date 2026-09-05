@@ -1,7 +1,7 @@
 {
   "name": "Better Me - Rina",
   "short_name": "Rina",
-  "start_url": "/open/study-habits.html?who=Rina",
+  "start_url": "/open/rina.html",
   "scope": "/open/",
   "display": "standalone",
   "background_color": "#F7F3EB",

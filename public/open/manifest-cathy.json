@@ -1,7 +1,7 @@
 {
   "name": "Better Me - Cathy",
   "short_name": "Cathy",
-  "start_url": "/open/study-habits.html?who=Cathy",
+  "start_url": "/open/cathy.html",
   "scope": "/open/",
   "display": "standalone",
   "background_color": "#F7F3EB",
