@@ -242,6 +242,11 @@
   const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
   let activeChild = 'Cathy';
   try { activeChild = localStorage.getItem('studyHabitActiveChild') || 'Cathy'; } catch (e) {}
+  const urlChild = new URLSearchParams(location.search).get('who');
+  if (urlChild === 'Cathy' || urlChild === 'Rina') {
+    activeChild = urlChild;
+    try { localStorage.setItem('studyHabitActiveChild', activeChild); } catch (e) {}
+  }
 
   function groupByChild(habits){
     const groups = { Cathy: [], Rina: [], '其他': [] };
