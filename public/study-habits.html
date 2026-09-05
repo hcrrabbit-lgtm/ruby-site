@@ -20,11 +20,19 @@
   h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:14px 0 4px;color:var(--study);}
   .desc{color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7;}
 
+  .habit-groups{ margin-bottom:16px; }
+  .child-group{ margin-bottom:20px; }
+  .child-title{
+    font-family:'Noto Serif TC',serif;
+    font-size:15px;
+    font-weight:700;
+    color:var(--study);
+    margin:0 0 8px;
+  }
   .plant-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(92px, 1fr));
     gap:10px;
-    margin-bottom:16px;
   }
   .plant-card{
     position:relative;
@@ -66,6 +74,15 @@
     flex:1;
     max-width:240px;
     padding:8px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .habit-add select{
+    padding:8px 10px;
     border:1px solid var(--line);
     border-radius:8px;
     font-size:14px;
@@ -141,9 +158,13 @@
   <h1>✅ 更好的自己習慣養成</h1>
   <p class="desc">紀錄小孩每天的學習習慣（例如：閱讀30分鐘、複習功課、練習圍棋）。每個習慣是一株小植物，點一下代表今天澆水（完成打卡）；太久沒澆水植物會慢慢枯萎，提醒你哪個習慣被忽略了。下面會自動累積成本月統計表。</p>
 
-  <div id="habitToday" class="plant-grid"></div>
+  <div id="habitToday" class="habit-groups"></div>
   <div class="habit-add">
     <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
+    <select id="habitNewChild">
+      <option value="Cathy">Cathy</option>
+      <option value="Rina">Rina</option>
+    </select>
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
@@ -197,21 +218,40 @@
     loadHabitMonth();
   }
 
+  const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
+
+  function groupByChild(habits){
+    const groups = { Cathy: [], Rina: [], '其他': [] };
+    habits.forEach(h => {
+      (groups[h.child] || groups['其他']).push(h);
+    });
+    return groups;
+  }
+
+  function plantCardHtml(h){
+    const stage = plantStage(daysSince(h.lastDate));
+    return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
+      <span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>
+      <div class="emoji">${stage.emoji}</div>
+      <div class="name">${escapeHtml(h.name)}</div>
+      <div class="status">${stage.label}</div>
+    </div>`;
+  }
+
   function renderPlants(){
     const wrap = document.getElementById('habitToday');
     if (habitState.habits.length === 0) {
       wrap.innerHTML = '<p class="habit-empty" style="padding:0;">還沒有習慣項目，先在下面新增一個吧。</p>';
       return;
     }
-    wrap.innerHTML = habitState.habits.map(h => {
-      const stage = plantStage(daysSince(h.lastDate));
-      return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
-        <span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>
-        <div class="emoji">${stage.emoji}</div>
-        <div class="name">${escapeHtml(h.name)}</div>
-        <div class="status">${stage.label}</div>
-      </div>`;
-    }).join('');
+    const groups = groupByChild(habitState.habits);
+    wrap.innerHTML = CHILD_GROUPS
+      .filter(name => groups[name].length > 0)
+      .map(name => `<div class="child-group">
+        <h2 class="child-title">${escapeHtml(name)}</h2>
+        <div class="plant-grid">${groups[name].map(plantCardHtml).join('')}</div>
+      </div>`)
+      .join('');
     wrap.querySelectorAll('.plant-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.dataset.remove) return;
@@ -248,12 +288,13 @@
 
   async function addHabit(){
     const input = document.getElementById('habitNewName');
+    const child = document.getElementById('habitNewChild').value;
     const name = input.value.trim();
     if (!name) return;
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, child })
     });
     const data = await res.json();
     if (data.id) {
