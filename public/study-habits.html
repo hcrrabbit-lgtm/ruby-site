@@ -167,9 +167,12 @@
     min-width:110px;
   }
   table.habit-table th{ color:var(--ink-soft); font-weight:500; }
+  table.habit-table th .weekday{ font-size:9px; font-weight:400; color:var(--ink-soft); margin-top:1px; }
   table.habit-table td.today-col, table.habit-table th.today-col{ background:var(--study-bg); }
   table.habit-table td.mark{ color:var(--study); font-weight:700; }
   table.habit-table td.total-col, table.habit-table th.total-col{ font-weight:700; color:var(--study); }
+  table.habit-table td.fillable{ cursor:pointer; }
+  table.habit-table td.fillable:hover{ background:var(--child-bg, var(--study-bg)); }
   .habit-empty{ color:var(--ink-soft); font-size:13.5px; padding:16px; text-align:center; }
   .score-row{
     display:flex;
@@ -391,16 +394,20 @@
     renderMonthSections(data, m);
   }
 
+  const WEEKDAY_CHARS = ['日', '一', '二', '三', '四', '五', '六'];
+
   function habitTableHtml(habits, logs, month){
     const [y, mo] = month.split('-').map(Number);
     const daysInMonth = new Date(y, mo, 0).getDate();
     const isCurrentMonth = monthStr(new Date()) === month;
     const todayDate = new Date().getDate();
+    const todayFull = todayStr();
 
     let thead = '<tr><th class="habit-name-col">習慣</th>';
     for (let d = 1; d <= daysInMonth; d++) {
       const isToday = isCurrentMonth && d === todayDate;
-      thead += `<th class="${isToday ? 'today-col' : ''}">${d}</th>`;
+      const weekday = WEEKDAY_CHARS[new Date(y, mo - 1, d).getDay()];
+      thead += `<th class="${isToday ? 'today-col' : ''}">${d}<div class="weekday">${weekday}</div></th>`;
     }
     thead += '<th class="total-col">完成</th></tr>';
 
@@ -414,7 +421,10 @@
         const done = doneDates.has(dateStr);
         if (done) count++;
         const isToday = isCurrentMonth && d === todayDate;
-        row += `<td class="${done ? 'mark' : ''} ${isToday ? 'today-col' : ''}">${done ? '✓' : ''}</td>`;
+        const isFuture = dateStr > todayFull;
+        const cls = [done ? 'mark' : '', isToday ? 'today-col' : '', isFuture ? '' : 'fillable'].filter(Boolean).join(' ');
+        const attrs = isFuture ? '' : ` data-habit="${h.id}" data-date="${dateStr}"`;
+        row += `<td class="${cls}"${attrs}>${done ? '✓' : ''}</td>`;
       }
       row += `<td class="total-col">${count}/${daysInMonth}</td></tr>`;
       tbody += row;
@@ -449,6 +459,18 @@
       habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
       loadHabitMonth();
     });
+    container.querySelectorAll('td.fillable').forEach(td => {
+      td.addEventListener('click', () => toggleHabitDate(td.dataset.habit, td.dataset.date));
+    });
+  }
+
+  async function toggleHabitDate(habitId, date){
+    await fetch(API + '/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habitId, date })
+    });
+    loadHabits();
   }
 
   loadHabits();
