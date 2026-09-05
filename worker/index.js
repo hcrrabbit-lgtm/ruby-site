@@ -134,6 +134,23 @@ async function ensureSchema(env) {
   } catch (e) {
     // best-effort one-time backfill only
   }
+  try {
+    // one-time backfill: "刷題" was added after the sep1 backfill above already ran, so it
+    // started counting from its own (recent) creation date instead of 9/1 like its siblings.
+    const already = await env.DB.prepare(
+      "SELECT value FROM app_settings WHERE key = 'study_habits_shuati_sep1_backfill'"
+    ).first();
+    if (!already) {
+      await env.DB.prepare(
+        `UPDATE study_habits SET created_at = '2026-09-01T00:00:00.000Z' WHERE name = '刷題'`
+      ).run();
+      await env.DB.prepare(
+        "INSERT INTO app_settings (key, value) VALUES ('study_habits_shuati_sep1_backfill', '1')"
+      ).run();
+    }
+  } catch (e) {
+    // best-effort one-time backfill only
+  }
   schemaReady = true;
 }
 
