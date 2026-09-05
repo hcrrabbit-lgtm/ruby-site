@@ -390,8 +390,12 @@
     return groups;
   }
 
+  let habitsLoadSeq = 0;
   async function loadHabits(){
-    habitState.habits = await fetch(API).then(r => r.json());
+    const seq = ++habitsLoadSeq;
+    const habits = await fetch(API).then(r => r.json());
+    if (seq !== habitsLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
+    habitState.habits = habits;
     renderTabs();
     renderPlants();
     loadHabitMonth();
@@ -535,9 +539,12 @@
   document.getElementById('habitAddBtn').addEventListener('click', addHabit);
   document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
 
+  let monthLoadSeq = 0;
   async function loadHabitMonth(){
+    const seq = ++monthLoadSeq;
     const m = monthStr(habitState.viewDate);
     const data = await fetch(API + '/month?month=' + m).then(r => r.json());
+    if (seq !== monthLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
     renderMonthSections(data, m);
   }
 
@@ -609,6 +616,8 @@
     container.querySelectorAll('td.fillable').forEach(td => {
       td.addEventListener('click', () => {
         const turningOn = !td.classList.contains('mark');
+        td.classList.toggle('mark', turningOn);
+        td.textContent = turningOn ? '✓' : '';
         toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn);
       });
     });
@@ -616,12 +625,15 @@
 
   async function toggleHabitDate(habitId, date, turningOn){
     if (turningOn) playChime();
-    await fetch(API + '/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ habitId, date })
-    });
-    loadHabits();
+    try {
+      await fetch(API + '/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ habitId, date })
+      });
+    } finally {
+      loadHabits();
+    }
   }
 
   loadHabits();
