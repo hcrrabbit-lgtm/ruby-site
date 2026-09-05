@@ -172,6 +172,38 @@
   table.habit-table td.mark{ color:var(--study); font-weight:700; }
   table.habit-table td.total-col, table.habit-table th.total-col{ font-weight:700; color:var(--study); }
   .habit-empty{ color:var(--ink-soft); font-size:13.5px; padding:16px; text-align:center; }
+  .score-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .score-badge{
+    display:inline-flex;
+    align-items:baseline;
+    gap:6px;
+    background:var(--child-bg, var(--study-bg));
+    color:var(--child-c, var(--study));
+    font-weight:700;
+    font-size:14px;
+    padding:8px 16px;
+    border-radius:999px;
+    margin-bottom:14px;
+  }
+  .score-row .score-badge{ margin-bottom:0; }
+  .score-badge b{ font-size:20px; }
+  .edit-toggle{
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:700;
+    padding:7px 12px;
+    border-radius:8px;
+    cursor:pointer;
+  }
 </style>
 </head>
 <body>
@@ -229,6 +261,11 @@
   const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', '其他': 'child-other' };
   let activeChild = 'Cathy';
   try { activeChild = localStorage.getItem('studyHabitActiveChild') || 'Cathy'; } catch (e) {}
+  const urlChild = new URLSearchParams(location.search).get('who');
+  if (urlChild === 'Cathy' || urlChild === 'Rina') {
+    activeChild = urlChild;
+    try { localStorage.setItem('studyHabitActiveChild', activeChild); } catch (e) {}
+  }
 
   function groupByChild(habits){
     const groups = { Cathy: [], Rina: [], '其他': [] };
@@ -264,10 +301,13 @@
     });
   }
 
+  let editMode = false;
+
   function plantCardHtml(h){
     const stage = plantStage(daysSince(h.lastDate));
+    const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
-      <span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>
+      ${removeHtml}
       <div class="emoji">${stage.emoji}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
@@ -281,9 +321,18 @@
       wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}"><p class="habit-empty" style="padding:0;">${escapeHtml(activeChild)} 還沒有習慣項目，先在下面新增一個吧。</p></div>`;
       return;
     }
+    const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
+      <div class="score-row">
+        <div class="score-badge">✨ 今天分數：<b>${doneToday}</b> 分（${doneToday}／${list.length} 項）</div>
+        <button type="button" class="edit-toggle" id="editToggleBtn">${editMode ? '完成編輯' : '✎ 編輯'}</button>
+      </div>
       <div class="plant-grid">${list.map(plantCardHtml).join('')}</div>
     </div>`;
+    document.getElementById('editToggleBtn').addEventListener('click', () => {
+      editMode = !editMode;
+      renderPlants();
+    });
     wrap.querySelectorAll('.plant-card').forEach(card => {
       card.addEventListener('click', (e) => {
         if (e.target.dataset.remove) return;
@@ -380,9 +429,11 @@
     const container = document.getElementById('habitMonthSections');
     const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
     const list = groupByChild(data.habits || [])[activeChild] || [];
+    const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length), 0);
     const bodyHtml = list.length === 0
       ? `<p class="habit-empty">目前還沒有習慣項目可以統計。</p>`
-      : `<div class="habit-table-wrap">${habitTableHtml(list, data.logs, month)}</div>`;
+      : `<div class="score-badge">📊 本月分數：<b>${monthlyTotal}</b> 分</div>
+         <div class="habit-table-wrap">${habitTableHtml(list, data.logs, month)}</div>`;
     container.innerHTML = `<div class="month-section ${CHILD_SLUG[activeChild]}">
       <div class="habit-month-nav">
         <button class="habit-prev-month" type="button">‹</button>
