@@ -40,25 +40,25 @@
   .child-group.child-other, .month-section.child-other{ --child-c:var(--ink-soft); --child-bg:var(--paper-deep); }
   .plant-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(92px, 1fr));
-    gap:10px;
+    grid-template-columns:repeat(auto-fill, minmax(72px, 1fr));
+    gap:8px;
   }
   .plant-card{
     position:relative;
     background:#fff;
     border:1.5px solid var(--line);
-    border-radius:12px;
-    padding:12px 8px 10px;
+    border-radius:10px;
+    padding:8px 5px 7px;
     text-align:center;
     cursor:pointer;
     user-select:none;
     transition:transform .15s ease, border-color .15s ease;
   }
   .plant-card:hover{ transform:translateY(-2px); }
-  .plant-card .emoji{ line-height:1; margin-bottom:6px; display:flex; justify-content:center; }
-  .plant-card .emoji svg{ display:block; }
-  .plant-card .name{ font-size:12.5px; font-weight:700; color:var(--ink); word-break:break-word; margin-bottom:2px; }
-  .plant-card .status{ font-size:10.5px; color:var(--ink-soft); }
+  .plant-card .emoji{ line-height:1; margin-bottom:3px; display:flex; justify-content:center; }
+  .plant-card .emoji svg{ display:block; width:30px; height:30px; }
+  .plant-card .name{ font-size:11px; font-weight:700; color:var(--ink); word-break:break-word; margin-bottom:1px; }
+  .plant-card .status{ font-size:9.5px; color:var(--ink-soft); }
   .plant-card .remove{
     position:absolute; top:4px; right:6px;
     font-size:11px; opacity:.35; padding:2px;
