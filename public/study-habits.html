@@ -56,14 +56,16 @@
   }
   .plant-card .remove:hover{ opacity:1; }
   .plant-card.seed{ border-style:dashed; }
-  .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
-  .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
-  .plant-card.fading{ border-color:#C9A227; }
-  .plant-card.fading .status{ color:#9C7F1E; }
-  .plant-card.wilting{ border-color:#B96B77; }
-  .plant-card.wilting .status{ color:#B96B77; }
-  .plant-card.dead{ border-color:#9a958c; background:#F1EEE7; opacity:.85; }
-  .plant-card.dead .status{ color:#8a857c; font-weight:700; }
+  .plant-card.bloom{ border-color:#6FA25E; background:#E5F0DF; }
+  .plant-card.bloom .status{ color:#4C7443; }
+  .plant-card.healthy{ border-color:#B7D9A8; background:#EFF6EA; }
+  .plant-card.healthy .status{ color:#6B9B5E; }
+  .plant-card.fading{ border-color:#E8DA8C; background:#FBF7E2; }
+  .plant-card.fading .status{ color:#A3901E; }
+  .plant-card.wilting{ border-color:#EFC08A; background:#FDF1E2; }
+  .plant-card.wilting .status{ color:#BC7A2E; }
+  .plant-card.dead{ border-color:#E0A3A3; background:#FBEAEA; }
+  .plant-card.dead .status{ color:#C24949; font-weight:700; }
   .habit-add{
     display:flex;
     gap:8px;
@@ -252,18 +254,18 @@
   function plantStage(h){
     if (h.lastDate) {
       const days = daysSince(h.lastDate);
-      if (days <= 0) return { emoji: '🌸', label: '今天已澆水', cls: 'bloom' };
-      if (days === 1) return { emoji: '🌿', label: '昨天澆過水', cls: 'healthy' };
-      if (days <= 3) return { emoji: '🍂', label: days + ' 天沒澆水', cls: 'fading' };
-      if (days <= 6) return { emoji: '🥀', label: days + ' 天沒澆水', cls: 'wilting' };
-      return { emoji: '💀', label: days + ' 天沒澆水，快枯掉了', cls: 'dead' };
+      if (days <= 0) return { emoji: '😄', label: '今天澆過水', cls: 'bloom' };
+      if (days === 1) return { emoji: '🙂', label: '昨天澆過水', cls: 'healthy' };
+      if (days <= 3) return { emoji: '🙁', label: days + ' 天沒澆水', cls: 'fading' };
+      if (days <= 6) return { emoji: '😢', label: days + ' 天沒澆水', cls: 'wilting' };
+      return { emoji: '💀', label: days + ' 天沒澆水', cls: 'dead' };
     }
     // never watered at all — measure neglect from when the habit was added, not forever "還沒開始"
     const days = daysSince(h.createdAt ? h.createdAt.slice(0, 10) : null);
     if (days === null || days <= 0) return { emoji: '🌱', label: '還沒開始', cls: 'seed' };
-    if (days <= 3) return { emoji: '🍂', label: days + ' 天沒澆水', cls: 'fading' };
-    if (days <= 6) return { emoji: '🥀', label: days + ' 天沒澆水', cls: 'wilting' };
-    return { emoji: '💀', label: days + ' 天沒澆水，快枯掉了', cls: 'dead' };
+    if (days <= 3) return { emoji: '🙁', label: days + ' 天沒澆水', cls: 'fading' };
+    if (days <= 6) return { emoji: '😢', label: days + ' 天沒澆水', cls: 'wilting' };
+    return { emoji: '💀', label: days + ' 天沒澆水', cls: 'dead' };
   }
 
   const CHILD_GROUPS = ['Cathy', 'Rina', '其他'];
