@@ -60,6 +60,47 @@
   .rules-list li > span{ flex:1 1 auto; min-width:0; }
   .rules-list b{ color:var(--ink); }
 
+  .bank-block{
+    margin-bottom:24px;
+    border:1.5px solid var(--line);
+    border-radius:16px;
+    padding:14px 16px 16px;
+    background:#fff;
+  }
+  .bank-block.child-cathy{ --child-c:#4C8C5A; --child-bg:#E9F3E9; border-color:#C3DFC5; }
+  .bank-block.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
+  .bank-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .bank-title{ font-weight:700; font-size:15px; color:var(--ink); }
+  .bank-withdraw-btn{
+    padding:7px 14px;
+    border-radius:8px;
+    border:1px solid var(--child-c, var(--study));
+    background:var(--child-bg, var(--study-bg));
+    color:var(--child-c, var(--study));
+    font-weight:700;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .bank-balance{ font-size:14px; color:var(--ink-soft); margin-bottom:6px; }
+  .bank-balance b{ color:var(--ink); font-size:18px; }
+  .bank-history-wrap{ font-size:12.5px; color:var(--ink-soft); }
+  .bank-history-wrap summary{ cursor:pointer; font-weight:700; padding:4px 0; }
+  .bank-history-list{ list-style:none; margin:6px 0 0; padding:0; }
+  .bank-history-list li{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:6px 0;
+    border-top:1px solid var(--line);
+  }
+  .bank-empty{ margin:4px 0 0; }
+
   .child-tabs{ display:flex; gap:8px; margin-bottom:20px; }
   .child-group{
     margin-bottom:20px;
@@ -321,6 +362,8 @@
     <button id="habitAddBtn" type="button">＋ 新增</button>
   </div>
 
+  <div id="bankSection"></div>
+
   <div id="habitMonthSections"></div>
 
   <div id="mealSection"></div>
@@ -493,6 +536,57 @@
     renderPlants();
     loadHabitMonth();
     loadWeeklyPenalty();
+    loadBank();
+  }
+
+  let bankLoadSeq = 0;
+  async function loadBank(){
+    const seq = ++bankLoadSeq;
+    const child = activeChild;
+    const [bank, history] = await Promise.all([
+      fetch('/api/open/study-habits/bank?child=' + encodeURIComponent(child)).then(r => r.json()),
+      fetch('/api/open/study-habits/bank/history?child=' + encodeURIComponent(child)).then(r => r.json())
+    ]);
+    if (seq !== bankLoadSeq) return;
+    renderBankSection(bank, history);
+  }
+
+  function renderBankSection(bank, history){
+    const container = document.getElementById('bankSection');
+    if (!container) return;
+    const balance = bank.balance || 0;
+    const amount = bank.amount || 0;
+    const historyHtml = (!history || history.length === 0)
+      ? `<p class="bank-empty">還沒有提領紀錄。</p>`
+      : `<ul class="bank-history-list">${history.map(r =>
+          `<li><span>${r.date}</span><span>提領 ${r.points} 分 → NT$ ${r.amount}</span></li>`
+        ).join('')}</ul>`;
+    container.innerHTML = `<div class="bank-block ${CHILD_SLUG[activeChild]}">
+      <div class="bank-header">
+        <span class="bank-title">🏦 習慣銀行</span>
+        <button type="button" class="bank-withdraw-btn" id="bankWithdrawBtn">提領</button>
+      </div>
+      <div class="bank-balance">累積餘額：<b>${balance}</b> 分 ≈ <b>NT$ ${amount}</b></div>
+      <details class="bank-history-wrap"><summary>提領紀錄</summary>${historyHtml}</details>
+    </div>`;
+    document.getElementById('bankWithdrawBtn').addEventListener('click', () => withdrawFromBank(balance, bank.rate || 1));
+  }
+
+  async function withdrawFromBank(balance, rate){
+    if (balance <= 0) { alert('目前還沒有可以提領的點數喔！'); return; }
+    const input = prompt(`累積餘額 ${balance} 分（NT$ ${balance * rate}）\n要提領幾分？`, String(balance));
+    if (input === null) return;
+    const points = Math.round(Number(input));
+    if (!Number.isFinite(points) || points <= 0) { alert('請輸入有效的點數'); return; }
+    if (points > balance) { alert('點數超過目前餘額囉'); return; }
+    const res = await fetch('/api/open/study-habits/bank/withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ child: activeChild, points })
+    }).then(r => r.json());
+    if (res.error) { alert(res.error); return; }
+    alert(`已提領 ${res.points} 分，換 NT$ ${res.amount} 元！`);
+    loadBank();
   }
 
   let weeklyPenaltyState = { child: null, isSunday: false, count: 0 };
@@ -522,6 +616,7 @@
         renderPlants();
         loadHabitMonth();
         loadWeeklyPenalty();
+        loadBank();
       });
     });
   }
