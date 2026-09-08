@@ -250,24 +250,36 @@
   .meal-chart-wrap{ overflow-x:auto; }
   .meal-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--ink-soft); }
   .meal-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-  .rescue-toast{
-    position:fixed;
+  .rescue-bubble{
+    position:absolute;
     left:50%;
-    top:16px;
-    transform:translateX(-50%);
+    top:-8px;
+    transform:translate(-50%, -100%) scale(.9);
     background:#2E2A25;
     color:#fff;
-    padding:10px 18px;
+    padding:6px 10px;
     border-radius:999px;
-    font-size:14px;
+    font-size:11px;
     font-weight:700;
-    box-shadow:0 4px 14px rgba(0,0,0,.2);
-    z-index:50;
+    white-space:nowrap;
+    box-shadow:0 4px 10px rgba(0,0,0,.2);
     opacity:0;
     pointer-events:none;
-    transition:opacity .25s ease, transform .25s ease;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:5;
   }
-  .rescue-toast.show{ opacity:1; transform:translateX(-50%) translateY(4px); }
+  .rescue-bubble.show{ opacity:1; transform:translate(-50%, -110%) scale(1); }
+  .penalty-banner{
+    background:#F6E8E5;
+    border:1.5px solid #E3B5AC;
+    color:#8A4A3E;
+    border-radius:12px;
+    padding:12px 16px;
+    font-size:13.5px;
+    font-weight:700;
+    margin-bottom:16px;
+    line-height:1.6;
+  }
 </style>
 </head>
 <body>
@@ -454,6 +466,18 @@
     renderTabs();
     renderPlants();
     loadHabitMonth();
+    loadWeeklyPenalty();
+  }
+
+  let weeklyPenaltyState = { child: null, isSunday: false, count: 0 };
+  let weeklyPenaltyLoadSeq = 0;
+  async function loadWeeklyPenalty(){
+    const seq = ++weeklyPenaltyLoadSeq;
+    const child = activeChild;
+    const data = await fetch('/api/open/study-habits/weekly-penalty?child=' + encodeURIComponent(child)).then(r => r.json());
+    if (seq !== weeklyPenaltyLoadSeq) return;
+    weeklyPenaltyState = { child, isSunday: !!data.isSunday, count: data.count || 0 };
+    renderPlants();
   }
 
   function renderTabs(){
@@ -471,6 +495,7 @@
         renderTabs();
         renderPlants();
         loadHabitMonth();
+        loadWeeklyPenalty();
       });
     });
   }
@@ -499,8 +524,13 @@
     list.sort((a, b) => plantStage(b).days - plantStage(a).days);
     const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     const bonusToday = list.reduce((sum, h) => sum + (daysSince(h.lastDate) === 0 ? (h.todayBonus || 0) : 0), 0);
-    const todayScore = doneToday + bonusToday;
+    const penalty = weeklyPenaltyState.child === activeChild ? weeklyPenaltyState.count : 0;
+    const todayScore = doneToday + bonusToday - penalty;
+    const penaltyBanner = penalty > 0
+      ? `<div class="penalty-banner">😢 今天是禮拜日，有 ${penalty} 株超過 7 天沒澆水，扣 ${penalty} 分！趕快去澆水搶救，下週不要再枯掉囉～</div>`
+      : '';
     wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
+      ${penaltyBanner}
       <div class="score-row">
         <div class="score-badge">✨ 今天分數：<b>${todayScore}</b> 分（${doneToday}／${list.length} 項）</div>
         <button type="button" class="edit-toggle" id="editToggleBtn">${editMode ? '完成編輯' : '✎ 編輯'}</button>
@@ -546,19 +576,36 @@
     } catch (e) { /* Web Audio unavailable, skip sound */ }
   }
 
-  let rescueToastTimer;
-  function showRescueToast(bonus){
-    let el = document.getElementById('rescueToast');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = 'rescueToast';
-      el.className = 'rescue-toast';
-      document.body.appendChild(el);
-    }
-    el.textContent = '🎉 搶救成功 +' + bonus + ' 分！';
-    el.classList.add('show');
-    clearTimeout(rescueToastTimer);
-    rescueToastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+  function playRescueChime(){
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      // a brighter little victory arpeggio, distinct from the everyday check-off chime
+      [659.25, 830.61, 987.77, 1318.51].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        const start = now + i * 0.09;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.28, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.32);
+      });
+    } catch (e) { /* Web Audio unavailable, skip sound */ }
+  }
+
+  function showRescueBubble(anchorEl, bonus){
+    if (!anchorEl) return;
+    if (getComputedStyle(anchorEl).position === 'static') anchorEl.style.position = 'relative';
+    const bubble = document.createElement('div');
+    bubble.className = 'rescue-bubble';
+    bubble.textContent = '🎉 +' + bonus + ' 搶救成功！';
+    anchorEl.appendChild(bubble);
+    requestAnimationFrame(() => bubble.classList.add('show'));
+    setTimeout(() => bubble.remove(), 1800);
   }
 
   async function toggleHabit(id){
@@ -581,7 +628,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ habitId: id, date })
       }).then(r => r.json());
-      if (res && res.bonus) showRescueToast(res.bonus);
+      if (res && res.bonus) {
+        playRescueChime();
+        showRescueBubble(document.querySelector('.plant-card[data-id="' + id + '"]'), res.bonus);
+      }
     } finally {
       loadHabits();
     }
@@ -621,8 +671,12 @@
   async function loadHabitMonth(){
     const seq = ++monthLoadSeq;
     const m = monthStr(habitState.viewDate);
-    const data = await fetch(API + '/month?month=' + m).then(r => r.json());
+    const [data, penaltyRows] = await Promise.all([
+      fetch(API + '/month?month=' + m).then(r => r.json()),
+      fetch('/api/open/study-habits/weekly-penalty/month?month=' + m + '&child=' + encodeURIComponent(activeChild)).then(r => r.json())
+    ]);
     if (seq !== monthLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
+    data.weeklyPenaltyTotal = (penaltyRows || []).reduce((sum, r) => sum + (r.count || 0), 0);
     renderMonthSections(data, m);
     loadMealTimes(m);
   }
@@ -776,7 +830,7 @@
     const container = document.getElementById('habitMonthSections');
     const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
     const list = groupByChild(data.habits || [])[activeChild] || [];
-    const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length) + ((data.bonusByHabit && data.bonusByHabit[h.id]) || 0), 0);
+    const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length) + ((data.bonusByHabit && data.bonusByHabit[h.id]) || 0), 0) - (data.weeklyPenaltyTotal || 0);
     const bodyHtml = list.length === 0
       ? `<p class="habit-empty">目前還沒有習慣項目可以統計。</p>`
       : `<div class="score-badge">📊 本月分數：<b>${monthlyTotal}</b> 分</div>
@@ -803,12 +857,12 @@
         const turningOn = !td.classList.contains('mark');
         td.classList.toggle('mark', turningOn);
         td.textContent = turningOn ? '✓' : '';
-        toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn);
+        toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn, td);
       });
     });
   }
 
-  async function toggleHabitDate(habitId, date, turningOn){
+  async function toggleHabitDate(habitId, date, turningOn, anchorEl){
     if (turningOn) playChime();
     try {
       const res = await fetch(API + '/log', {
@@ -816,7 +870,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ habitId, date })
       }).then(r => r.json());
-      if (res && res.bonus) showRescueToast(res.bonus);
+      if (res && res.bonus) {
+        playRescueChime();
+        showRescueBubble(anchorEl, res.bonus);
+      }
     } finally {
       loadHabits();
     }
