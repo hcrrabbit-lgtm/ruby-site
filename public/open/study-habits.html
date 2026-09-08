@@ -648,8 +648,8 @@
 
   function mealChartSvg(byMeal, daysInMonth, y, mo){
     const w = Math.max(daysInMonth * 18, 300);
-    const h = 120;
-    const padL = 26, padR = 8, padT = 8, padB = 8;
+    const h = 140;
+    const padL = 26, padR = 8, padT = 8, padB = 26;
     const plotW = w - padL - padR;
     const plotH = h - padT - padB;
 
@@ -668,6 +668,17 @@
       <text x="${padL - 4}" y="${(yFor(v) + 3).toFixed(1)}" font-size="9" fill="#6B655C" text-anchor="end">${v}</text>
     `).join('');
 
+    const xLabels = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const weekday = WEEKDAY_CHARS[new Date(y, mo - 1, d).getDay()];
+      const cx = xFor(d).toFixed(1);
+      xLabels.push(`
+        <text x="${cx}" y="${h - padB + 11}" font-size="8" fill="#6B655C" text-anchor="middle">${d}</text>
+        <text x="${cx}" y="${h - padB + 21}" font-size="7" fill="#9C9585" text-anchor="middle">${weekday}</text>
+      `);
+    }
+    const xAxis = xLabels.join('');
+
     const lines = MEAL_ORDER.map(meal => {
       const pts = [];
       for (let d = 1; d <= daysInMonth; d++) {
@@ -681,7 +692,7 @@
       return `<path d="${path}" fill="none" stroke="${MEAL_COLORS[meal]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
     }).join('');
 
-    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${grid}${lines}</svg>`;
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${grid}${lines}${xAxis}</svg>`;
   }
 
   const WEEKDAY_CHARS = ['日', '一', '二', '三', '四', '五', '六'];
