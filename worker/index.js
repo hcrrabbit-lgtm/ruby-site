@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
 CREATE TABLE IF NOT EXISTS weekly_penalties (child TEXT NOT NULL, week_date TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(child, week_date));
+CREATE TABLE IF NOT EXISTS bank_withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, points INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -967,6 +968,62 @@ const weeklyPenaltyHandlers = {
   },
 };
 
+// 1 habit point = NT$1; the bank balance accumulates across all months so the
+// weekly penalty (which is based on continuous days-since-watered, not the
+// calendar month) never gets split awkwardly across a month boundary.
+const BANK_RATE = 1;
+
+async function computeBankBalance(env, child) {
+  const earnedRow = await env.DB.prepare(
+    `SELECT COUNT(*) as cnt, COALESCE(SUM(l.bonus), 0) as bonusSum
+     FROM study_habit_logs l JOIN study_habits h ON h.id = l.habit_id
+     WHERE h.child = ?`
+  ).bind(child).first();
+  const totalPoints = (earnedRow.cnt || 0) + (earnedRow.bonusSum || 0);
+  const penaltyRow = await env.DB.prepare(
+    "SELECT COALESCE(SUM(count), 0) as total FROM weekly_penalties WHERE child = ?"
+  ).bind(child).first();
+  const totalPenalty = penaltyRow.total || 0;
+  const withdrawnRow = await env.DB.prepare(
+    "SELECT COALESCE(SUM(points), 0) as total FROM bank_withdrawals WHERE child = ?"
+  ).bind(child).first();
+  const withdrawn = withdrawnRow.total || 0;
+  const balance = Math.max(0, totalPoints - totalPenalty - withdrawn);
+  return { totalPoints, totalPenalty, withdrawn, balance };
+}
+
+const bankHandlers = {
+  async get(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const { totalPoints, totalPenalty, withdrawn, balance } = await computeBankBalance(env, child);
+    return json({ totalPoints, totalPenalty, withdrawn, balance, amount: balance * BANK_RATE, rate: BANK_RATE });
+  },
+  async history(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const res = await env.DB.prepare(
+      "SELECT id, points, amount, date FROM bank_withdrawals WHERE child = ? ORDER BY id DESC LIMIT 50"
+    ).bind(child).all();
+    return json(res.results);
+  },
+  async withdraw(env, request) {
+    const { child, points } = await request.json();
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const p = Math.round(Number(points));
+    if (!Number.isFinite(p) || p <= 0) return json({ error: "提領點數必須是正整數" }, { status: 400 });
+    const { balance } = await computeBankBalance(env, child);
+    if (p > balance) return json({ error: `點數不足，目前餘額 ${balance} 分` }, { status: 400 });
+    const amount = p * BANK_RATE;
+    const date = taipeiDateStr(taipeiNow());
+    await env.DB.prepare(
+      "INSERT INTO bank_withdrawals (child, points, amount, date, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(child, p, amount, date, new Date().toISOString()).run();
+    const updated = await computeBankBalance(env, child);
+    return json({ ok: true, points: p, amount, balance: updated.balance });
+  },
+};
+
 async function handleGrades(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const behaviorWeight = parseFloat(url.searchParams.get("behaviorWeight") || "0.1");
@@ -1161,6 +1218,10 @@ export default {
 
       if (path === "/api/open/study-habits/weekly-penalty" && request.method === "GET") return await weeklyPenaltyHandlers.check(env, url);
       if (path === "/api/open/study-habits/weekly-penalty/month" && request.method === "GET") return await weeklyPenaltyHandlers.month(env, url);
+
+      if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
+      if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
+      if (path === "/api/open/study-habits/bank/withdraw" && request.method === "POST") return await bankHandlers.withdraw(env, request);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
