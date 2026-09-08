@@ -863,7 +863,7 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         }
         if (baseDateStr) {
           const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
-          if (gap >= 7) bonus = 2;
+          if (gap >= 7) bonus = 1;
         }
       }
       await env.DB.prepare(

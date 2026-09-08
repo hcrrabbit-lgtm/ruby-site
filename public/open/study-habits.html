@@ -36,10 +36,9 @@
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
   .wrap{max-width:760px;margin:0 auto;padding:24px 18px 60px;}
   h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:0 0 4px;color:var(--study);}
-  .desc{color:var(--ink-soft);font-size:14px;margin-bottom:16px;line-height:1.7;}
   .rules-list{
     list-style:none;
-    margin:0 0 24px;
+    margin:12px 0 24px;
     padding:14px 16px;
     background:#fff;
     border:1.5px solid var(--line);
@@ -308,11 +307,10 @@
 <body>
 <div class="wrap">
   <h1>✅ Better Me</h1>
-  <p class="desc">紀錄小孩每天的學習習慣（例如：閱讀30分鐘、複習功課、練習圍棋）。每個習慣是一株小植物，點一下代表今天澆水（完成打卡）；太久沒澆水植物會慢慢枯萎，提醒你哪個習慣被忽略了。下面會自動累積成本月統計表。</p>
   <ul class="rules-list">
-    <li><span>每天幫一株植物澆水：<b>+1 分</b></span></li>
-    <li><span>救回一株超過 <b>7 天</b>沒澆水的植物：額外再 <b>+2 分</b>（連同澆水那 1 分，總共 +3 分）</span></li>
-    <li><span>每個禮拜日，會計算現在有幾株超過 7 天沒澆水，直接扣掉對應的分數（例如有 2 株，就扣 2 分）；這是當天鎖定的紀錄，之後就算補澆水，那天的扣分也不會變</span></li>
+    <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
+    <li><span>搶救 7 天以上沒澆水的植物：救活一株額外再 <b>+1 分</b>（共 2 分）</span></li>
+    <li><span>每週日，會計算有幾株超過 7 天沒澆水，就扣掉幾分（2 株枯死，<b>-2 分</b>）；這是當天鎖定的紀錄，之後就算補澆水，那天的扣分也不會變。</span></li>
   </ul>
 
   <div class="child-tabs" id="childTabs"></div>
