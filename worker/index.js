@@ -31,6 +31,17 @@ INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VAL
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
+  // fast path: once bootstrap has completed, a cold start (schemaReady reset to
+  // false) only costs a single query instead of re-running every CREATE TABLE,
+  // ALTER TABLE and one-time backfill below on every request
+  try {
+    const bootstrapped = await env.DB.prepare(
+      "SELECT 1 as x FROM app_settings WHERE key = 'schema_bootstrap_done'"
+    ).first();
+    if (bootstrapped) { schemaReady = true; return; }
+  } catch (e) {
+    // app_settings table itself doesn't exist yet (fresh DB) — fall through to full setup below
+  }
   const statements = SCHEMA_SQL.split(";").map(s => s.trim()).filter(Boolean);
   for (const stmt of statements) {
     try {
@@ -179,6 +190,13 @@ async function ensureSchema(env) {
     await env.DB.prepare("ALTER TABLE study_habit_logs ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0").run();
   } catch (e) {
     // column already exists, safe to ignore
+  }
+  try {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('schema_bootstrap_done', '1')"
+    ).run();
+  } catch (e) {
+    // best-effort; a failed write here just means the next cold start redoes full setup
   }
   schemaReady = true;
 }
@@ -996,6 +1014,14 @@ const weeklyPenaltyHandlers = {
     ).bind(child, month + "-%").all();
     return json(res.results);
   },
+  async history(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const res = await env.DB.prepare(
+      "SELECT week_date as weekDate, count FROM weekly_penalties WHERE child = ? AND count > 0 ORDER BY week_date DESC LIMIT 50"
+    ).bind(child).all();
+    return json(res.results);
+  },
 };
 
 // 1 habit point = NT$1; the bank balance accumulates across all months so the
@@ -1248,6 +1274,7 @@ export default {
 
       if (path === "/api/open/study-habits/weekly-penalty" && request.method === "GET") return await weeklyPenaltyHandlers.check(env, url);
       if (path === "/api/open/study-habits/weekly-penalty/month" && request.method === "GET") return await weeklyPenaltyHandlers.month(env, url);
+      if (path === "/api/open/study-habits/weekly-penalty/history" && request.method === "GET") return await weeklyPenaltyHandlers.history(env, url);
 
       if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);

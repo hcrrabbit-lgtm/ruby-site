@@ -90,6 +90,7 @@
   .bank-balance{ font-size:14px; color:var(--ink-soft); margin-bottom:6px; }
   .bank-balance b{ color:var(--ink); font-size:18px; }
   .bank-history-wrap{ font-size:12.5px; color:var(--ink-soft); }
+  .bank-history-wrap + .bank-history-wrap{ margin-top:4px; }
   .bank-history-wrap summary{ cursor:pointer; font-weight:700; padding:4px 0; }
   .bank-history-list{ list-style:none; margin:6px 0 0; padding:0; }
   .bank-history-list li{
@@ -539,15 +540,16 @@
   async function loadBank(){
     const seq = ++bankLoadSeq;
     const child = activeChild;
-    const [bank, history] = await Promise.all([
+    const [bank, history, penalties] = await Promise.all([
       fetch('/api/open/study-habits/bank?child=' + encodeURIComponent(child)).then(r => r.json()),
-      fetch('/api/open/study-habits/bank/history?child=' + encodeURIComponent(child)).then(r => r.json())
+      fetch('/api/open/study-habits/bank/history?child=' + encodeURIComponent(child)).then(r => r.json()),
+      fetch('/api/open/study-habits/weekly-penalty/history?child=' + encodeURIComponent(child)).then(r => r.json())
     ]);
     if (seq !== bankLoadSeq) return;
-    renderBankSection(bank, history);
+    renderBankSection(bank, history, penalties);
   }
 
-  function renderBankSection(bank, history){
+  function renderBankSection(bank, history, penalties){
     const container = document.getElementById('bankSection');
     if (!container) return;
     const balance = bank.balance || 0;
@@ -557,6 +559,11 @@
       : `<ul class="bank-history-list">${history.map(r =>
           `<li><span>${r.date}</span><span>提領 ${r.points} 分 → NT$ ${r.amount}</span></li>`
         ).join('')}</ul>`;
+    const penaltyHtml = (!penalties || penalties.length === 0)
+      ? `<p class="bank-empty">還沒有扣分紀錄。</p>`
+      : `<ul class="bank-history-list">${penalties.map(r =>
+          `<li><span>${r.weekDate}</span><span>-${r.count} 分（${r.count} 株枯死）</span></li>`
+        ).join('')}</ul>`;
     container.innerHTML = `<div class="bank-block ${CHILD_SLUG[activeChild]}">
       <div class="bank-header">
         <span class="bank-title">🏦 習慣銀行</span>
@@ -564,6 +571,7 @@
       </div>
       <div class="bank-balance">累積餘額：<b>${balance}</b> 分 ≈ <b>NT$ ${amount}</b></div>
       <details class="bank-history-wrap"><summary>提領紀錄</summary>${historyHtml}</details>
+      <details class="bank-history-wrap"><summary>扣分紀錄</summary>${penaltyHtml}</details>
     </div>`;
     document.getElementById('bankWithdrawBtn').addEventListener('click', () => withdrawFromBank(balance, bank.rate || 1));
   }
@@ -803,6 +811,7 @@
   async function loadHabitMonth(){
     const seq = ++monthLoadSeq;
     const m = monthStr(habitState.viewDate);
+    loadMealTimes(m); // independent of the fetches below, so don't make it wait on them
     const [data, penaltyRows] = await Promise.all([
       fetch(API + '/month?month=' + m).then(r => r.json()),
       fetch('/api/open/study-habits/weekly-penalty/month?month=' + m + '&child=' + encodeURIComponent(activeChild)).then(r => r.json())
@@ -810,7 +819,6 @@
     if (seq !== monthLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
     data.weeklyPenaltyTotal = (penaltyRows || []).reduce((sum, r) => sum + (r.count || 0), 0);
     renderMonthSections(data, m);
-    loadMealTimes(m);
   }
 
   const MEAL_LABELS = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
