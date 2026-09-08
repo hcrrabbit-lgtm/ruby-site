@@ -351,16 +351,12 @@
   <ul class="rules-list">
     <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
     <li><span>搶救 7 天以上沒澆水的植物：救活一株額外再 <b>+1 分</b>（共 2 分）</span></li>
-    <li><span>每週日，會計算有幾株超過 7 天沒澆水，就扣掉幾分（2 株枯死，<b>-2 分</b>）；這是當天鎖定的紀錄，之後就算補澆水，那天的扣分也不會變。</span></li>
+    <li><span>每週日計算枯死幾株就扣掉幾分（2 株枯死，<b>-2 分</b>）；這是當天鎖定的紀錄，之後就算補澆水，那天的扣分也不會變。</span></li>
   </ul>
 
   <div class="child-tabs" id="childTabs"></div>
 
   <div id="habitToday"></div>
-  <div class="habit-add">
-    <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
-    <button id="habitAddBtn" type="button">＋ 新增</button>
-  </div>
 
   <div id="bankSection"></div>
 
@@ -638,7 +634,11 @@
     const wrap = document.getElementById('habitToday');
     const list = groupByChild(habitState.habits)[activeChild] || [];
     if (list.length === 0) {
-      wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}"><p class="habit-empty" style="padding:0;">${escapeHtml(activeChild)} 還沒有習慣項目，先在下面新增一個吧。</p></div>`;
+      wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
+        <p class="habit-empty" style="padding:0;">${escapeHtml(activeChild)} 還沒有習慣項目，先新增一個吧。</p>
+        ${habitAddFormHtml()}
+      </div>`;
+      bindHabitAddForm();
       return;
     }
     // most-neglected first, so the plants that most need watering show up first
@@ -657,6 +657,7 @@
         <button type="button" class="edit-toggle" id="editToggleBtn">${editMode ? '完成編輯' : '✎ 編輯'}</button>
       </div>
       <div class="plant-grid">${list.map(plantCardHtml).join('')}</div>
+      ${editMode ? habitAddFormHtml() : ''}
     </div>`;
     document.getElementById('editToggleBtn').addEventListener('click', () => {
       editMode = !editMode;
@@ -674,6 +675,19 @@
         removeHabit(btn.dataset.remove);
       });
     });
+    if (editMode) bindHabitAddForm();
+  }
+
+  function habitAddFormHtml(){
+    return `<div class="habit-add">
+      <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
+      <button type="button" id="habitAddBtn">＋ 新增</button>
+    </div>`;
+  }
+
+  function bindHabitAddForm(){
+    document.getElementById('habitAddBtn').addEventListener('click', addHabit);
+    document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
   }
 
   let audioCtx;
@@ -785,9 +799,6 @@
       loadHabits();
     }
   }
-  document.getElementById('habitAddBtn').addEventListener('click', addHabit);
-  document.getElementById('habitNewName').addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
-
   let monthLoadSeq = 0;
   async function loadHabitMonth(){
     const seq = ++monthLoadSeq;

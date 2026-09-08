@@ -932,9 +932,12 @@ const weeklyPenaltyHandlers = {
   async check(env, url) {
     const child = url.searchParams.get("child");
     if (!child) return json({ error: "缺少 child" }, { status: 400 });
-    const today = taipeiDateStr(taipeiNow());
-    const dow = new Date(today + "T00:00:00Z").getUTCDay();
-    if (dow !== 0) return json({ isSunday: false, count: 0 });
+    const now = taipeiNow();
+    const today = taipeiDateStr(now);
+    const dow = now.getUTCDay();
+    // settle at 22:00 Taipei time, not first thing Sunday morning, so kids have
+    // the whole day to rescue neglected plants before the penalty locks in
+    if (dow !== 0 || now.getUTCHours() < 22) return json({ isSunday: false, count: 0 });
     const existing = await env.DB.prepare(
       "SELECT count FROM weekly_penalties WHERE child = ? AND week_date = ?"
     ).bind(child, today).first();
