@@ -924,6 +924,26 @@ const mealTimeHandlers = {
   },
 };
 
+// counts how many of a child's study habits had gone 7+ days without being
+// watered as of asOfDate, reconstructed from logs up to that date so a later
+// backfill isn't skewed by watering that happened after the fact
+async function computeNeglectCount(env, child, asOfDate) {
+  const res = await env.DB.prepare(
+    `SELECT h.id as id, h.created_at as createdAt,
+       (SELECT MAX(l.date) FROM study_habit_logs l WHERE l.habit_id = h.id AND l.date <= ?) as lastDate
+     FROM study_habits h
+     WHERE h.child = ?`
+  ).bind(asOfDate, child).all();
+  let count = 0;
+  res.results.forEach(h => {
+    const baseDateStr = h.lastDate || (h.createdAt ? h.createdAt.slice(0, 10) : null);
+    if (!baseDateStr) return;
+    const gap = Math.round((new Date(asOfDate) - new Date(baseDateStr)) / 86400000);
+    if (gap >= 7) count++;
+  });
+  return count;
+}
+
 const weeklyPenaltyHandlers = {
   // every Sunday, count how many of this child's study habits have gone 7+ days
   // without being watered, and lock that count in as that week's penalty — a
@@ -935,6 +955,24 @@ const weeklyPenaltyHandlers = {
     const now = taipeiNow();
     const today = taipeiDateStr(now);
     const dow = now.getUTCDay();
+
+    // safety net: if nobody had the app open during Sunday 22:00-24:00 to lock
+    // in last week's penalty, backfill it the next time the app is opened
+    // (e.g. Monday morning), reconstructed as of that Sunday so watering done
+    // afterward doesn't retroactively erase it
+    if (dow !== 0) {
+      const lastSundayStr = taipeiDateStr(new Date(now.getTime() - dow * 86400000));
+      const already = await env.DB.prepare(
+        "SELECT 1 as x FROM weekly_penalties WHERE child = ? AND week_date = ?"
+      ).bind(child, lastSundayStr).first();
+      if (!already) {
+        const backfillCount = await computeNeglectCount(env, child, lastSundayStr);
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
+        ).bind(child, lastSundayStr, backfillCount).run();
+      }
+    }
+
     // settle at 22:00 Taipei time, not first thing Sunday morning, so kids have
     // the whole day to rescue neglected plants before the penalty locks in
     if (dow !== 0 || now.getUTCHours() < 22) return json({ isSunday: false, count: 0 });
@@ -942,20 +980,9 @@ const weeklyPenaltyHandlers = {
       "SELECT count FROM weekly_penalties WHERE child = ? AND week_date = ?"
     ).bind(child, today).first();
     if (existing) return json({ isSunday: true, count: existing.count });
-    const res = await env.DB.prepare(
-      `SELECT h.id as id, h.created_at as createdAt, MAX(l.date) as lastDate
-       FROM study_habits h LEFT JOIN study_habit_logs l ON l.habit_id = h.id
-       WHERE h.child = ? GROUP BY h.id`
-    ).bind(child).all();
-    let count = 0;
-    res.results.forEach(h => {
-      const baseDateStr = h.lastDate || (h.createdAt ? h.createdAt.slice(0, 10) : null);
-      if (!baseDateStr) return;
-      const gap = Math.round((new Date(today) - new Date(baseDateStr)) / 86400000);
-      if (gap >= 7) count++;
-    });
+    const count = await computeNeglectCount(env, child, today);
     await env.DB.prepare(
-      "INSERT INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
+      "INSERT OR IGNORE INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
     ).bind(child, today, count).run();
     return json({ isSunday: true, count });
   },
