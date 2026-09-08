@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, hab
 CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
+CREATE TABLE IF NOT EXISTS weekly_penalties (child TEXT NOT NULL, week_date TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(child, week_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -862,8 +863,7 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         }
         if (baseDateStr) {
           const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
-          if (gap >= 7) bonus = 3;
-          else if (gap >= 4) bonus = 2;
+          if (gap >= 7) bonus = 2;
         }
       }
       await env.DB.prepare(
@@ -920,6 +920,50 @@ const mealTimeHandlers = {
        ON CONFLICT(child, meal, date) DO UPDATE SET minutes = excluded.minutes`
     ).bind(child, meal, date, m).run();
     return json({ ok: true });
+  },
+};
+
+const weeklyPenaltyHandlers = {
+  // every Sunday, count how many of this child's study habits have gone 7+ days
+  // without being watered, and lock that count in as that week's penalty — a
+  // one-time snapshot per (child, Sunday) so it doesn't shift if they later
+  // catch up on the neglected ones.
+  async check(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const today = taipeiDateStr(taipeiNow());
+    const dow = new Date(today + "T00:00:00Z").getUTCDay();
+    if (dow !== 0) return json({ isSunday: false, count: 0 });
+    const existing = await env.DB.prepare(
+      "SELECT count FROM weekly_penalties WHERE child = ? AND week_date = ?"
+    ).bind(child, today).first();
+    if (existing) return json({ isSunday: true, count: existing.count });
+    const res = await env.DB.prepare(
+      `SELECT h.id as id, h.created_at as createdAt, MAX(l.date) as lastDate
+       FROM study_habits h LEFT JOIN study_habit_logs l ON l.habit_id = h.id
+       WHERE h.child = ? GROUP BY h.id`
+    ).bind(child).all();
+    let count = 0;
+    res.results.forEach(h => {
+      const baseDateStr = h.lastDate || (h.createdAt ? h.createdAt.slice(0, 10) : null);
+      if (!baseDateStr) return;
+      const gap = Math.round((new Date(today) - new Date(baseDateStr)) / 86400000);
+      if (gap >= 7) count++;
+    });
+    await env.DB.prepare(
+      "INSERT INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
+    ).bind(child, today, count).run();
+    return json({ isSunday: true, count });
+  },
+  async month(env, url) {
+    const month = url.searchParams.get("month");
+    const child = url.searchParams.get("child");
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const res = await env.DB.prepare(
+      "SELECT week_date as weekDate, count FROM weekly_penalties WHERE child = ? AND week_date LIKE ? ORDER BY week_date"
+    ).bind(child, month + "-%").all();
+    return json(res.results);
   },
 };
 
@@ -1114,6 +1158,9 @@ export default {
 
       if (path === "/api/open/meal-times" && request.method === "GET") return await mealTimeHandlers.get(env, url);
       if (path === "/api/open/meal-times" && request.method === "POST") return await mealTimeHandlers.post(env, request);
+
+      if (path === "/api/open/study-habits/weekly-penalty" && request.method === "GET") return await weeklyPenaltyHandlers.check(env, url);
+      if (path === "/api/open/study-habits/weekly-penalty/month" && request.method === "GET") return await weeklyPenaltyHandlers.month(env, url);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
