@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS student_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, 
 CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREMENT, url TEXT NOT NULL, note TEXT, source_type TEXT NOT NULL DEFAULT 'community', created_at TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
-CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
+CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
-CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
+CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -167,6 +167,16 @@ async function ensureSchema(env) {
     }
   } catch (e) {
     // best-effort one-time rename only
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE habit_logs ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE study_habit_logs ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0").run();
+  } catch (e) {
+    // column already exists, safe to ignore
   }
   schemaReady = true;
 }
@@ -780,17 +790,23 @@ async function handleCommunitySourcesDelete(env, request) {
   return json({ ok: true });
 }
 
-function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
+function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
+  const bonusRescue = !!(opts && opts.bonusRescue);
   return {
     async get(env) {
-      const res = await env.DB.prepare(
+      const today = taipeiDateStr(taipeiNow());
+      const bonusCol = bonusRescue
+        ? `, (SELECT bonus FROM ${logsTable} lb WHERE lb.habit_id = h.id AND lb.date = ?) as todayBonus`
+        : "";
+      const stmt = env.DB.prepare(
         `SELECT h.id as id, h.name as name, h.child as child, h.created_at as createdAt, MAX(l.date) as lastDate,
            (SELECT MAX(l2.date) FROM ${logsTable} l2
             WHERE l2.habit_id = h.id AND l2.date < (SELECT MAX(l3.date) FROM ${logsTable} l3 WHERE l3.habit_id = h.id)
-           ) as prevDate
+           ) as prevDate${bonusCol}
          FROM ${habitsTable} h LEFT JOIN ${logsTable} l ON l.habit_id = h.id
          GROUP BY h.id ORDER BY h.order_no`
-      ).all();
+      );
+      const res = await (bonusRescue ? stmt.bind(today) : stmt).all();
       return json(res.results);
     },
     async post(env, request) {
@@ -833,30 +849,51 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
         await env.DB.prepare(`DELETE FROM ${logsTable} WHERE id = ?`).bind(existing.id).run();
         return json({ ok: true, done: false });
       }
+      // rescuing a plant that had gone a long time without water earns a bonus
+      let bonus = 0;
+      if (bonusRescue) {
+        const prevRow = await env.DB.prepare(
+          `SELECT MAX(date) as prevDate FROM ${logsTable} WHERE habit_id = ? AND date < ?`
+        ).bind(habitId, date).first();
+        let baseDateStr = prevRow && prevRow.prevDate ? prevRow.prevDate : null;
+        if (!baseDateStr) {
+          const habitRow = await env.DB.prepare(`SELECT created_at FROM ${habitsTable} WHERE id = ?`).bind(habitId).first();
+          baseDateStr = habitRow && habitRow.created_at ? habitRow.created_at.slice(0, 10) : null;
+        }
+        if (baseDateStr) {
+          const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
+          if (gap >= 7) bonus = 3;
+          else if (gap >= 4) bonus = 2;
+        }
+      }
       await env.DB.prepare(
-        `INSERT INTO ${logsTable} (habit_id, date) VALUES (?, ?)`
-      ).bind(habitId, date).run();
-      return json({ ok: true, done: true });
+        `INSERT INTO ${logsTable} (habit_id, date, bonus) VALUES (?, ?, ?)`
+      ).bind(habitId, date, bonus).run();
+      return json({ ok: true, done: true, bonus });
     },
     async month(env, url) {
       const month = url.searchParams.get("month");
       if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
       const habits = (await env.DB.prepare(`SELECT id, name, child FROM ${habitsTable} ORDER BY order_no`).all()).results;
       const res = await env.DB.prepare(
-        `SELECT habit_id as habitId, date FROM ${logsTable} WHERE date LIKE ? ORDER BY date`
+        `SELECT habit_id as habitId, date${bonusRescue ? ", bonus" : ""} FROM ${logsTable} WHERE date LIKE ? ORDER BY date`
       ).bind(month + "-%").all();
       const logs = {};
+      const bonusByHabit = {};
       res.results.forEach(r => {
         if (!logs[r.habitId]) logs[r.habitId] = [];
         logs[r.habitId].push(r.date);
+        if (bonusRescue && r.bonus) {
+          bonusByHabit[r.habitId] = (bonusByHabit[r.habitId] || 0) + r.bonus;
+        }
       });
-      return json({ habits, logs });
+      return json({ habits, logs, bonusByHabit });
     },
   };
 }
 
 const healthHabitHandlers = makeHabitHandlers("habits", "habit_logs", "habit");
-const studyHabitHandlers = makeHabitHandlers("study_habits", "study_habit_logs", "shabit");
+const studyHabitHandlers = makeHabitHandlers("study_habits", "study_habit_logs", "shabit", { bonusRescue: true });
 
 const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner"]);
 const mealTimeHandlers = {
