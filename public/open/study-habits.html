@@ -226,6 +226,30 @@
     border-radius:8px;
     cursor:pointer;
   }
+  .meal-block{
+    margin-top:28px;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+  }
+  .meal-block.child-cathy{ border-color:#C3DFC5; }
+  .meal-block.child-rina{ border-color:#BFDCEC; }
+  .meal-title{ font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 12px; color:var(--ink); }
+  .meal-today{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .meal-input{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-soft); }
+  .meal-input input{
+    width:72px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    text-align:center;
+    font-family:inherit;
+  }
+  .meal-chart-wrap{ overflow-x:auto; }
+  .meal-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--ink-soft); }
+  .meal-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
 </style>
 </head>
 <body>
@@ -242,6 +266,8 @@
   </div>
 
   <div id="habitMonthSections"></div>
+
+  <div id="mealSection"></div>
 </div>
 
 <script>
@@ -560,6 +586,102 @@
     const data = await fetch(API + '/month?month=' + m).then(r => r.json());
     if (seq !== monthLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
     renderMonthSections(data, m);
+    loadMealTimes(m);
+  }
+
+  const MEAL_LABELS = { breakfast: '早餐', lunch: '午餐', dinner: '晚餐' };
+  const MEAL_COLORS = { breakfast: '#C9A227', lunch: '#5F8955', dinner: '#3B7EA8' };
+  const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'];
+
+  let mealLoadSeq = 0;
+  async function loadMealTimes(month){
+    const seq = ++mealLoadSeq;
+    const rows = await fetch('/api/open/meal-times?month=' + month + '&child=' + encodeURIComponent(activeChild)).then(r => r.json());
+    if (seq !== mealLoadSeq) return;
+    renderMealSection(rows, month);
+  }
+
+  function renderMealSection(rows, month){
+    const container = document.getElementById('mealSection');
+    if (!container) return;
+    const [y, mo] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const today = todayStr();
+
+    const byMeal = { breakfast: {}, lunch: {}, dinner: {} };
+    rows.forEach(r => { if (byMeal[r.meal]) byMeal[r.meal][r.date] = r.minutes; });
+
+    const todayInputs = MEAL_ORDER.map(meal => {
+      const val = byMeal[meal][today];
+      return `<label class="meal-input">
+        <span>${MEAL_LABELS[meal]}</span>
+        <input type="number" min="0" max="180" inputmode="numeric" placeholder="分鐘" value="${val !== undefined ? val : ''}" data-meal="${meal}">
+      </label>`;
+    }).join('');
+
+    container.innerHTML = `<div class="meal-block ${CHILD_SLUG[activeChild]}">
+      <h2 class="meal-title">🍽 三餐花費時間（分鐘）</h2>
+      <div class="meal-today">${todayInputs}</div>
+      <div class="meal-chart-wrap">${mealChartSvg(byMeal, daysInMonth, y, mo)}</div>
+      <div class="meal-legend">
+        <span><i style="background:${MEAL_COLORS.breakfast}"></i>早餐</span>
+        <span><i style="background:${MEAL_COLORS.lunch}"></i>午餐</span>
+        <span><i style="background:${MEAL_COLORS.dinner}"></i>晚餐</span>
+      </div>
+    </div>`;
+
+    container.querySelectorAll('.meal-today input').forEach(input => {
+      input.addEventListener('change', () => saveMealTime(input.dataset.meal, input.value));
+    });
+  }
+
+  async function saveMealTime(meal, value){
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes) || minutes < 0) return;
+    await fetch('/api/open/meal-times', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ child: activeChild, meal, date: todayStr(), minutes })
+    });
+    loadHabitMonth();
+  }
+
+  function mealChartSvg(byMeal, daysInMonth, y, mo){
+    const w = Math.max(daysInMonth * 18, 300);
+    const h = 120;
+    const padL = 26, padR = 8, padT = 8, padB = 8;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    let maxMin = 10;
+    MEAL_ORDER.forEach(meal => {
+      Object.values(byMeal[meal]).forEach(v => { if (v > maxMin) maxMin = v; });
+    });
+    maxMin = Math.ceil(maxMin / 10) * 10 + 10;
+
+    const xFor = d => padL + (plotW * (d - 1) / Math.max(daysInMonth - 1, 1));
+    const yFor = v => padT + plotH - (plotH * v / maxMin);
+
+    const gridVals = [0, Math.round(maxMin / 2), maxMin];
+    const grid = gridVals.map(v => `
+      <line x1="${padL}" y1="${yFor(v).toFixed(1)}" x2="${w - padR}" y2="${yFor(v).toFixed(1)}" stroke="#E3DCC9" stroke-width="1"/>
+      <text x="${padL - 4}" y="${(yFor(v) + 3).toFixed(1)}" font-size="9" fill="#6B655C" text-anchor="end">${v}</text>
+    `).join('');
+
+    const lines = MEAL_ORDER.map(meal => {
+      const pts = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${y}-${pad2(mo)}-${pad2(d)}`;
+        const v = byMeal[meal][dateStr];
+        if (v !== undefined) pts.push([d, v]);
+      }
+      if (pts.length === 0) return '';
+      const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xFor(p[0]).toFixed(1)},${yFor(p[1]).toFixed(1)}`).join(' ');
+      const dots = pts.map(p => `<circle cx="${xFor(p[0]).toFixed(1)}" cy="${yFor(p[1]).toFixed(1)}" r="2.5" fill="${MEAL_COLORS[meal]}"/>`).join('');
+      return `<path d="${path}" fill="none" stroke="${MEAL_COLORS[meal]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
+    }).join('');
+
+    return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">${grid}${lines}</svg>`;
   }
 
   const WEEKDAY_CHARS = ['日', '一', '二', '三', '四', '五', '六'];

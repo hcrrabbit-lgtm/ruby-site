@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, orde
 CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, UNIQUE(habit_id, date));
+CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -857,6 +858,34 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix) {
 const healthHabitHandlers = makeHabitHandlers("habits", "habit_logs", "habit");
 const studyHabitHandlers = makeHabitHandlers("study_habits", "study_habit_logs", "shabit");
 
+const MEAL_TYPES = new Set(["breakfast", "lunch", "dinner"]);
+const mealTimeHandlers = {
+  async get(env, url) {
+    const month = url.searchParams.get("month");
+    const child = url.searchParams.get("child");
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const res = await env.DB.prepare(
+      `SELECT meal, date, minutes FROM meal_times WHERE child = ? AND date LIKE ? ORDER BY date`
+    ).bind(child, month + "-%").all();
+    return json(res.results);
+  },
+  async post(env, request) {
+    const { child, meal, date, minutes } = await request.json();
+    if (!child || !meal || !date || minutes === undefined || minutes === null) {
+      return json({ error: "缺少 child、meal、date 或 minutes" }, { status: 400 });
+    }
+    if (!MEAL_TYPES.has(meal)) return json({ error: "meal 必須是 breakfast、lunch 或 dinner" }, { status: 400 });
+    const m = Number(minutes);
+    if (!Number.isFinite(m) || m < 0) return json({ error: "minutes 格式錯誤" }, { status: 400 });
+    await env.DB.prepare(
+      `INSERT INTO meal_times (child, meal, date, minutes) VALUES (?, ?, ?, ?)
+       ON CONFLICT(child, meal, date) DO UPDATE SET minutes = excluded.minutes`
+    ).bind(child, meal, date, m).run();
+    return json({ ok: true });
+  },
+};
+
 async function handleGrades(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const behaviorWeight = parseFloat(url.searchParams.get("behaviorWeight") || "0.1");
@@ -1045,6 +1074,9 @@ export default {
       if (path === "/api/open/study-habits/log" && request.method === "GET") return await studyHabitHandlers.logGet(env, url);
       if (path === "/api/open/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
       if (path === "/api/open/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
+
+      if (path === "/api/open/meal-times" && request.method === "GET") return await mealTimeHandlers.get(env, url);
+      if (path === "/api/open/meal-times" && request.method === "POST") return await mealTimeHandlers.post(env, request);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);
