@@ -315,9 +315,7 @@
   .meal-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--ink-soft); }
   .meal-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
   .rescue-bubble{
-    position:absolute;
-    left:50%;
-    top:-8px;
+    position:fixed;
     transform:translate(-50%, -100%) scale(.9);
     background:#2E2A25;
     color:#fff;
@@ -330,7 +328,7 @@
     opacity:0;
     pointer-events:none;
     transition:opacity .2s ease, transform .2s ease;
-    z-index:5;
+    z-index:50;
   }
   .rescue-bubble.show{ opacity:1; transform:translate(-50%, -110%) scale(1); }
   .penalty-banner{
@@ -742,11 +740,17 @@
 
   function showRescueBubble(anchorEl, bonus){
     if (!anchorEl) return;
-    if (getComputedStyle(anchorEl).position === 'static') anchorEl.style.position = 'relative';
+    // anchored by fixed position at the tapped element's on-screen spot rather than
+    // appended as its child — the habit list/table re-renders (innerHTML swap) within
+    // moments of this call, which would otherwise delete the bubble along with its
+    // old parent well before the 4s timer below ever gets to remove it
+    const rect = anchorEl.getBoundingClientRect();
     const bubble = document.createElement('div');
     bubble.className = 'rescue-bubble';
     bubble.textContent = '🎉 +' + bonus + ' 搶救成功！';
-    anchorEl.appendChild(bubble);
+    bubble.style.left = (rect.left + rect.width / 2) + 'px';
+    bubble.style.top = (rect.top - 8) + 'px';
+    document.body.appendChild(bubble);
     requestAnimationFrame(() => bubble.classList.add('show'));
     setTimeout(() => bubble.remove(), 4000);
   }
