@@ -844,10 +844,13 @@
   async function loadMealTimes(month){
     const seq = ++mealLoadSeq;
     const child = activeChild;
+    // weekly-status endpoints are fetched best-effort: if either fails, the
+    // meal log/chart (rows) should still render instead of the whole section
+    // going blank over an unrelated fetch
     const [rows, weekly, weeklyHistory] = await Promise.all([
       fetch('/api/open/meal-times?month=' + month + '&child=' + encodeURIComponent(child)).then(r => r.json()),
-      fetch('/api/open/meal-times/weekly-status?child=' + encodeURIComponent(child)).then(r => r.json()),
-      fetch('/api/open/meal-times/weekly-status/history?child=' + encodeURIComponent(child)).then(r => r.json())
+      fetch('/api/open/meal-times/weekly-status?child=' + encodeURIComponent(child)).then(r => r.json()).catch(() => ({})),
+      fetch('/api/open/meal-times/weekly-status/history?child=' + encodeURIComponent(child)).then(r => r.json()).catch(() => [])
     ]);
     if (seq !== mealLoadSeq) return;
     renderMealSection(rows, month, weekly.latest, weeklyHistory);
