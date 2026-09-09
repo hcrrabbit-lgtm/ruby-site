@@ -29,17 +29,27 @@ CREATE TABLE IF NOT EXISTS meal_weekly_status (child TEXT NOT NULL, week_date TE
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
+// cheap non-cryptographic hash so the bootstrap flag below automatically
+// invalidates itself whenever SCHEMA_SQL's text changes (a table/column added
+// or removed) — a fixed flag value would otherwise stay "done" forever and
+// silently skip creating anything added after the flag was first set
+function hashSchema(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
-  // fast path: once bootstrap has completed, a cold start (schemaReady reset to
-  // false) only costs a single query instead of re-running every CREATE TABLE,
-  // ALTER TABLE and one-time backfill below on every request
+  // fast path: once bootstrap has completed for the current SCHEMA_SQL, a cold
+  // start (schemaReady reset to false) only costs a single query instead of
+  // re-running every CREATE TABLE, ALTER TABLE and one-time backfill below
   try {
     const bootstrapped = await env.DB.prepare(
-      "SELECT 1 as x FROM app_settings WHERE key = 'schema_bootstrap_done'"
+      "SELECT value FROM app_settings WHERE key = 'schema_bootstrap_done'"
     ).first();
-    if (bootstrapped) { schemaReady = true; return; }
+    if (bootstrapped && bootstrapped.value === hashSchema(SCHEMA_SQL)) { schemaReady = true; return; }
   } catch (e) {
     // app_settings table itself doesn't exist yet (fresh DB) — fall through to full setup below
   }
@@ -194,8 +204,9 @@ async function ensureSchema(env) {
   }
   try {
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('schema_bootstrap_done', '1')"
-    ).run();
+      `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+    ).bind(hashSchema(SCHEMA_SQL)).run();
   } catch (e) {
     // best-effort; a failed write here just means the next cold start redoes full setup
   }
