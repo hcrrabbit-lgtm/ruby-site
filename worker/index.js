@@ -949,9 +949,10 @@ const mealTimeHandlers = {
 };
 
 // settles one child's Mon-Sun meal week (ending sundayStr) if it hasn't been
-// already: tallies how many logged meals hit 30+ minutes against a threshold
-// that ratchets up by 1 after each pass and down by 1 (floor: total*0.5)
-// after each miss, so a locked-in weekly result never gets rewritten later.
+// already: tallies how many logged meals stayed within 30 minutes (the goal is
+// eating promptly, not lingering) against a threshold that ratchets up by 1
+// after each pass and down by 1 (floor: total*0.5) after each miss, so a
+// locked-in weekly result never gets rewritten later.
 async function settleMealWeek(env, child, sundayStr) {
   const existing = await env.DB.prepare(
     "SELECT * FROM meal_weekly_status WHERE child = ? AND week_date = ?"
@@ -962,7 +963,7 @@ async function settleMealWeek(env, child, sundayStr) {
     "SELECT minutes FROM meal_times WHERE child = ? AND date >= ? AND date <= ?"
   ).bind(child, mondayStr, sundayStr).all()).results;
   const total = rows.length;
-  const success = rows.filter(r => r.minutes >= 30).length;
+  const success = rows.filter(r => r.minutes <= 30).length;
   const prior = await env.DB.prepare(
     "SELECT level_after FROM meal_weekly_status WHERE child = ? AND week_date < ? ORDER BY week_date DESC LIMIT 1"
   ).bind(child, sundayStr).first();
