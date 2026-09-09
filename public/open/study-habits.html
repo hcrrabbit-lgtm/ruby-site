@@ -861,7 +861,7 @@
         ).join('')}</ul>`;
     const badgeHtml = status
       ? `<div class="meal-weekly-badge ${status.passed ? 'pass' : 'fail'}">
-          ${status.passed ? '🎉' : '😢'} 上週（${status.week_date}）${status.passed ? '達標！' : '未達標'}，${status.success}/${status.total} 餐吃滿30分鐘，目前等級 Lv.${status.level_after}
+          ${status.passed ? '🎉' : '😢'} 上週（${status.week_date}）${status.passed ? '達標！' : '未達標'}，${status.success}/${status.total} 餐沒有超過30分鐘，目前等級 Lv.${status.level_after}
         </div>`
       : `<p class="bank-empty">還沒有結算過，第一次結算會在本週日晚上10點。</p>`;
     return `<div class="meal-weekly-status">
