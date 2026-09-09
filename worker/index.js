@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMEN
 CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
 CREATE TABLE IF NOT EXISTS weekly_penalties (child TEXT NOT NULL, week_date TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(child, week_date));
 CREATE TABLE IF NOT EXISTS bank_withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, points INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS meal_weekly_status (child TEXT NOT NULL, week_date TEXT NOT NULL, total INTEGER NOT NULL, success INTEGER NOT NULL, threshold REAL NOT NULL, passed INTEGER NOT NULL, level_after INTEGER NOT NULL, PRIMARY KEY(child, week_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -214,6 +215,11 @@ function taipeiNow() {
 function pad(n) { return n.toString().padStart(2, "0"); }
 function taipeiDateStr(d) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+function addDaysStr(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return taipeiDateStr(d);
 }
 
 async function handleSchedule(env) {
@@ -942,6 +948,73 @@ const mealTimeHandlers = {
   },
 };
 
+// settles one child's Mon-Sun meal week (ending sundayStr) if it hasn't been
+// already: tallies how many logged meals hit 30+ minutes against a threshold
+// that ratchets up by 1 after each pass and down by 1 (floor: total*0.5)
+// after each miss, so a locked-in weekly result never gets rewritten later.
+async function settleMealWeek(env, child, sundayStr) {
+  const existing = await env.DB.prepare(
+    "SELECT * FROM meal_weekly_status WHERE child = ? AND week_date = ?"
+  ).bind(child, sundayStr).first();
+  if (existing) return existing;
+  const mondayStr = addDaysStr(sundayStr, -6);
+  const rows = (await env.DB.prepare(
+    "SELECT minutes FROM meal_times WHERE child = ? AND date >= ? AND date <= ?"
+  ).bind(child, mondayStr, sundayStr).all()).results;
+  const total = rows.length;
+  const success = rows.filter(r => r.minutes >= 30).length;
+  const prior = await env.DB.prepare(
+    "SELECT level_after FROM meal_weekly_status WHERE child = ? AND week_date < ? ORDER BY week_date DESC LIMIT 1"
+  ).bind(child, sundayStr).first();
+  const level = prior ? prior.level_after : 0;
+  const threshold = total * 0.5 + level;
+  const passed = success > threshold ? 1 : 0;
+  const levelAfter = passed ? level + 1 : Math.max(0, level - 1);
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO meal_weekly_status (child, week_date, total, success, threshold, passed, level_after)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(child, sundayStr, total, success, threshold, passed, levelAfter).run();
+  return await env.DB.prepare(
+    "SELECT * FROM meal_weekly_status WHERE child = ? AND week_date = ?"
+  ).bind(child, sundayStr).first();
+}
+
+const mealWeeklyHandlers = {
+  async check(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const now = taipeiNow();
+    const today = taipeiDateStr(now);
+    const dow = now.getUTCDay();
+
+    // catch-up: on any non-Sunday visit, backfill the most recent past Sunday's
+    // week if it hasn't settled yet (e.g. nobody had the app open Sunday night)
+    if (dow !== 0) {
+      const lastSundayStr = taipeiDateStr(new Date(now.getTime() - dow * 86400000));
+      await settleMealWeek(env, child, lastSundayStr);
+    }
+
+    // settle this week at 22:00 Taipei time on Sunday, same as the study-habit
+    // penalty, so Sunday's own meals have the whole day to get logged first
+    if (dow === 0 && now.getUTCHours() >= 22) {
+      await settleMealWeek(env, child, today);
+    }
+
+    const latest = await env.DB.prepare(
+      "SELECT * FROM meal_weekly_status WHERE child = ? ORDER BY week_date DESC LIMIT 1"
+    ).bind(child).first();
+    return json({ latest: latest || null });
+  },
+  async history(env, url) {
+    const child = url.searchParams.get("child");
+    if (!child) return json({ error: "缺少 child" }, { status: 400 });
+    const res = await env.DB.prepare(
+      "SELECT * FROM meal_weekly_status WHERE child = ? ORDER BY week_date DESC LIMIT 50"
+    ).bind(child).all();
+    return json(res.results);
+  },
+};
+
 // counts how many of a child's study habits had gone 7+ days without being
 // watered as of asOfDate, reconstructed from logs up to that date so a later
 // backfill isn't skewed by watering that happened after the fact
@@ -1271,6 +1344,9 @@ export default {
 
       if (path === "/api/open/meal-times" && request.method === "GET") return await mealTimeHandlers.get(env, url);
       if (path === "/api/open/meal-times" && request.method === "POST") return await mealTimeHandlers.post(env, request);
+
+      if (path === "/api/open/meal-times/weekly-status" && request.method === "GET") return await mealWeeklyHandlers.check(env, url);
+      if (path === "/api/open/meal-times/weekly-status/history" && request.method === "GET") return await mealWeeklyHandlers.history(env, url);
 
       if (path === "/api/open/study-habits/weekly-penalty" && request.method === "GET") return await weeklyPenaltyHandlers.check(env, url);
       if (path === "/api/open/study-habits/weekly-penalty/month" && request.method === "GET") return await weeklyPenaltyHandlers.month(env, url);

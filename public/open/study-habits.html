@@ -300,6 +300,17 @@
   .meal-block.child-cathy{ border-color:#C3DFC5; }
   .meal-block.child-rina{ border-color:#BFDCEC; }
   .meal-title{ font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 12px; color:var(--ink); }
+  .meal-weekly-status{ margin-bottom:14px; }
+  .meal-weekly-badge{
+    padding:8px 12px;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.6;
+    margin-bottom:6px;
+  }
+  .meal-weekly-badge.pass{ background:#EBF2E6; color:#4C8C5A; }
+  .meal-weekly-badge.fail{ background:#F6E8E5; color:#8A4A3E; }
   .meal-today{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
   .meal-input{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--ink-soft); }
   .meal-input input{
@@ -832,12 +843,34 @@
   let mealLoadSeq = 0;
   async function loadMealTimes(month){
     const seq = ++mealLoadSeq;
-    const rows = await fetch('/api/open/meal-times?month=' + month + '&child=' + encodeURIComponent(activeChild)).then(r => r.json());
+    const child = activeChild;
+    const [rows, weekly, weeklyHistory] = await Promise.all([
+      fetch('/api/open/meal-times?month=' + month + '&child=' + encodeURIComponent(child)).then(r => r.json()),
+      fetch('/api/open/meal-times/weekly-status?child=' + encodeURIComponent(child)).then(r => r.json()),
+      fetch('/api/open/meal-times/weekly-status/history?child=' + encodeURIComponent(child)).then(r => r.json())
+    ]);
     if (seq !== mealLoadSeq) return;
-    renderMealSection(rows, month);
+    renderMealSection(rows, month, weekly.latest, weeklyHistory);
   }
 
-  function renderMealSection(rows, month){
+  function mealWeeklyStatusHtml(status, history){
+    const historyHtml = (!history || history.length === 0)
+      ? `<p class="bank-empty">還沒有結算紀錄。</p>`
+      : `<ul class="bank-history-list">${history.map(r =>
+          `<li><span>${r.week_date}</span><span>${r.passed ? '✅ 達標' : '❌ 未達標'}（${r.success}/${r.total}，需 &gt; ${Number(r.threshold).toFixed(1)}）Lv.${r.level_after}</span></li>`
+        ).join('')}</ul>`;
+    const badgeHtml = status
+      ? `<div class="meal-weekly-badge ${status.passed ? 'pass' : 'fail'}">
+          ${status.passed ? '🎉' : '😢'} 上週（${status.week_date}）${status.passed ? '達標！' : '未達標'}，${status.success}/${status.total} 餐吃滿30分鐘，目前等級 Lv.${status.level_after}
+        </div>`
+      : `<p class="bank-empty">還沒有結算過，第一次結算會在本週日晚上10點。</p>`;
+    return `<div class="meal-weekly-status">
+      ${badgeHtml}
+      <details class="bank-history-wrap"><summary>每週達標紀錄</summary>${historyHtml}</details>
+    </div>`;
+  }
+
+  function renderMealSection(rows, month, weeklyStatus, weeklyHistory){
     const container = document.getElementById('mealSection');
     if (!container) return;
     const [y, mo] = month.split('-').map(Number);
@@ -857,6 +890,7 @@
 
     container.innerHTML = `<div class="meal-block ${CHILD_SLUG[activeChild]}">
       <h2 class="meal-title">🍽 三餐花費時間（分鐘）</h2>
+      ${mealWeeklyStatusHtml(weeklyStatus, weeklyHistory)}
       <div class="meal-today">${todayInputs}</div>
       <div class="meal-chart-wrap">${mealChartSvg(byMeal, daysInMonth, y, mo)}</div>
       <div class="meal-legend">
