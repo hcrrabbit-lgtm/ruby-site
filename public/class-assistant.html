@@ -408,6 +408,7 @@
   .seat-score-tally{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
   .seat-score-att{display:flex;justify-content:center;gap:8px;margin-bottom:6px;}
   .seat-score-late-total{font-size:11px;color:var(--clay);font-weight:700;margin-bottom:12px;}
+  .seat-score-notes{text-align:left;margin-top:4px;}
   .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
@@ -1844,6 +1845,13 @@ function openSeatScore(studentId){
       </div>
       <div class="seat-score-late-total" id="seatScoreLateTotal"></div>
       <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
+      <div class="seat-score-notes" id="seatScoreNotesSection" hidden>
+        <div class="student-notes-list" id="seatScoreNotesList">載入中...</div>
+        <div class="student-notes-add">
+          <textarea id="seatScoreNoteInput" rows="2" placeholder="輸入這次的觀察/紀錄..."></textarea>
+          <button type="button" id="seatScoreNoteAddBtn">新增紀錄</button>
+        </div>
+      </div>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="seatScoreCloseBtn">關閉</button>
       </div>
@@ -1851,11 +1859,60 @@ function openSeatScore(studentId){
   document.body.appendChild(modal);
   updateSeatScoreModal(studentId);
 
+  let notesLoaded = false;
+  async function refreshSeatNotes(){
+    const listEl = document.getElementById("seatScoreNotesList");
+    if(!listEl) return;
+    try{
+      const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
+      listEl.innerHTML = notes.length
+        ? notes.map(n => `
+            <div class="student-note-item">
+              <div class="student-note-body">
+                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
+                <div class="student-note-text">${escapeHtml(n.note)}</div>
+              </div>
+              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
+            </div>`).join("")
+        : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
+          try{
+            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
+            await refreshSeatNotes();
+          }catch(e){
+            alert("刪除失敗,請稍後再試。");
+          }
+        });
+      });
+    }catch(e){
+      listEl.textContent = "載入失敗,請稍後再試";
+    }
+  }
+
   modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
   document.getElementById("seatScoreCloseBtn").addEventListener("click", () => modal.remove());
-  document.getElementById("seatScoreNotesBtn").addEventListener("click", () => {
-    modal.remove();
-    openStudentNotes(studentId);
+  document.getElementById("seatScoreNotesBtn").addEventListener("click", async () => {
+    const section = document.getElementById("seatScoreNotesSection");
+    const willShow = section.hidden;
+    section.hidden = !willShow;
+    if(willShow && !notesLoaded){
+      notesLoaded = true;
+      await refreshSeatNotes();
+    }
+  });
+  document.getElementById("seatScoreNoteAddBtn").addEventListener("click", async () => {
+    const input = document.getElementById("seatScoreNoteInput");
+    const note = input.value.trim();
+    if(!note) return;
+    try{
+      await apiPost("/api/student-notes", { studentId, note });
+      input.value = "";
+      await refreshSeatNotes();
+    }catch(e){
+      alert("新增失敗,請檢查網路連線後再試一次。");
+    }
   });
   document.getElementById("seatScorePlus").addEventListener("click", () => {
     applyBehaviorDelta(studentId, 1);
