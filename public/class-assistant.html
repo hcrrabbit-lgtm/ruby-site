@@ -396,16 +396,18 @@
   .seat-cell.locked:not(.empty){cursor:pointer;}
   .seat-cell.locked:not(.empty):active{opacity:.7;}
   .seat-score-badge{
-    position:absolute;top:-5px;left:-5px;min-width:16px;height:16px;padding:0 3px;
-    border-radius:999px;font-size:10px;font-weight:800;color:#fff;
+    position:absolute;bottom:-4px;min-width:15px;height:15px;padding:0 3px;
+    border-radius:999px;font-size:9px;font-weight:800;color:#fff;
     display:flex;align-items:center;justify-content:center;
   }
-  .seat-score-badge.pos{background:var(--sage);}
-  .seat-score-badge.neg{background:var(--clay);}
+  .seat-score-badge.pos{background:var(--sage);left:-4px;}
+  .seat-score-badge.neg{background:var(--clay);right:-4px;}
   .seat-score-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0 10px;}
   .seat-score-controls .beh-btn{min-width:96px;height:46px;font-size:16px;}
   .seat-score-controls .beh-undo-btn{width:42px;height:42px;font-size:18px;}
   .seat-score-tally{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
+  .seat-score-att{display:flex;justify-content:center;gap:8px;margin-bottom:6px;}
+  .seat-score-late-total{font-size:11px;color:var(--clay);font-weight:700;margin-bottom:12px;}
   .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
@@ -470,6 +472,7 @@
   .photo-modal-box{
     background:var(--card);border-radius:16px;padding:16px;
     max-width:420px;width:100%;text-align:center;
+    max-height:90vh;overflow-y:auto;
   }
   .photo-modal-box img{
     width:100%;max-height:60vh;object-fit:contain;border-radius:10px;
@@ -561,8 +564,8 @@
   </header>
 
   <nav class="tabs">
-    <button data-tab="attendance" class="active">課堂表現</button>
-    <button data-tab="seating">座位表</button>
+    <button data-tab="seating" class="active">座位表</button>
+    <button data-tab="attendance">課堂表現</button>
     <button data-tab="artwork">作品庫</button>
     <button data-tab="students">認識學生</button>
     <button data-tab="schedule">課表</button>
@@ -570,22 +573,7 @@
     <button data-tab="progress">課程</button>
   </nav>
 
-  <section class="panel active" id="panel-attendance">
-    <div class="summary-bar">
-      <span class="count" id="attCount">30 位學生</span>
-      <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
-      <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
-    </div>
-    <div class="sort-group">
-      <span class="sort-label">排序方式</span>
-      <button class="sort-btn" id="seatSortBtn">座號</button>
-      <button class="sort-btn" id="scoreDescSortBtn">加分</button>
-      <button class="sort-btn" id="scoreAscSortBtn">扣分</button>
-    </div>
-    <div class="roster" id="attRoster"></div>
-  </section>
-
-  <section class="panel" id="panel-seating">
+  <section class="panel active" id="panel-seating">
     <div class="seating-toolbar">
       <span class="count" id="seatingCount"></span>
       <div class="seating-actions">
@@ -598,6 +586,21 @@
       <div class="seating-groups" id="seatingGroups"></div>
       <div class="seating-blackboard">黑板</div>
     </div>
+  </section>
+
+  <section class="panel" id="panel-attendance">
+    <div class="summary-bar">
+      <span class="count" id="attCount">30 位學生</span>
+      <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
+      <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
+    </div>
+    <div class="sort-group">
+      <span class="sort-label">排序方式</span>
+      <button class="sort-btn" id="seatSortBtn">座號</button>
+      <button class="sort-btn" id="scoreDescSortBtn">加分</button>
+      <button class="sort-btn" id="scoreAscSortBtn">扣分</button>
+    </div>
+    <div class="roster" id="attRoster"></div>
   </section>
 
   <section class="panel" id="panel-artwork">
@@ -898,16 +901,17 @@ function renderSeatingChart(){
           const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`;
           const badge = isLeader ? `<span class="seat-leader-badge active" title="小組長">★</span>` : "";
           const beh = behavior[st.id];
-          const net = beh ? (beh.plus || 0) - (beh.minus || 0) : 0;
-          const scoreBadge = net !== 0
-            ? `<span class="seat-score-badge ${net > 0 ? "pos" : "neg"}">${net > 0 ? "+" + net : net}</span>`
-            : "";
+          const plus = beh ? (beh.plus || 0) : 0;
+          const minus = beh ? (beh.minus || 0) : 0;
+          const plusBadge = plus > 0 ? `<span class="seat-score-badge pos">+${plus}</span>` : "";
+          const minusBadge = minus > 0 ? `<span class="seat-score-badge neg">-${minus}</span>` : "";
           cellsHtml += `
             <div class="seat-cell locked${isLeader ? " leader" : ""}" data-student="${st.id}" title="點一下：加扣分／個人紀錄">
               <div class="seat-photo-wrap">
                 <div class="seat-photo">${photoInner}</div>
                 ${badge}
-                ${scoreBadge}
+                ${plusBadge}
+                ${minusBadge}
               </div>
               <div class="seat-label">${st.seat} ${escapeHtml(st.name)}</div>
             </div>`;
@@ -1291,6 +1295,25 @@ async function undoBehavior(id){
   }
 }
 
+// shared by the roster's att-btn and the seating chart's tap-to-score modal
+function toggleAttendance(id, state){
+  const turningOn = attendance[id] !== state;
+  attendance[id] = turningOn ? state : undefined;
+  if(attendance[id] === undefined) delete attendance[id];
+  renderRoster();
+  const st = studentsFor(currentClassId).find(s => s.id === id);
+  if(!st) return;
+  if(turningOn){
+    apiPost("/api/attendance", { classId: currentClassId, date: selectedDate, action: "setStatus", seats: [st.seat], status: state })
+      .then(() => loadLateTotals())
+      .catch(()=>{});
+  }else{
+    apiPost("/api/attendance", { classId: currentClassId, date: selectedDate, action: "clear", seats: [st.seat] })
+      .then(() => loadLateTotals())
+      .catch(()=>{});
+  }
+}
+
 function renderRoster(){
   const list = [...studentsFor(currentClassId)];
   const netScoreFor = (id) => {
@@ -1345,24 +1368,7 @@ function renderRoster(){
   });
 
   root.querySelectorAll(".att-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.id, state = btn.dataset.state;
-      const turningOn = attendance[id] !== state;
-      attendance[id] = turningOn ? state : undefined;
-      if(attendance[id] === undefined) delete attendance[id];
-      renderRoster();
-      const st = studentsFor(currentClassId).find(s => s.id === id);
-      if(!st) return;
-      if(turningOn){
-        apiPost("/api/attendance", { classId: currentClassId, date: selectedDate, action: "setStatus", seats: [st.seat], status: state })
-          .then(() => loadLateTotals())
-          .catch(()=>{});
-      }else{
-        apiPost("/api/attendance", { classId: currentClassId, date: selectedDate, action: "clear", seats: [st.seat] })
-          .then(() => loadLateTotals())
-          .catch(()=>{});
-      }
-    });
+    btn.addEventListener("click", () => toggleAttendance(btn.dataset.id, btn.dataset.state));
   });
 
   root.querySelectorAll(".beh-btn").forEach(btn => {
@@ -1401,6 +1407,8 @@ async function loadLateTotals(){
     }catch(e){}
   }
   renderRoster();
+  const openModal = document.getElementById("seatScoreModal");
+  if(openModal) updateSeatScoreModal(openModal.dataset.student);
 }
 
 /* ---------- Stats table (統計表) ---------- */
@@ -1816,8 +1824,13 @@ function openSeatScore(studentId){
   const modal = document.createElement("div");
   modal.id = "seatScoreModal";
   modal.className = "photo-modal";
+  modal.dataset.student = studentId;
+  const photoInner = st.photoKey
+    ? `<img src="/api/photo/${st.photoKey}">`
+    : `<div class="photo" style="aspect-ratio:1;border-radius:10px;">🧑</div>`;
   modal.innerHTML = `
     <div class="photo-modal-box">
+      ${photoInner}
       <div class="photo-modal-name">${st.seat} 號・${escapeHtml(st.name)}</div>
       <div class="seat-score-controls">
         <button class="beh-btn beh-minus" id="seatScoreMinus">－ 扣分</button>
@@ -1825,18 +1838,18 @@ function openSeatScore(studentId){
         <button class="beh-btn beh-plus" id="seatScorePlus">＋ 加分</button>
       </div>
       <div class="seat-score-tally" id="seatScoreTally"></div>
+      <div class="seat-score-att">
+        <button class="att-btn late" id="seatScoreLateBtn" data-state="late">遲到</button>
+        <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent">缺席</button>
+      </div>
+      <div class="seat-score-late-total" id="seatScoreLateTotal"></div>
       <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="seatScoreCloseBtn">關閉</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
-
-  const updateTally = () => {
-    const b = behavior[studentId] || { plus: 0, minus: 0 };
-    document.getElementById("seatScoreTally").textContent = `今天　加分 ${b.plus || 0} 次・扣分 ${b.minus || 0} 次`;
-  };
-  updateTally();
+  updateSeatScoreModal(studentId);
 
   modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
   document.getElementById("seatScoreCloseBtn").addEventListener("click", () => modal.remove());
@@ -1846,16 +1859,39 @@ function openSeatScore(studentId){
   });
   document.getElementById("seatScorePlus").addEventListener("click", () => {
     applyBehaviorDelta(studentId, 1);
-    updateTally();
+    updateSeatScoreModal(studentId);
   });
   document.getElementById("seatScoreMinus").addEventListener("click", () => {
     applyBehaviorDelta(studentId, -1);
-    updateTally();
+    updateSeatScoreModal(studentId);
   });
   document.getElementById("seatScoreUndo").addEventListener("click", async () => {
     await undoBehavior(studentId);
-    updateTally();
+    updateSeatScoreModal(studentId);
   });
+  document.getElementById("seatScoreLateBtn").addEventListener("click", () => {
+    toggleAttendance(studentId, "late");
+    updateSeatScoreModal(studentId);
+  });
+  document.getElementById("seatScoreAbsentBtn").addEventListener("click", () => {
+    toggleAttendance(studentId, "absent");
+    updateSeatScoreModal(studentId);
+  });
+}
+
+// re-syncs the open seat-score modal's display with current global state;
+// called both from within the modal's own buttons and from loadLateTotals()
+// once the cumulative count comes back from the server
+function updateSeatScoreModal(studentId){
+  const modal = document.getElementById("seatScoreModal");
+  if(!modal || modal.dataset.student !== studentId) return;
+  const b = behavior[studentId] || { plus: 0, minus: 0 };
+  document.getElementById("seatScoreTally").textContent = `今天　加分 ${b.plus || 0} 次・扣分 ${b.minus || 0} 次`;
+  const state = attendance[studentId];
+  document.getElementById("seatScoreLateBtn").classList.toggle("on", state === "late");
+  document.getElementById("seatScoreAbsentBtn").classList.toggle("on", state === "absent");
+  const lateCount = (lateTotals[studentId] && lateTotals[studentId].late) || 0;
+  document.getElementById("seatScoreLateTotal").textContent = `累計遲到 ${lateCount} 次`;
 }
 
 function escapeHtml(str){
