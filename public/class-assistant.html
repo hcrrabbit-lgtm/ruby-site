@@ -393,6 +393,19 @@
   .seat-cell.locked.empty{visibility:hidden;}
   .seat-cell.locked .seat-photo{width:48px;height:48px;font-size:20px;}
   .seat-cell.locked.leader{border:1px solid var(--ochre);background:rgba(198,138,62,0.12);}
+  .seat-cell.locked:not(.empty){cursor:pointer;}
+  .seat-cell.locked:not(.empty):active{opacity:.7;}
+  .seat-score-badge{
+    position:absolute;top:-5px;left:-5px;min-width:16px;height:16px;padding:0 3px;
+    border-radius:999px;font-size:10px;font-weight:800;color:#fff;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .seat-score-badge.pos{background:var(--sage);}
+  .seat-score-badge.neg{background:var(--clay);}
+  .seat-score-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0 10px;}
+  .seat-score-controls .beh-btn{min-width:96px;height:46px;font-size:16px;}
+  .seat-score-controls .beh-undo-btn{width:42px;height:42px;font-size:18px;}
+  .seat-score-tally{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
   .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
     width:60%;max-width:280px;padding:10px;text-align:center;border-radius:8px;
@@ -884,11 +897,17 @@ function renderSeatingChart(){
           const isLeader = groupLeaders.has(st.id);
           const photoInner = st.photoKey ? `<img src="/api/photo/${st.photoKey}">` : `<span>🧑</span>`;
           const badge = isLeader ? `<span class="seat-leader-badge active" title="小組長">★</span>` : "";
+          const beh = behavior[st.id];
+          const net = beh ? (beh.plus || 0) - (beh.minus || 0) : 0;
+          const scoreBadge = net !== 0
+            ? `<span class="seat-score-badge ${net > 0 ? "pos" : "neg"}">${net > 0 ? "+" + net : net}</span>`
+            : "";
           cellsHtml += `
-            <div class="seat-cell locked${isLeader ? " leader" : ""}">
+            <div class="seat-cell locked${isLeader ? " leader" : ""}" data-student="${st.id}" title="點一下：加扣分／個人紀錄">
               <div class="seat-photo-wrap">
                 <div class="seat-photo">${photoInner}</div>
                 ${badge}
+                ${scoreBadge}
               </div>
               <div class="seat-label">${st.seat} ${escapeHtml(st.name)}</div>
             </div>`;
@@ -915,6 +934,10 @@ function renderSeatingChart(){
   }).join("");
 
   root.innerHTML = groupsHtml;
+
+  root.querySelectorAll(".seat-cell.locked[data-student]").forEach(cell => {
+    cell.addEventListener("click", () => openSeatScore(cell.dataset.student));
+  });
 
   root.querySelectorAll(".seat-select").forEach(sel => {
     sel.addEventListener("change", () => {
@@ -1232,6 +1255,42 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
 });
 
 /* ---------- Attendance + behavior (combined roster) ---------- */
+// shared by the roster's beh-btn/beh-undo-btn and the seating chart's tap-to-score modal
+function applyBehaviorDelta(id, delta){
+  if(!behavior[id]) behavior[id] = { plus: 0, minus: 0 };
+  if(delta > 0) behavior[id].plus += delta;
+  else behavior[id].minus += -delta;
+  if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0 };
+  if(delta > 0) statsBehaviorTotals[id].plus += delta;
+  else statsBehaviorTotals[id].minus += -delta;
+  playBeep(delta > 0 ? 880 : 330, 0.05);
+  renderRoster();
+  renderSeatingChart();
+  apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
+    .then(() => loadStatsData())
+    .catch(()=>{});
+}
+
+async function undoBehavior(id){
+  try{
+    const res = await apiPost("/api/behavior/undo", { studentId: id, date: selectedDate });
+    const delta = res.delta;
+    if(behavior[id]){
+      if(delta > 0) behavior[id].plus = Math.max(0, behavior[id].plus - delta);
+      else behavior[id].minus = Math.max(0, behavior[id].minus - (-delta));
+    }
+    if(statsBehaviorTotals[id]){
+      if(delta > 0) statsBehaviorTotals[id].plus = Math.max(0, statsBehaviorTotals[id].plus - delta);
+      else statsBehaviorTotals[id].minus = Math.max(0, statsBehaviorTotals[id].minus - (-delta));
+    }
+    renderRoster();
+    renderSeatingChart();
+    renderStatsTable();
+  }catch(err){
+    alert("今天沒有可復原的加/扣分紀錄");
+  }
+}
+
 function renderRoster(){
   const list = [...studentsFor(currentClassId)];
   const netScoreFor = (id) => {
@@ -1308,40 +1367,13 @@ function renderRoster(){
 
   root.querySelectorAll(".beh-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      const id = btn.dataset.id, delta = parseInt(btn.dataset.delta, 10);
-      if(!behavior[id]) behavior[id] = { plus: 0, minus: 0 };
-      if(delta > 0) behavior[id].plus += delta;
-      else behavior[id].minus += -delta;
-      if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0 };
-      if(delta > 0) statsBehaviorTotals[id].plus += delta;
-      else statsBehaviorTotals[id].minus += -delta;
-      playBeep(delta > 0 ? 880 : 330, 0.05);
-      renderRoster();
-      apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
-        .then(() => loadStatsData())
-        .catch(()=>{});
+      applyBehaviorDelta(btn.dataset.id, parseInt(btn.dataset.delta, 10));
     });
   });
 
   root.querySelectorAll(".beh-undo-btn").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.dataset.id;
-      try{
-        const res = await apiPost("/api/behavior/undo", { studentId: id, date: selectedDate });
-        const delta = res.delta;
-        if(behavior[id]){
-          if(delta > 0) behavior[id].plus = Math.max(0, behavior[id].plus - delta);
-          else behavior[id].minus = Math.max(0, behavior[id].minus - (-delta));
-        }
-        if(statsBehaviorTotals[id]){
-          if(delta > 0) statsBehaviorTotals[id].plus = Math.max(0, statsBehaviorTotals[id].plus - delta);
-          else statsBehaviorTotals[id].minus = Math.max(0, statsBehaviorTotals[id].minus - (-delta));
-        }
-        renderRoster();
-        renderStatsTable();
-      }catch(err){
-        alert("今天沒有可復原的加/扣分紀錄");
-      }
+    btn.addEventListener("click", () => {
+      undoBehavior(btn.dataset.id);
     });
   });
 }
@@ -1693,6 +1725,7 @@ async function loadAttendanceAndBehaviorForDate(){
     if(behRes.status === "fulfilled") behavior = behRes.value;
   }
   renderRoster();
+  renderSeatingChart();
 }
 
 document.getElementById("dateInput").addEventListener("change", (e) => {
@@ -1769,6 +1802,59 @@ function openStudentPhoto(studentId){
     }catch(e){
       alert("刪除失敗,請檢查網路連線後再試一次。");
     }
+  });
+}
+
+// tapping a seat in the locked seating chart opens this instead of needing to
+// find the student in the 表現 tab's list
+function openSeatScore(studentId){
+  const st = rosterCache.find(s => s.id === studentId);
+  if(!st) return;
+  const existing = document.getElementById("seatScoreModal");
+  if(existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "seatScoreModal";
+  modal.className = "photo-modal";
+  modal.innerHTML = `
+    <div class="photo-modal-box">
+      <div class="photo-modal-name">${st.seat} 號・${escapeHtml(st.name)}</div>
+      <div class="seat-score-controls">
+        <button class="beh-btn beh-minus" id="seatScoreMinus">－ 扣分</button>
+        <button class="beh-undo-btn" id="seatScoreUndo" title="復原今天最後一次加/扣分">↺</button>
+        <button class="beh-btn beh-plus" id="seatScorePlus">＋ 加分</button>
+      </div>
+      <div class="seat-score-tally" id="seatScoreTally"></div>
+      <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
+      <div class="photo-modal-actions">
+        <button class="photo-modal-close" id="seatScoreCloseBtn">關閉</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const updateTally = () => {
+    const b = behavior[studentId] || { plus: 0, minus: 0 };
+    document.getElementById("seatScoreTally").textContent = `今天　加分 ${b.plus || 0} 次・扣分 ${b.minus || 0} 次`;
+  };
+  updateTally();
+
+  modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
+  document.getElementById("seatScoreCloseBtn").addEventListener("click", () => modal.remove());
+  document.getElementById("seatScoreNotesBtn").addEventListener("click", () => {
+    modal.remove();
+    openStudentNotes(studentId);
+  });
+  document.getElementById("seatScorePlus").addEventListener("click", () => {
+    applyBehaviorDelta(studentId, 1);
+    updateTally();
+  });
+  document.getElementById("seatScoreMinus").addEventListener("click", () => {
+    applyBehaviorDelta(studentId, -1);
+    updateTally();
+  });
+  document.getElementById("seatScoreUndo").addEventListener("click", async () => {
+    await undoBehavior(studentId);
+    updateTally();
   });
 }
 
