@@ -1,6 +1,9 @@
 // 美術課上課助手 - Cloudflare Worker 後端
 // 負責處理 /api/* 請求，其餘一律交給靜態檔案 (env.ASSETS)
 
+import { json } from "./lib/response.js";
+import { taipeiNow, pad, taipeiDateStr, addDaysStr } from "./lib/time.js";
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL);
@@ -211,26 +214,6 @@ async function ensureSchema(env) {
     // best-effort; a failed write here just means the next cold start redoes full setup
   }
   schemaReady = true;
-}
-
-function json(data, init) {
-  return new Response(JSON.stringify(data), {
-    ...init,
-    headers: { "Content-Type": "application/json; charset=utf-8", ...(init && init.headers) }
-  });
-}
-
-function taipeiNow() {
-  return new Date(Date.now() + 8 * 60 * 60 * 1000);
-}
-function pad(n) { return n.toString().padStart(2, "0"); }
-function taipeiDateStr(d) {
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
-function addDaysStr(dateStr, days) {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return taipeiDateStr(d);
 }
 
 async function handleSchedule(env) {
