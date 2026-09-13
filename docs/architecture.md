@@ -20,12 +20,14 @@
 完整逐支 API 的 input/output/side-effect 請看 `docs/api-contract.md`；
 這裡是「功能分類 + 對照表」，方便未來決定要拆成哪些 `routes/*.js`。
 
-未來目標分類（尚未拆分，僅供規劃）：
+未來目標分類（大部分尚未拆分，僅供規劃；`helpers` 已於本輪完成抽出）：
 
 ```
-schema      → SCHEMA_SQL, hashSchema(), ensureSchema()
-helpers     → json(), taipeiNow(), pad(), taipeiDateStr(), addDaysStr(),
-              isJpegMagicBytes(), classifySourceUrl()
+schema      → SCHEMA_SQL, hashSchema(), ensureSchema()（今天不拆，見下方說明）
+helpers     → [已抽出到 worker/lib/]
+              worker/lib/response.js:   json()
+              worker/lib/time.js:       taipeiNow(), pad(), taipeiDateStr(), addDaysStr()
+              worker/lib/validation.js: isJpegMagicBytes(), classifySourceUrl()
 schedule    → handleSchedule()
 students    → handleRoster(), handleStudentDelete(),
               handleStudentPhotoUpload()
@@ -51,6 +53,11 @@ bank        → computeBankBalance(), bankHandlers
 sources     → handleCommunitySourcesGet/Post/Delete()
 usage       → handleUsage()（唯一對外呼叫 Cloudflare API 的 route）
 ```
+
+> 註：`hashSchema()` 雖然也是不碰 DB/R2/env 的純函式，但它專屬於 schema
+> bootstrap 流程（跟 `SCHEMA_SQL` 綁在一起），歸類在 `schema` 而非
+> `helpers`，本輪刻意不抽出，避免和「今天不重新設計 migration system」
+> 的原則混在一起。
 
 ### 明細表
 

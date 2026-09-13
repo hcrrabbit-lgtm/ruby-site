@@ -3,6 +3,7 @@
 
 import { json } from "./lib/response.js";
 import { taipeiNow, pad, taipeiDateStr, addDaysStr } from "./lib/time.js";
+import { isJpegMagicBytes, classifySourceUrl } from "./lib/validation.js";
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, name TEXT NOT NULL);
@@ -502,10 +503,6 @@ async function handleAssignmentsPost(env, request) {
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8MB
 
-function isJpegMagicBytes(bytes) {
-  return bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
-}
-
 async function handleAssignmentsRename(env, request) {
   // 每班的作業都一樣：依目前名稱找出所有班級同名的那一筆一起改名，維持各班同步
   const { id, name } = await request.json();
@@ -774,17 +771,6 @@ async function handleResetTestData(env, request) {
     deletedBehavior: behaviorCount,
     deletedAttendance: attendanceCount
   });
-}
-
-function classifySourceUrl(url) {
-  try {
-    const host = new URL(url).hostname;
-    if (/\.edu\.tw$/.test(host) || /\.edu\.tw\.?$/.test(host)) return "school";
-    if (/\.gov\.tw$/.test(host)) return "government";
-    return "community";
-  } catch (e) {
-    return "community";
-  }
 }
 
 async function handleCommunitySourcesGet(env) {
