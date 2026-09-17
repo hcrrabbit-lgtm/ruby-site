@@ -84,11 +84,13 @@
     padding:10px 14px;border-radius:10px;font-size:14px;margin-top:10px;
   }
   .class-progress{margin-top:10px;}
+  .class-progress-group + .class-progress-group{margin-top:10px;}
   .class-progress label{font-size:12px;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:4px;}
   .class-progress textarea{
     width:100%;font-size:13px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
   }
+  .class-progress textarea:disabled{background:var(--paper);color:var(--ink-soft);}
 
   nav.tabs{
     display:flex;gap:8px;margin-bottom:16px;
@@ -402,6 +404,7 @@
   }
   .seat-score-badge.pos{background:var(--sage);left:-4px;}
   .seat-score-badge.neg{background:var(--clay);right:-4px;}
+  #seatScoreModal .photo-modal-box img{max-height:140px;}
   .seat-score-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0 10px;}
   .seat-score-controls .beh-btn{min-width:96px;height:46px;font-size:16px;}
   .seat-score-controls .beh-undo-btn{width:42px;height:42px;font-size:18px;}
@@ -555,8 +558,14 @@
       </div>
     </div>
     <div class="class-progress">
-      <label for="classProgressNote" id="classProgressLabel">📝 上次進度</label>
-      <textarea id="classProgressNote" rows="2" placeholder="下課後隨手記,下次選這班就會看到..."></textarea>
+      <div class="class-progress-group">
+        <label for="lastWeekProgressNote" id="lastWeekProgressLabel">📖 上週進度</label>
+        <textarea id="lastWeekProgressNote" rows="2" placeholder="（尚無紀錄）"></textarea>
+      </div>
+      <div class="class-progress-group">
+        <label for="classProgressNote" id="classProgressLabel">📝 本週進度</label>
+        <textarea id="classProgressNote" rows="2" placeholder="下課後隨手記,下次選這班就會看到..."></textarea>
+      </div>
     </div>
     <div class="class-buttons" id="classButtons"></div>
     <div class="no-class-banner" id="noClassBanner" style="display:none;">
@@ -801,9 +810,14 @@ function renderProgressTable(){
       if(!progressData[classId]) progressData[classId] = {};
       progressData[classId][week] = note;
       apiPost("/api/class-progress", { classId, week, note }).then(() => {
-        if(classId === currentClassId && week === computeCurrentWeek()){
+        if(classId !== currentClassId) return;
+        const currentWeek = computeCurrentWeek();
+        if(week === currentWeek){
           const box = document.getElementById("classProgressNote");
           if(box) box.value = note;
+        }else if(week === currentWeek - 1){
+          const lastBox = document.getElementById("lastWeekProgressNote");
+          if(lastBox) lastBox.value = note;
         }
       }).catch(()=>{});
     });
@@ -2609,19 +2623,45 @@ async function loadRoster(){
 async function loadClassNote(){
   const box = document.getElementById("classProgressNote");
   const label = document.getElementById("classProgressLabel");
+  const lastBox = document.getElementById("lastWeekProgressNote");
+  const lastLabel = document.getElementById("lastWeekProgressLabel");
   box.value = "";
+  lastBox.value = "";
+  lastBox.disabled = false;
   if(!currentClassId) return;
   const week = computeCurrentWeek();
-  label.textContent = `📝 上次進度(第${week}週)`;
+  label.textContent = `📝 本週進度(第${week}週)`;
   try{
     const res = await apiGet(`/api/class-progress?classId=${encodeURIComponent(currentClassId)}&week=${week}`);
     box.value = res.note || "";
+  }catch(e){}
+
+  const lastWeek = week - 1;
+  if(lastWeek < 1){
+    lastLabel.textContent = "📖 上週進度";
+    lastBox.disabled = true;
+    return;
+  }
+  lastLabel.textContent = `📖 上週進度(第${lastWeek}週)`;
+  try{
+    const res = await apiGet(`/api/class-progress?classId=${encodeURIComponent(currentClassId)}&week=${lastWeek}`);
+    lastBox.value = res.note || "";
   }catch(e){}
 }
 
 document.getElementById("classProgressNote").addEventListener("change", (e) => {
   if(!currentClassId) return;
   const week = computeCurrentWeek();
+  const note = e.target.value;
+  if(!progressData[currentClassId]) progressData[currentClassId] = {};
+  progressData[currentClassId][week] = note;
+  apiPost("/api/class-progress", { classId: currentClassId, week, note }).catch(()=>{});
+});
+
+document.getElementById("lastWeekProgressNote").addEventListener("change", (e) => {
+  if(!currentClassId) return;
+  const week = computeCurrentWeek() - 1;
+  if(week < 1) return;
   const note = e.target.value;
   if(!progressData[currentClassId]) progressData[currentClassId] = {};
   progressData[currentClassId][week] = note;
