@@ -388,6 +388,8 @@
   .rescue-info{ flex:1 1 auto; min-width:0; }
   .rescue-info .name{ font-size:13px; font-weight:700; color:var(--ink); }
   .rescue-info .note{ font-size:11px; color:#9C4E5A; margin-top:1px; }
+  .rescue-drops{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; max-width:90px; }
+  .rescue-drops .drop-row{ margin-top:0; }
   .rescue-go{
     flex:0 0 auto;
     padding:6px 12px;
@@ -404,8 +406,9 @@
   .rescue-cheer{
     font-size:11px;
     color:var(--ink-soft);
-    padding:10px 0 8px;
+    padding:8px 0 10px;
     line-height:1.7;
+    border-bottom:1px dashed #EAD8D4;
   }
   .streak-toast{
     position:fixed;
@@ -803,12 +806,19 @@
     const isQuota = !!h.weeklyTarget;
     const stage = isQuota ? quotaStage(h) : plantStage(h);
     const iconKey = stage.cls === 'today' ? 'healthy' : stage.cls;
+    const dropsHtml = isQuota
+      ? `<div class="rescue-drops">
+           <div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>
+           <div class="drop-frac">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>
+         </div>`
+      : '';
     return `<div class="rescue-row" data-id="${h.id}">
       <div class="emoji">${PLANT_ICONS[iconKey]}</div>
       <div class="rescue-info">
         <div class="name">${escapeHtml(h.name)}</div>
         <div class="note">${escapeHtml(rescueNote(h))}</div>
       </div>
+      ${dropsHtml}
       <button type="button" class="rescue-go" data-rescue-go="${h.id}">去澆水</button>
     </div>`;
   }
@@ -841,7 +851,7 @@
 
     const name = escapeHtml(activeChild);
     const rescueHtml = rescue.length
-      ? rescue.map(rescueRowHtml).join('') + `<div class="rescue-cheer">你願意先救一株嗎？小小的行動，會讓它重新長大 🌱</div>`
+      ? `<div class="rescue-cheer">你願意先救一株嗎？小小的行動，會讓它重新長大 🌱</div>` + rescue.map(rescueRowHtml).join('')
       : `<p class="rescue-empty">目前沒有急需照顧的項目，太棒了！</p>`;
     const progressHtml = progress.length
       ? `<div class="plant-grid">${progress.map(plantCardHtml).join('')}</div>`
