@@ -30,6 +30,7 @@
   :root{
     --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
     --study:#5F8955; --study-bg:#EBF2E6;
+    --today-c:#8C7BB8; --today-bg:#EFEAF6;
     --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
   }
   *{box-sizing:border-box;}
@@ -155,8 +156,12 @@
   .plant-card.wilting .status{ color:#B96B77; }
   .plant-card.dead{ border-color:#9a958c; background:#F1EEE7; opacity:.85; }
   .plant-card.dead .status{ color:#8a857c; font-weight:700; }
+  .plant-card.today{ border-color:var(--today-c); background:var(--today-bg); }
+  .plant-card.today .status{ color:var(--today-c); font-weight:700; }
   .drop-row{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:2px; margin-top:3px; min-height:11px; }
   .drop{ flex:0 0 auto; display:block; }
+  .drop-frac{ font-size:9.5px; color:var(--ink-soft); margin-top:1px; font-variant-numeric:tabular-nums; }
+  .plant-card.bloom .drop-frac{ color:var(--child-c, var(--study)); font-weight:700; }
   .quota-streak{
     display:inline-block; font-size:8.5px; font-weight:700; color:#C9772E;
     background:#FBEEE0; border-radius:999px; padding:1px 6px; margin-top:2px;
@@ -343,19 +348,64 @@
   .meal-chart-wrap{ overflow-x:auto; }
   .meal-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--ink-soft); }
   .meal-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-  .habit-alert-banner{
-    border-radius:12px;
-    padding:10px 14px;
-    font-size:12.5px;
-    font-weight:700;
-    margin-bottom:10px;
-    line-height:1.6;
-    background:#F6E8E5;
-    color:#8A4A3E;
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    margin:20px 0 8px;
   }
-  .habit-alert-banner.tight{
-    background:#FBF1DD;
-    color:#8C6521;
+  .section-head:first-of-type{ margin-top:0; }
+  .section-head h2{
+    font-family:'Noto Serif TC',serif;
+    font-size:14.5px;
+    margin:0;
+    color:var(--ink);
+  }
+  .section-head .section-count{ font-size:11.5px; color:var(--ink-soft); font-weight:700; }
+  .section-empty, .rescue-empty{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    padding:10px 0;
+    margin:0;
+  }
+  .rescue-block{
+    background:#fff;
+    border:1.5px solid #E3B5AC;
+    border-radius:14px;
+    padding:4px 12px;
+  }
+  .rescue-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px dashed #EAD8D4;
+  }
+  .rescue-row:last-of-type{ border-bottom:none; }
+  .rescue-row .emoji{ width:28px; height:28px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+  .rescue-row .emoji svg{ width:26px; height:26px; display:block; }
+  .rescue-info{ flex:1 1 auto; min-width:0; }
+  .rescue-info .name{ font-size:13px; font-weight:700; color:var(--ink); }
+  .rescue-info .note{ font-size:11px; color:#9C4E5A; margin-top:1px; }
+  .rescue-go{
+    flex:0 0 auto;
+    padding:6px 12px;
+    border-radius:999px;
+    border:none;
+    background:#B96B77;
+    color:#fff;
+    font-weight:700;
+    font-size:12px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .rescue-go:active{ transform:scale(.95); }
+  .rescue-cheer{
+    font-size:11px;
+    color:var(--ink-soft);
+    padding:10px 0 8px;
+    line-height:1.7;
   }
   .streak-toast{
     position:fixed;
@@ -425,7 +475,7 @@
   function plantStage(h){
     if (h.lastDate) {
       const days = daysSince(h.lastDate);
-      if (days <= 0) return { label: '今天澆過水', cls: 'bloom', days };
+      if (days <= 0) return { label: '今日已澆水', cls: 'bloom', days };
       if (days === 1) return { label: '昨天澆過水', cls: 'healthy', days };
       if (days <= 3) return { label: days + ' 天沒澆水', cls: 'fading', days };
       if (days <= 6) return { label: days + ' 天沒澆水', cls: 'wilting', days };
@@ -445,30 +495,45 @@
     return dow === 0 ? 1 : 8 - dow;
   }
 
-  // whether this week's target is still reachable — kept separate from the card's
-  // own look (quotaStage below) so a not-yet-started habit still gets named in the
-  // merged warning banner even though its card face stays calm
-  function quotaAlert(h){
-    const remaining = h.weeklyTarget - (h.weekCount || 0);
-    if (remaining <= 0) return null;
-    const daysLeft = weekDaysLeft();
-    if (remaining > daysLeft) return 'danger';
-    if (remaining === daysLeft) return 'warn';
-    return null;
-  }
-
   function quotaStage(h){
     const target = h.weeklyTarget;
     const count = h.weekCount || 0;
     const remaining = target - count;
-    if (remaining <= 0) return { label: '✅ 本週已達標', cls: 'bloom' };
+    if (remaining <= 0) return { label: '已達標', cls: 'bloom' };
+    if (daysSince(h.lastDate) === 0) return { label: '今日已澆水', cls: 'today' };
     // not started yet always reads the same calm way, regardless of how much
-    // time is left — the merged banner above is what actually flags urgency
+    // time is left — habitBucket below is what actually routes it to the rescue section
     if (count === 0) return { label: '本週還沒開始', cls: 'seed' };
     const daysLeft = weekDaysLeft();
     if (remaining > daysLeft) return { label: '', cls: 'wilting' };
     if (remaining === daysLeft) return { label: '', cls: 'fading' };
     return { label: '', cls: 'healthy' };
+  }
+
+  // which of the three sections a habit belongs in today. A habit already
+  // acted on today always counts as "in progress" (not urgent) even if the
+  // week's math is still tight — today's action already answered the call.
+  function habitBucket(h){
+    const doneToday = daysSince(h.lastDate) === 0;
+    if (h.weeklyTarget) {
+      const remaining = h.weeklyTarget - (h.weekCount || 0);
+      if (remaining <= 0) return 'done';
+      if (doneToday) return 'progress';
+      return remaining >= weekDaysLeft() ? 'rescue' : 'progress';
+    }
+    if (doneToday) return 'done';
+    const cls = plantStage(h).cls;
+    return (cls === 'wilting' || cls === 'dead') ? 'rescue' : 'progress';
+  }
+
+  // the reason a habit landed in the rescue section, spelled out since the
+  // row has room for it (unlike the compact grid cards)
+  function rescueNote(h){
+    if (!h.weeklyTarget) return plantStage(h).label;
+    const remaining = h.weeklyTarget - (h.weekCount || 0);
+    const daysLeft = weekDaysLeft();
+    if (remaining > daysLeft) return `這週來不及了，還差 ${remaining} 次`;
+    return `最後衝刺！還差 ${remaining} 次，剩 ${daysLeft} 天`;
   }
 
   function dropSvg(state){
@@ -715,20 +780,36 @@
   function plantCardHtml(h){
     const isQuota = !!h.weeklyTarget;
     const stage = isQuota ? quotaStage(h) : plantStage(h);
+    const iconKey = stage.cls === 'today' ? 'healthy' : stage.cls;
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
     const dropsHtml = isQuota
-      ? `<div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>`
+      ? `<div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>
+         <div class="drop-frac">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>`
       : '';
     const streakHtml = isQuota && h.streak > 0 ? `<div class="quota-streak">🔥 連續達標 ${h.streak} 週</div>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
       ${targetEditHtml}
-      <div class="emoji">${PLANT_ICONS[stage.cls]}</div>
+      <div class="emoji">${PLANT_ICONS[iconKey]}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
       ${dropsHtml}
       ${streakHtml}
+    </div>`;
+  }
+
+  function rescueRowHtml(h){
+    const isQuota = !!h.weeklyTarget;
+    const stage = isQuota ? quotaStage(h) : plantStage(h);
+    const iconKey = stage.cls === 'today' ? 'healthy' : stage.cls;
+    return `<div class="rescue-row" data-id="${h.id}">
+      <div class="emoji">${PLANT_ICONS[iconKey]}</div>
+      <div class="rescue-info">
+        <div class="name">${escapeHtml(h.name)}</div>
+        <div class="note">${escapeHtml(rescueNote(h))}</div>
+      </div>
+      <button type="button" class="rescue-go" data-rescue-go="${h.id}">去澆水</button>
     </div>`;
   }
 
@@ -743,44 +824,47 @@
       bindHabitAddForm();
       return;
     }
-    // group same-colored cards together first (most urgent color band at the top),
-    // then order within a band by urgency so it isn't just an arbitrary tie-break
-    const CLS_RANK = { dead: 6, wilting: 5, fading: 4, healthy: 3, bloom: 2, seed: 1 };
-    const cardCls = h => h.weeklyTarget ? quotaStage(h).cls : plantStage(h).cls;
-    const urgency = h => {
-      if (!h.weeklyTarget) return plantStage(h).days;
-      const alert = quotaAlert(h);
-      if (alert === 'danger') return 8;
-      if (alert === 'warn') return 5;
-      return (h.weeklyTarget - (h.weekCount || 0)) > 0 ? 2 : -1;
-    };
-    list.sort((a, b) => (CLS_RANK[cardCls(b)] - CLS_RANK[cardCls(a)]) || (urgency(b) - urgency(a)));
+
+    const rescue = [], progress = [], done = [];
+    list.forEach(h => {
+      const bucket = habitBucket(h);
+      (bucket === 'rescue' ? rescue : bucket === 'done' ? done : progress).push(h);
+    });
+    // within a section, most-urgent/most-neglected first
+    const urgency = h => h.weeklyTarget ? (h.weeklyTarget - (h.weekCount || 0)) - weekDaysLeft() : plantStage(h).days;
+    rescue.sort((a, b) => urgency(b) - urgency(a));
+    progress.sort((a, b) => urgency(b) - urgency(a));
+
     const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     const bonusToday = list.reduce((sum, h) => sum + (daysSince(h.lastDate) === 0 ? (h.todayBonus || 0) : 0), 0);
     const todayScore = doneToday + bonusToday;
 
-    // several weekly-target habits can hit trouble in the same week — merge them into
-    // at most two summary lines instead of one long warning per card
-    const dangerNames = [];
-    const warnNames = [];
-    list.forEach(h => {
-      if (!h.weeklyTarget) return;
-      const alert = quotaAlert(h);
-      if (alert === 'danger') dangerNames.push(h.name);
-      else if (alert === 'warn') warnNames.push(h.name);
-    });
-    const alertBanners = [
-      dangerNames.length ? `<div class="habit-alert-banner">😣 這週來不及達標了：${dangerNames.map(escapeHtml).join('、')}（別擔心，不會扣分，下週再衝）</div>` : '',
-      warnNames.length ? `<div class="habit-alert-banner tight">⏳ 最後衝刺：${warnNames.map(escapeHtml).join('、')}（接下來每天都不能停才趕得上）</div>` : ''
-    ].join('');
+    const name = escapeHtml(activeChild);
+    const rescueHtml = rescue.length
+      ? rescue.map(rescueRowHtml).join('') + `<div class="rescue-cheer">你願意先救一株嗎？小小的行動，會讓它重新長大 🌱</div>`
+      : `<p class="rescue-empty">目前沒有急需照顧的項目，太棒了！</p>`;
+    const progressHtml = progress.length
+      ? `<div class="plant-grid">${progress.map(plantCardHtml).join('')}</div>`
+      : `<p class="section-empty">目前沒有進行中的項目。</p>`;
+    const doneHtml = done.length
+      ? `<div class="plant-grid">${done.map(plantCardHtml).join('')}</div>`
+      : `<p class="section-empty">今天先從急救站或照顧中的項目開始吧～</p>`;
 
     wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
-      ${alertBanners}
       <div class="score-row">
         <div class="score-badge">✨ 今天分數：<b>${todayScore}</b> 分（${doneToday}／${list.length} 項）</div>
         <button type="button" class="edit-toggle" id="editToggleBtn">${editMode ? '完成編輯' : '✎ 編輯'}</button>
       </div>
-      <div class="plant-grid">${list.map(plantCardHtml).join('')}</div>
+
+      <div class="section-head"><h2>🚨 ${name}今日急救站</h2>${rescue.length ? `<span class="section-count">有 ${rescue.length} 項在等你</span>` : ''}</div>
+      <div class="rescue-block">${rescueHtml}</div>
+
+      <div class="section-head"><h2>🌿 ${name}照顧中的植物</h2><span class="section-count">${progress.length} 項</span></div>
+      ${progressHtml}
+
+      <div class="section-head"><h2>✅ ${name}已達標</h2><span class="section-count">${done.length} 項</span></div>
+      ${doneHtml}
+
       ${editMode ? habitAddFormHtml() : ''}
     </div>`;
     document.getElementById('editToggleBtn').addEventListener('click', () => {
@@ -803,6 +887,12 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         editWeeklyTarget(btn.dataset.targetEdit);
+      });
+    });
+    wrap.querySelectorAll('[data-rescue-go]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleHabit(btn.dataset.rescueGo);
       });
     });
     if (editMode) bindHabitAddForm();
