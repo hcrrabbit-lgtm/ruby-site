@@ -146,7 +146,6 @@
     background:rgba(255,255,255,.7);
   }
   .plant-card .target-edit:hover, .plant-card .target-edit:active{ opacity:1; background:var(--study-bg); }
-  .plant-card .quota-emoji{ font-size:26px; }
   .plant-card.seed{ border-style:dashed; }
   .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
   .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
@@ -156,10 +155,18 @@
   .plant-card.wilting .status{ color:#B96B77; }
   .plant-card.dead{ border-color:#9a958c; background:#F1EEE7; opacity:.85; }
   .plant-card.dead .status{ color:#8a857c; font-weight:700; }
-  .plant-card.quota{ border-color:#B8862E; }
-  .plant-card.quota .status{ color:#8C6521; font-weight:700; }
-  .plant-card.quota-hit{ border-color:var(--child-c, var(--study)); }
-  .plant-card.quota-hit .status{ color:var(--child-c, var(--study)); font-weight:700; }
+  .drop-row{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:2px; margin-top:3px; min-height:11px; }
+  .drop{ flex:0 0 auto; display:block; }
+  .drop-count{ font-size:9.5px; color:var(--ink-soft); margin-top:1px; font-variant-numeric:tabular-nums; }
+  .plant-card.bloom .drop-count{ color:var(--study); font-weight:700; }
+  .bonus-pill{
+    display:inline-flex; font-size:8.5px; font-weight:700; color:var(--study);
+    background:var(--study-bg); border-radius:999px; padding:1px 5px; margin-left:3px; vertical-align:1px;
+  }
+  .quota-streak{
+    display:inline-block; font-size:8.5px; font-weight:700; color:#C9772E;
+    background:#FBEEE0; border-radius:999px; padding:1px 6px; margin-top:2px;
+  }
   .habit-add{
     display:flex;
     gap:8px;
@@ -342,34 +349,39 @@
   .meal-chart-wrap{ overflow-x:auto; }
   .meal-legend{ display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--ink-soft); }
   .meal-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-  .rescue-bubble{
+  .habit-alert-banner{
+    border-radius:12px;
+    padding:10px 14px;
+    font-size:12.5px;
+    font-weight:700;
+    margin-bottom:10px;
+    line-height:1.6;
+    background:#F6E8E5;
+    color:#8A4A3E;
+  }
+  .habit-alert-banner.tight{
+    background:#FBF1DD;
+    color:#8C6521;
+  }
+  .streak-toast{
     position:fixed;
-    transform:translate(-50%, -100%) scale(.9);
-    background:#2E2A25;
+    top:16px;
+    left:50%;
+    transform:translate(-50%, -16px);
+    background:var(--study);
     color:#fff;
-    padding:6px 10px;
+    padding:10px 18px;
     border-radius:999px;
-    font-size:11px;
+    font-size:13px;
     font-weight:700;
     white-space:nowrap;
-    box-shadow:0 4px 10px rgba(0,0,0,.2);
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
     opacity:0;
     pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease;
+    transition:opacity .25s ease, transform .25s ease;
     z-index:50;
   }
-  .rescue-bubble.show{ opacity:1; transform:translate(-50%, -110%) scale(1); }
-  .penalty-banner{
-    background:#F6E8E5;
-    border:1.5px solid #E3B5AC;
-    color:#8A4A3E;
-    border-radius:12px;
-    padding:12px 16px;
-    font-size:13.5px;
-    font-weight:700;
-    margin-bottom:16px;
-    line-height:1.6;
-  }
+  .streak-toast.show{ opacity:1; transform:translate(-50%, 0); }
 </style>
 </head>
 <body>
@@ -377,8 +389,7 @@
   <h1>✅ Better Me</h1>
   <ul class="rules-list">
     <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
-    <li><span>搶救 7 天以上沒澆水的植物：救活一株額外再 <b>+1 分</b>（共 2 分）</span></li>
-    <li><span>每週日計算枯死幾株就扣掉幾分（2 株枯死，<b>-2 分</b>）；這是當天鎖定的紀錄，之後就算補澆水，那天的扣分也不會變。</span></li>
+    <li><span>設定「每週目標次數」的習慣：達標當週還是每天可以 <b>+1 分</b>（一週最多 7 天）；<b>連續 4 週都達標，額外 +4 分</b>；沒達標不扣分，只是沒有這筆額外獎勵。</span></li>
   </ul>
 
   <div class="child-tabs" id="childTabs"></div>
@@ -434,15 +445,49 @@
     return { label: days + ' 天沒澆水', cls: 'dead', days };
   }
 
+  // days left in the Mon-Sun week, including today
+  function weekDaysLeft(){
+    const dow = new Date().getDay(); // 0=Sun .. 6=Sat
+    return dow === 0 ? 1 : 8 - dow;
+  }
+
   function quotaStage(h){
     const target = h.weeklyTarget;
     const count = h.weekCount || 0;
-    const doneToday = daysSince(h.lastDate) === 0;
     const remaining = target - count;
-    const label = remaining > 0
-      ? `本週剩 ${remaining} 次`
-      : (count === target ? '✅ 本週已達標' : `✅ 已達標＋${count - target}`);
-    return { label, cls: doneToday ? 'bloom' : (remaining <= 0 ? 'quota-hit' : 'quota'), days: 0 };
+    const daysLeft = weekDaysLeft();
+    if (remaining <= 0) {
+      const bonus = count - target;
+      return { label: bonus > 0 ? `✅ 已達標＋${bonus}` : '✅ 本週已達標', cls: 'bloom', days: 0 };
+    }
+    if (remaining > daysLeft) {
+      return { label: `還差 ${remaining} 次，剩 ${daysLeft} 天`, cls: 'wilting', days: 0, alert: 'danger' };
+    }
+    if (remaining === daysLeft) {
+      return { label: `還差 ${remaining} 次，剩 ${daysLeft} 天`, cls: 'fading', days: 0, alert: 'warn' };
+    }
+    return {
+      label: count > 0 ? `還差 ${remaining} 次，剩 ${daysLeft} 天` : `本週還沒開始，剩 ${daysLeft} 天`,
+      cls: count > 0 ? 'healthy' : 'seed', days: 0
+    };
+  }
+
+  function dropSvg(state){
+    const fill = state === 'empty' ? 'none' : (state === 'bonus' ? '#5F8955' : '#6FA8D8');
+    const stroke = state === 'empty' ? '#C9BFA8' : (state === 'bonus' ? '#5F8955' : '#6FA8D8');
+    return `<svg class="drop" width="9" height="12" viewBox="0 0 12 16" aria-hidden="true">
+      <path d="M6,0 C6,0 11,7.5 11,10.5 C11,13.5 8.8,15.5 6,15.5 C3.2,15.5 1,13.5 1,10.5 C1,7.5 6,0 6,0 Z"
+        fill="${fill}" stroke="${stroke}" stroke-width="1.3"/>
+    </svg>`;
+  }
+
+  function dropRowHtml(target, count){
+    const filled = Math.min(count, target);
+    const bonus = Math.max(0, count - target);
+    let html = '';
+    for (let i = 0; i < target; i++) html += dropSvg(i < filled ? 'filled' : 'empty');
+    for (let i = 0; i < bonus; i++) html += dropSvg('bonus');
+    return html;
   }
 
   const PLANT_ICONS = {
@@ -569,7 +614,7 @@
     renderTabs();
     renderPlants();
     loadHabitMonth();
-    loadWeeklyPenalty();
+    loadStreakCheck();
     loadBank();
   }
 
@@ -577,16 +622,16 @@
   async function loadBank(){
     const seq = ++bankLoadSeq;
     const child = activeChild;
-    const [bank, history, penalties] = await Promise.all([
+    const [bank, history, streaks] = await Promise.all([
       fetch('/api/open/study-habits/bank?child=' + encodeURIComponent(child)).then(r => r.json()),
       fetch('/api/open/study-habits/bank/history?child=' + encodeURIComponent(child)).then(r => r.json()),
-      fetch('/api/open/study-habits/weekly-penalty/history?child=' + encodeURIComponent(child)).then(r => r.json())
+      fetch('/api/open/study-habits/streak-history?child=' + encodeURIComponent(child)).then(r => r.json())
     ]);
     if (seq !== bankLoadSeq) return;
-    renderBankSection(bank, history, penalties);
+    renderBankSection(bank, history, streaks);
   }
 
-  function renderBankSection(bank, history, penalties){
+  function renderBankSection(bank, history, streaks){
     const container = document.getElementById('bankSection');
     if (!container) return;
     const balance = bank.balance || 0;
@@ -596,10 +641,10 @@
       : `<ul class="bank-history-list">${history.map(r =>
           `<li><span>${r.date}</span><span>提領 ${r.points} 分 → NT$ ${r.amount}</span></li>`
         ).join('')}</ul>`;
-    const penaltyHtml = (!penalties || penalties.length === 0)
-      ? `<p class="bank-empty">還沒有扣分紀錄。</p>`
-      : `<ul class="bank-history-list">${penalties.map(r =>
-          `<li><span>${r.weekDate}</span><span>-${r.count} 分（${r.count} 株枯死）</span></li>`
+    const streakHtml = (!streaks || streaks.length === 0)
+      ? `<p class="bank-empty">還沒有連續達標獎勵紀錄。</p>`
+      : `<ul class="bank-history-list">${streaks.map(r =>
+          `<li><span>${r.weekDate} ${escapeHtml(r.name)}</span><span>🔥連續${r.streak}週 +${r.bonus} 分</span></li>`
         ).join('')}</ul>`;
     container.innerHTML = `<div class="bank-block ${CHILD_SLUG[activeChild]}">
       <div class="bank-header">
@@ -608,7 +653,7 @@
       </div>
       <div class="bank-balance">累積餘額：<b>${balance}</b> 分 ≈ <b>NT$ ${amount}</b></div>
       <details class="bank-history-wrap"><summary>提領紀錄</summary>${historyHtml}</details>
-      <details class="bank-history-wrap"><summary>扣分紀錄</summary>${penaltyHtml}</details>
+      <details class="bank-history-wrap"><summary>連續達標獎勵紀錄</summary>${streakHtml}</details>
     </div>`;
     document.getElementById('bankWithdrawBtn').addEventListener('click', () => withdrawFromBank(balance, bank.rate || 1));
   }
@@ -630,15 +675,19 @@
     loadBank();
   }
 
-  let weeklyPenaltyState = { child: null, isSunday: false, count: 0 };
-  let weeklyPenaltyLoadSeq = 0;
-  async function loadWeeklyPenalty(){
-    const seq = ++weeklyPenaltyLoadSeq;
+  let streakCheckLoadSeq = 0;
+  async function loadStreakCheck(){
+    const seq = ++streakCheckLoadSeq;
     const child = activeChild;
-    const data = await fetch('/api/open/study-habits/weekly-penalty?child=' + encodeURIComponent(child)).then(r => r.json());
-    if (seq !== weeklyPenaltyLoadSeq) return;
-    weeklyPenaltyState = { child, isSunday: !!data.isSunday, count: data.count || 0 };
-    renderPlants();
+    const data = await fetch('/api/open/study-habits/streak-check?child=' + encodeURIComponent(child)).then(r => r.json());
+    if (seq !== streakCheckLoadSeq) return;
+    const newlyEarned = data.newlyEarned || [];
+    if (newlyEarned.length > 0) {
+      playStreakChime();
+      newlyEarned.forEach(e => showStreakToast(`🎉 ${e.name} 連續${e.streak}週達標！+${e.bonus} 分`));
+      loadBank();
+      loadHabits();
+    }
   }
 
   function renderTabs(){
@@ -656,7 +705,7 @@
         renderTabs();
         renderPlants();
         loadHabitMonth();
-        loadWeeklyPenalty();
+        loadStreakCheck();
         loadBank();
       });
     });
@@ -669,13 +718,19 @@
     const stage = isQuota ? quotaStage(h) : plantStage(h);
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
-    const emojiHtml = isQuota ? `<span class="quota-emoji">🎯</span>` : PLANT_ICONS[stage.cls];
+    const dropsHtml = isQuota
+      ? `<div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>
+         <div class="drop-count">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>`
+      : '';
+    const streakHtml = isQuota && h.streak > 0 ? `<div class="quota-streak">🔥 連續達標 ${h.streak} 週</div>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
       ${targetEditHtml}
-      <div class="emoji">${emojiHtml}</div>
+      <div class="emoji">${PLANT_ICONS[stage.cls]}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
+      ${dropsHtml}
+      ${streakHtml}
     </div>`;
   }
 
@@ -696,13 +751,25 @@
     list.sort((a, b) => neglectDays(b) - neglectDays(a));
     const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     const bonusToday = list.reduce((sum, h) => sum + (daysSince(h.lastDate) === 0 ? (h.todayBonus || 0) : 0), 0);
-    const penalty = weeklyPenaltyState.child === activeChild ? weeklyPenaltyState.count : 0;
-    const todayScore = doneToday + bonusToday - penalty;
-    const penaltyBanner = penalty > 0
-      ? `<div class="penalty-banner">😢 今天是禮拜日，有 ${penalty} 株超過 7 天沒澆水，扣 ${penalty} 分！趕快去澆水搶救，下週不要再枯掉囉～</div>`
-      : '';
+    const todayScore = doneToday + bonusToday;
+
+    // several weekly-target habits can hit trouble in the same week — merge them into
+    // at most two summary lines instead of one long warning per card
+    const dangerNames = [];
+    const warnNames = [];
+    list.forEach(h => {
+      if (!h.weeklyTarget) return;
+      const alert = quotaStage(h).alert;
+      if (alert === 'danger') dangerNames.push(h.name);
+      else if (alert === 'warn') warnNames.push(h.name);
+    });
+    const alertBanners = [
+      dangerNames.length ? `<div class="habit-alert-banner">😣 這週來不及達標了：${dangerNames.map(escapeHtml).join('、')}（別擔心，不會扣分，下週再衝）</div>` : '',
+      warnNames.length ? `<div class="habit-alert-banner tight">⏳ 最後衝刺：${warnNames.map(escapeHtml).join('、')}（接下來每天都不能停才趕得上）</div>` : ''
+    ].join('');
+
     wrap.innerHTML = `<div class="child-group ${CHILD_SLUG[activeChild]}">
-      ${penaltyBanner}
+      ${alertBanners}
       <div class="score-row">
         <div class="score-badge">✨ 今天分數：<b>${todayScore}</b> 分（${doneToday}／${list.length} 項）</div>
         <button type="button" class="edit-toggle" id="editToggleBtn">${editMode ? '完成編輯' : '✎ 編輯'}</button>
@@ -769,42 +836,49 @@
     } catch (e) { /* Web Audio unavailable, skip sound */ }
   }
 
-  function playRescueChime(){
+  function playStreakChime(){
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       const now = audioCtx.currentTime;
-      // a brighter little victory arpeggio, distinct from the everyday check-off chime
-      [659.25, 830.61, 987.77, 1318.51].forEach((freq, i) => {
+      // a longer ascending run than the everyday chime, landing on a held chord —
+      // reserved for the rare 4-consecutive-week streak bonus, so it should feel the biggest
+      const run = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+      run.forEach((freq, i) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
         osc.frequency.value = freq;
-        const start = now + i * 0.09;
+        const start = now + i * 0.075;
         gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.28, start + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+        gain.gain.linearRampToValueAtTime(0.26, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
         osc.connect(gain).connect(audioCtx.destination);
         osc.start(start);
-        osc.stop(start + 0.32);
+        osc.stop(start + 0.24);
+      });
+      const chordStart = now + run.length * 0.075 + 0.03;
+      [1046.5, 1318.51, 1567.98].forEach(freq => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, chordStart);
+        gain.gain.linearRampToValueAtTime(0.22, chordStart + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.6);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(chordStart);
+        osc.stop(chordStart + 0.62);
       });
     } catch (e) { /* Web Audio unavailable, skip sound */ }
   }
 
-  function showRescueBubble(anchorEl, bonus){
-    if (!anchorEl) return;
-    // anchored by fixed position at the tapped element's on-screen spot rather than
-    // appended as its child — the habit list/table re-renders (innerHTML swap) within
-    // moments of this call, which would otherwise delete the bubble along with its
-    // old parent well before the 4s timer below ever gets to remove it
-    const rect = anchorEl.getBoundingClientRect();
-    const bubble = document.createElement('div');
-    bubble.className = 'rescue-bubble';
-    bubble.textContent = '🎉 +' + bonus + ' 搶救成功！';
-    bubble.style.left = (rect.left + rect.width / 2) + 'px';
-    bubble.style.top = (rect.top - 8) + 'px';
-    document.body.appendChild(bubble);
-    requestAnimationFrame(() => bubble.classList.add('show'));
-    setTimeout(() => bubble.remove(), 4000);
+  function showStreakToast(text){
+    const toast = document.createElement('div');
+    toast.className = 'streak-toast';
+    toast.textContent = text;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => toast.remove(), 4000);
   }
 
   async function toggleHabit(id){
@@ -822,15 +896,11 @@
       if (!wasDoneToday) playChime();
     }
     try {
-      const res = await fetch(API + '/log', {
+      await fetch(API + '/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ habitId: id, date })
-      }).then(r => r.json());
-      if (res && res.bonus) {
-        playRescueChime();
-        showRescueBubble(document.querySelector('.plant-card[data-id="' + id + '"]'), res.bonus);
-      }
+      });
     } finally {
       loadHabits();
     }
@@ -893,13 +963,9 @@
   async function loadHabitMonth(){
     const seq = ++monthLoadSeq;
     const m = monthStr(habitState.viewDate);
-    loadMealTimes(m); // independent of the fetches below, so don't make it wait on them
-    const [data, penaltyRows] = await Promise.all([
-      fetch(API + '/month?month=' + m).then(r => r.json()),
-      fetch('/api/open/study-habits/weekly-penalty/month?month=' + m + '&child=' + encodeURIComponent(activeChild)).then(r => r.json())
-    ]);
+    loadMealTimes(m); // independent of the fetch below, so don't make it wait on it
+    const data = await fetch(API + '/month?month=' + m).then(r => r.json());
     if (seq !== monthLoadSeq) return; // a newer load already started; don't overwrite it with a stale response
-    data.weeklyPenaltyTotal = (penaltyRows || []).reduce((sum, r) => sum + (r.count || 0), 0);
     renderMonthSections(data, m);
   }
 
@@ -1078,7 +1144,7 @@
     const container = document.getElementById('habitMonthSections');
     const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
     const list = groupByChild(data.habits || [])[activeChild] || [];
-    const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length) + ((data.bonusByHabit && data.bonusByHabit[h.id]) || 0), 0) - (data.weeklyPenaltyTotal || 0);
+    const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length) + ((data.bonusByHabit && data.bonusByHabit[h.id]) || 0), 0);
     const bodyHtml = list.length === 0
       ? `<p class="habit-empty">目前還沒有習慣項目可以統計。</p>`
       : `<div class="score-badge">📊 本月分數：<b>${monthlyTotal}</b> 分</div>
@@ -1105,23 +1171,19 @@
         const turningOn = !td.classList.contains('mark');
         td.classList.toggle('mark', turningOn);
         td.textContent = turningOn ? '✓' : '';
-        toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn, td);
+        toggleHabitDate(td.dataset.habit, td.dataset.date, turningOn);
       });
     });
   }
 
-  async function toggleHabitDate(habitId, date, turningOn, anchorEl){
+  async function toggleHabitDate(habitId, date, turningOn){
     if (turningOn) playChime();
     try {
-      const res = await fetch(API + '/log', {
+      await fetch(API + '/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ habitId, date })
-      }).then(r => r.json());
-      if (res && res.bonus) {
-        playRescueChime();
-        showRescueBubble(anchorEl, res.bonus);
-      }
+      });
     } finally {
       loadHabits();
     }
