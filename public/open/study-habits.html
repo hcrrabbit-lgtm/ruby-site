@@ -157,12 +157,6 @@
   .plant-card.dead .status{ color:#8a857c; font-weight:700; }
   .drop-row{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:2px; margin-top:3px; min-height:11px; }
   .drop{ flex:0 0 auto; display:block; }
-  .drop-count{ font-size:9.5px; color:var(--ink-soft); margin-top:1px; font-variant-numeric:tabular-nums; }
-  .plant-card.bloom .drop-count{ color:var(--study); font-weight:700; }
-  .bonus-pill{
-    display:inline-flex; font-size:8.5px; font-weight:700; color:var(--study);
-    background:var(--study-bg); border-radius:999px; padding:1px 5px; margin-left:3px; vertical-align:1px;
-  }
   .quota-streak{
     display:inline-block; font-size:8.5px; font-weight:700; color:#C9772E;
     background:#FBEEE0; border-radius:999px; padding:1px 6px; margin-top:2px;
@@ -451,25 +445,30 @@
     return dow === 0 ? 1 : 8 - dow;
   }
 
+  // whether this week's target is still reachable — kept separate from the card's
+  // own look (quotaStage below) so a not-yet-started habit still gets named in the
+  // merged warning banner even though its card face stays calm
+  function quotaAlert(h){
+    const remaining = h.weeklyTarget - (h.weekCount || 0);
+    if (remaining <= 0) return null;
+    const daysLeft = weekDaysLeft();
+    if (remaining > daysLeft) return 'danger';
+    if (remaining === daysLeft) return 'warn';
+    return null;
+  }
+
   function quotaStage(h){
     const target = h.weeklyTarget;
     const count = h.weekCount || 0;
     const remaining = target - count;
+    if (remaining <= 0) return { label: '✅ 本週已達標', cls: 'bloom' };
+    // not started yet always reads the same calm way, regardless of how much
+    // time is left — the merged banner above is what actually flags urgency
+    if (count === 0) return { label: '本週還沒開始', cls: 'seed' };
     const daysLeft = weekDaysLeft();
-    if (remaining <= 0) {
-      const bonus = count - target;
-      return { label: bonus > 0 ? `✅ 已達標＋${bonus}` : '✅ 本週已達標', cls: 'bloom', days: 0 };
-    }
-    if (remaining > daysLeft) {
-      return { label: `還差 ${remaining} 次，剩 ${daysLeft} 天`, cls: 'wilting', days: 0, alert: 'danger' };
-    }
-    if (remaining === daysLeft) {
-      return { label: `還差 ${remaining} 次，剩 ${daysLeft} 天`, cls: 'fading', days: 0, alert: 'warn' };
-    }
-    return {
-      label: count > 0 ? `還差 ${remaining} 次，剩 ${daysLeft} 天` : `本週還沒開始，剩 ${daysLeft} 天`,
-      cls: count > 0 ? 'healthy' : 'seed', days: 0
-    };
+    if (remaining > daysLeft) return { label: '', cls: 'wilting' };
+    if (remaining === daysLeft) return { label: '', cls: 'fading' };
+    return { label: '', cls: 'healthy' };
   }
 
   function dropSvg(state){
@@ -719,8 +718,7 @@
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
     const dropsHtml = isQuota
-      ? `<div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>
-         <div class="drop-count">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>`
+      ? `<div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>`
       : '';
     const streakHtml = isQuota && h.streak > 0 ? `<div class="quota-streak">🔥 連續達標 ${h.streak} 週</div>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
@@ -751,7 +749,7 @@
     // very bottom (below even a freshly-watered plant) since nothing more is needed
     const urgency = h => {
       if (!h.weeklyTarget) return plantStage(h).days;
-      const alert = quotaStage(h).alert;
+      const alert = quotaAlert(h);
       if (alert === 'danger') return 8;
       if (alert === 'warn') return 5;
       return (h.weeklyTarget - (h.weekCount || 0)) > 0 ? 2 : -1;
@@ -767,7 +765,7 @@
     const warnNames = [];
     list.forEach(h => {
       if (!h.weeklyTarget) return;
-      const alert = quotaStage(h).alert;
+      const alert = quotaAlert(h);
       if (alert === 'danger') dangerNames.push(h.name);
       else if (alert === 'warn') warnNames.push(h.name);
     });
