@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, chi
 CREATE TABLE IF NOT EXISTS weekly_penalties (child TEXT NOT NULL, week_date TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(child, week_date));
 CREATE TABLE IF NOT EXISTS bank_withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, points INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS meal_weekly_status (child TEXT NOT NULL, week_date TEXT NOT NULL, total INTEGER NOT NULL, success INTEGER NOT NULL, threshold REAL NOT NULL, passed INTEGER NOT NULL, level_after INTEGER NOT NULL, PRIMARY KEY(child, week_date));
+CREATE TABLE IF NOT EXISTS habit_streak_bonus (habit_id TEXT NOT NULL, week_date TEXT NOT NULL, streak INTEGER NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(habit_id, week_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -871,7 +872,17 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         ).bind(mondayStr, today).all();
         const weekCountMap = {};
         weekCounts.results.forEach(r => { weekCountMap[r.habitId] = r.c; });
-        res.results.forEach(h => { if (h.weeklyTarget) h.weekCount = weekCountMap[h.id] || 0; });
+        const streaks = await env.DB.prepare(
+          `SELECT b.habit_id as habitId, b.streak as streak FROM habit_streak_bonus b
+           WHERE b.week_date = (SELECT MAX(b2.week_date) FROM habit_streak_bonus b2 WHERE b2.habit_id = b.habit_id)`
+        ).all();
+        const streakMap = {};
+        streaks.results.forEach(r => { streakMap[r.habitId] = r.streak; });
+        res.results.forEach(h => {
+          if (!h.weeklyTarget) return;
+          h.weekCount = weekCountMap[h.id] || 0;
+          h.streak = streakMap[h.id] || 0;
+        });
       }
       return json(res.results);
     },
@@ -927,26 +938,12 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         await env.DB.prepare(`DELETE FROM ${logsTable} WHERE id = ?`).bind(existing.id).run();
         return json({ ok: true, done: false });
       }
-      // rescuing a plant that had gone a long time without water earns a bonus
-      // (not applicable to weekly-quota habits, which are never wilting by design)
-      let bonus = 0;
-      if (bonusRescue) {
-        const habitRow = await env.DB.prepare(`SELECT created_at, weekly_target FROM ${habitsTable} WHERE id = ?`).bind(habitId).first();
-        if (habitRow && !habitRow.weekly_target) {
-          const prevRow = await env.DB.prepare(
-            `SELECT MAX(date) as prevDate FROM ${logsTable} WHERE habit_id = ? AND date < ?`
-          ).bind(habitId, date).first();
-          const baseDateStr = (prevRow && prevRow.prevDate) || (habitRow.created_at ? habitRow.created_at.slice(0, 10) : null);
-          if (baseDateStr) {
-            const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
-            if (gap >= 7) bonus = 1;
-          }
-        }
-      }
+      // the 7-day "rescue" bonus has been retired — daily check-offs are always worth +1,
+      // with no separate bonus. bonusRescue below only gates reading old historical bonus values.
       await env.DB.prepare(
-        `INSERT INTO ${logsTable} (habit_id, date, bonus) VALUES (?, ?, ?)`
-      ).bind(habitId, date, bonus).run();
-      return json({ ok: true, done: true, bonus });
+        `INSERT INTO ${logsTable} (habit_id, date, bonus) VALUES (?, ?, 0)`
+      ).bind(habitId, date).run();
+      return json({ ok: true, done: true });
     },
     async month(env, url) {
       const month = url.searchParams.get("month");
@@ -1068,32 +1065,34 @@ const mealWeeklyHandlers = {
   },
 };
 
-// counts how many of a child's study habits had gone 7+ days without being
-// watered as of asOfDate, reconstructed from logs up to that date so a later
-// backfill isn't skewed by watering that happened after the fact
-async function computeNeglectCount(env, child, asOfDate) {
-  const res = await env.DB.prepare(
-    `SELECT h.id as id, h.created_at as createdAt, h.weekly_target as weeklyTarget,
-       (SELECT MAX(l.date) FROM study_habit_logs l WHERE l.habit_id = h.id AND l.date <= ?) as lastDate
-     FROM study_habits h
-     WHERE h.child = ?`
-  ).bind(asOfDate, child).all();
-  let count = 0;
-  res.results.forEach(h => {
-    if (h.weeklyTarget) return; // weekly-quota habits aren't meant to be watered daily
-    const baseDateStr = h.lastDate || (h.createdAt ? h.createdAt.slice(0, 10) : null);
-    if (!baseDateStr) return;
-    const gap = Math.round((new Date(asOfDate) - new Date(baseDateStr)) / 86400000);
-    if (gap >= 7) count++;
-  });
-  return count;
+// settles one weekly-target habit's Mon-Sun week (ending sundayStr) if it hasn't
+// been already: a hit extends the streak from the most recently settled week,
+// a miss resets it to 0, and every 4th consecutive hit earns a +4 bonus — a
+// one-time snapshot per (habit, Sunday) so it never shifts once locked in.
+async function settleHabitStreak(env, habitId, weeklyTarget, sundayStr) {
+  const existing = await env.DB.prepare(
+    "SELECT * FROM habit_streak_bonus WHERE habit_id = ? AND week_date = ?"
+  ).bind(habitId, sundayStr).first();
+  if (existing) return existing;
+  const mondayStr = addDaysStr(sundayStr, -6);
+  const countRow = await env.DB.prepare(
+    "SELECT COUNT(*) as c FROM study_habit_logs WHERE habit_id = ? AND date >= ? AND date <= ?"
+  ).bind(habitId, mondayStr, sundayStr).first();
+  const hit = (countRow.c || 0) >= weeklyTarget;
+  const prior = await env.DB.prepare(
+    "SELECT streak FROM habit_streak_bonus WHERE habit_id = ? AND week_date < ? ORDER BY week_date DESC LIMIT 1"
+  ).bind(habitId, sundayStr).first();
+  const streak = hit ? (prior ? prior.streak : 0) + 1 : 0;
+  const bonus = (streak > 0 && streak % 4 === 0) ? 4 : 0;
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO habit_streak_bonus (habit_id, week_date, streak, bonus) VALUES (?, ?, ?, ?)"
+  ).bind(habitId, sundayStr, streak, bonus).run();
+  return await env.DB.prepare(
+    "SELECT * FROM habit_streak_bonus WHERE habit_id = ? AND week_date = ?"
+  ).bind(habitId, sundayStr).first();
 }
 
-const weeklyPenaltyHandlers = {
-  // every Sunday, count how many of this child's study habits have gone 7+ days
-  // without being watered, and lock that count in as that week's penalty — a
-  // one-time snapshot per (child, Sunday) so it doesn't shift if they later
-  // catch up on the neglected ones.
+const habitStreakHandlers = {
   async check(env, url) {
     const child = url.searchParams.get("child");
     if (!child) return json({ error: "缺少 child" }, { status: 400 });
@@ -1101,51 +1100,39 @@ const weeklyPenaltyHandlers = {
     const today = taipeiDateStr(now);
     const dow = now.getUTCDay();
 
-    // safety net: if nobody had the app open during Sunday 22:00-24:00 to lock
-    // in last week's penalty, backfill it the next time the app is opened
-    // (e.g. Monday morning), reconstructed as of that Sunday so watering done
-    // afterward doesn't retroactively erase it
+    const quotaHabits = (await env.DB.prepare(
+      "SELECT id, name, weekly_target as weeklyTarget FROM study_habits WHERE child = ? AND weekly_target IS NOT NULL"
+    ).bind(child).all()).results;
+
+    // safety net: backfill last Sunday's settlement if nobody had the app open then
     if (dow !== 0) {
       const lastSundayStr = taipeiDateStr(new Date(now.getTime() - dow * 86400000));
-      const already = await env.DB.prepare(
-        "SELECT 1 as x FROM weekly_penalties WHERE child = ? AND week_date = ?"
-      ).bind(child, lastSundayStr).first();
-      if (!already) {
-        const backfillCount = await computeNeglectCount(env, child, lastSundayStr);
-        await env.DB.prepare(
-          "INSERT OR IGNORE INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
-        ).bind(child, lastSundayStr, backfillCount).run();
+      for (const h of quotaHabits) {
+        await settleHabitStreak(env, h.id, h.weeklyTarget, lastSundayStr);
       }
     }
 
-    // settle at 22:00 Taipei time, not first thing Sunday morning, so kids have
-    // the whole day to rescue neglected plants before the penalty locks in
-    if (dow !== 0 || now.getUTCHours() < 22) return json({ isSunday: false, count: 0 });
-    const existing = await env.DB.prepare(
-      "SELECT count FROM weekly_penalties WHERE child = ? AND week_date = ?"
-    ).bind(child, today).first();
-    if (existing) return json({ isSunday: true, count: existing.count });
-    const count = await computeNeglectCount(env, child, today);
-    await env.DB.prepare(
-      "INSERT OR IGNORE INTO weekly_penalties (child, week_date, count) VALUES (?, ?, ?)"
-    ).bind(child, today, count).run();
-    return json({ isSunday: true, count });
-  },
-  async month(env, url) {
-    const month = url.searchParams.get("month");
-    const child = url.searchParams.get("child");
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) return json({ error: "缺少或格式錯誤的 month（YYYY-MM）" }, { status: 400 });
-    if (!child) return json({ error: "缺少 child" }, { status: 400 });
-    const res = await env.DB.prepare(
-      "SELECT week_date as weekDate, count FROM weekly_penalties WHERE child = ? AND week_date LIKE ? ORDER BY week_date"
-    ).bind(child, month + "-%").all();
-    return json(res.results);
+    const newlyEarned = [];
+    // settle at 22:00 Taipei time, same cadence the old Sunday check used
+    if (dow === 0 && now.getUTCHours() >= 22) {
+      for (const h of quotaHabits) {
+        const already = await env.DB.prepare(
+          "SELECT 1 as x FROM habit_streak_bonus WHERE habit_id = ? AND week_date = ?"
+        ).bind(h.id, today).first();
+        if (already) continue;
+        const result = await settleHabitStreak(env, h.id, h.weeklyTarget, today);
+        if (result.bonus > 0) newlyEarned.push({ habitId: h.id, name: h.name, streak: result.streak, bonus: result.bonus });
+      }
+    }
+    return json({ newlyEarned });
   },
   async history(env, url) {
     const child = url.searchParams.get("child");
     if (!child) return json({ error: "缺少 child" }, { status: 400 });
     const res = await env.DB.prepare(
-      "SELECT week_date as weekDate, count FROM weekly_penalties WHERE child = ? AND count > 0 ORDER BY week_date DESC LIMIT 50"
+      `SELECT b.week_date as weekDate, b.streak as streak, b.bonus as bonus, h.name as name
+       FROM habit_streak_bonus b JOIN study_habits h ON h.id = b.habit_id
+       WHERE h.child = ? AND b.bonus > 0 ORDER BY b.week_date DESC LIMIT 50`
     ).bind(child).all();
     return json(res.results);
   },
@@ -1162,7 +1149,13 @@ async function computeBankBalance(env, child) {
      FROM study_habit_logs l JOIN study_habits h ON h.id = l.habit_id
      WHERE h.child = ?`
   ).bind(child).first();
-  const totalPoints = (earnedRow.cnt || 0) + (earnedRow.bonusSum || 0);
+  const streakBonusRow = await env.DB.prepare(
+    `SELECT COALESCE(SUM(b.bonus), 0) as total FROM habit_streak_bonus b
+     JOIN study_habits h ON h.id = b.habit_id WHERE h.child = ?`
+  ).bind(child).first();
+  const totalPoints = (earnedRow.cnt || 0) + (earnedRow.bonusSum || 0) + (streakBonusRow.total || 0);
+  // the old Sunday neglect penalty was retired, but past weeks it already locked in
+  // stay subtracted so the balance doesn't jump retroactively
   const penaltyRow = await env.DB.prepare(
     "SELECT COALESCE(SUM(count), 0) as total FROM weekly_penalties WHERE child = ?"
   ).bind(child).first();
@@ -1403,9 +1396,8 @@ export default {
       if (path === "/api/open/meal-times/weekly-status" && request.method === "GET") return await mealWeeklyHandlers.check(env, url);
       if (path === "/api/open/meal-times/weekly-status/history" && request.method === "GET") return await mealWeeklyHandlers.history(env, url);
 
-      if (path === "/api/open/study-habits/weekly-penalty" && request.method === "GET") return await weeklyPenaltyHandlers.check(env, url);
-      if (path === "/api/open/study-habits/weekly-penalty/month" && request.method === "GET") return await weeklyPenaltyHandlers.month(env, url);
-      if (path === "/api/open/study-habits/weekly-penalty/history" && request.method === "GET") return await weeklyPenaltyHandlers.history(env, url);
+      if (path === "/api/open/study-habits/streak-check" && request.method === "GET") return await habitStreakHandlers.check(env, url);
+      if (path === "/api/open/study-habits/streak-history" && request.method === "GET") return await habitStreakHandlers.history(env, url);
 
       if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
