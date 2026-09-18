@@ -745,10 +745,18 @@
       bindHabitAddForm();
       return;
     }
-    // most-neglected first, so the plants that most need watering show up first
-    // (weekly-quota habits don't wilt, so they never bubble to the front)
-    const neglectDays = h => h.weeklyTarget ? 0 : plantStage(h).days;
-    list.sort((a, b) => neglectDays(b) - neglectDays(a));
+    // most urgent first: for daily-watering habits that's most-neglected; for
+    // weekly-target habits, "this week is unreachable" outranks "last chance today",
+    // which outranks "not hit yet but still time", with "already hit" sinking to the
+    // very bottom (below even a freshly-watered plant) since nothing more is needed
+    const urgency = h => {
+      if (!h.weeklyTarget) return plantStage(h).days;
+      const alert = quotaStage(h).alert;
+      if (alert === 'danger') return 8;
+      if (alert === 'warn') return 5;
+      return (h.weeklyTarget - (h.weekCount || 0)) > 0 ? 2 : -1;
+    };
+    list.sort((a, b) => urgency(b) - urgency(a));
     const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     const bonusToday = list.reduce((sum, h) => sum + (daysSince(h.lastDate) === 0 ? (h.todayBonus || 0) : 0), 0);
     const todayScore = doneToday + bonusToday;
