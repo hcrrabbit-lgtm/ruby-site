@@ -139,6 +139,14 @@
     font-size:11px; opacity:.35; padding:2px;
   }
   .plant-card .remove:hover{ opacity:1; }
+  .plant-card .target-edit{
+    position:absolute; top:4px; left:6px;
+    font-size:11px; opacity:.35; padding:2px;
+  }
+  .plant-card .target-edit:hover{ opacity:1; }
+  .plant-card .weekly-target-badge{
+    font-size:9px; color:var(--study); font-weight:700; margin-top:2px;
+  }
   .plant-card.seed{ border-style:dashed; }
   .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
   .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
@@ -165,6 +173,11 @@
     font-family:inherit;
     background:#fff;
     color:var(--ink);
+  }
+  .habit-add input.habit-add-target{
+    flex:0 0 auto;
+    width:118px;
+    max-width:118px;
   }
   .child-btn{
     flex:1;
@@ -639,11 +652,15 @@
   function plantCardHtml(h){
     const stage = plantStage(h);
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
+    const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
+    const targetBadge = h.weeklyTarget ? `<div class="weekly-target-badge">🎯 每週${h.weeklyTarget}次</div>` : '';
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
+      ${targetEditHtml}
       <div class="emoji">${PLANT_ICONS[stage.cls]}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
+      ${targetBadge}
     </div>`;
   }
 
@@ -682,7 +699,7 @@
     });
     wrap.querySelectorAll('.plant-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.dataset.remove) return;
+        if (e.target.dataset.remove || e.target.dataset.targetEdit) return;
         toggleHabit(card.dataset.id);
       });
     });
@@ -692,12 +709,19 @@
         removeHabit(btn.dataset.remove);
       });
     });
+    wrap.querySelectorAll('[data-target-edit]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        editWeeklyTarget(btn.dataset.targetEdit);
+      });
+    });
     if (editMode) bindHabitAddForm();
   }
 
   function habitAddFormHtml(){
     return `<div class="habit-add">
       <input id="habitNewName" type="text" placeholder="新增習慣，例如：閱讀30分鐘" maxlength="30">
+      <input id="habitNewWeeklyTarget" type="number" min="1" max="14" placeholder="每週次數(選填)" class="habit-add-target">
       <button type="button" id="habitAddBtn">＋ 新增</button>
     </div>`;
   }
@@ -811,16 +835,42 @@
     const input = document.getElementById('habitNewName');
     const name = input.value.trim();
     if (!name) return;
+    const targetInput = document.getElementById('habitNewWeeklyTarget');
+    const weeklyTarget = targetInput && targetInput.value ? parseInt(targetInput.value, 10) : null;
     const res = await fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, child: activeChild })
+      body: JSON.stringify({ name, child: activeChild, weeklyTarget })
     });
     const data = await res.json();
     if (data.id) {
       input.value = '';
+      if (targetInput) targetInput.value = '';
       loadHabits();
     }
+  }
+
+  async function editWeeklyTarget(id){
+    const habit = habitState.habits.find(h => h.id === id);
+    if (!habit) return;
+    const input = prompt(
+      '這個習慣「一週最好做幾次」？（留空＝一般每天澆水型，不用天天做才填數字）',
+      habit.weeklyTarget || ''
+    );
+    if (input === null) return;
+    const trimmed = input.trim();
+    const weeklyTarget = trimmed === '' ? null : parseInt(trimmed, 10);
+    if (weeklyTarget !== null && (!Number.isFinite(weeklyTarget) || weeklyTarget <= 0)) {
+      alert('請輸入正整數，或留空取消每週目標');
+      return;
+    }
+    const res = await fetch(API + '/weekly-target', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, weeklyTarget })
+    }).then(r => r.json());
+    if (res.error) { alert(res.error); return; }
+    loadHabits();
   }
   let monthLoadSeq = 0;
   async function loadHabitMonth(){
