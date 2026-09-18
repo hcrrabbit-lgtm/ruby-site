@@ -203,6 +203,18 @@ async function ensureSchema(env) {
     // column already exists, safe to ignore
   }
   try {
+    // weekly-target habits (e.g. "跳繩30下 x4/週") don't wilt daily and aren't
+    // due a Sunday penalty — NULL means the habit is the normal daily-watering kind
+    await env.DB.prepare("ALTER TABLE study_habits ADD COLUMN weekly_target INTEGER").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    await env.DB.prepare("ALTER TABLE habits ADD COLUMN weekly_target INTEGER").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
@@ -837,6 +849,7 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         : "";
       const stmt = env.DB.prepare(
         `SELECT h.id as id, h.name as name, h.child as child, h.created_at as createdAt, MAX(l.date) as lastDate,
+           h.weekly_target as weeklyTarget,
            (SELECT MAX(l2.date) FROM ${logsTable} l2
             WHERE l2.habit_id = h.id AND l2.date < (SELECT MAX(l3.date) FROM ${logsTable} l3 WHERE l3.habit_id = h.id)
            ) as prevDate${bonusCol}
@@ -847,17 +860,29 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
       return json(res.results);
     },
     async post(env, request) {
-      const { name, child } = await request.json();
+      const { name, child, weeklyTarget } = await request.json();
       if (!name || !name.trim()) return json({ error: "缺少習慣名稱" }, { status: 400 });
       const countRes = await env.DB.prepare(
         `SELECT COALESCE(MAX(order_no), 0) as maxOrder FROM ${habitsTable}`
       ).first();
       const orderNo = (countRes.maxOrder || 0) + 1;
       const id = idPrefix + "_" + Date.now();
+      const target = weeklyTarget ? Math.round(Number(weeklyTarget)) : null;
       await env.DB.prepare(
-        `INSERT INTO ${habitsTable} (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, ?)`
-      ).bind(id, name.trim(), orderNo, new Date().toISOString(), child || null).run();
-      return json({ id, name: name.trim(), child: child || null });
+        `INSERT INTO ${habitsTable} (id, name, order_no, created_at, child, weekly_target) VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(id, name.trim(), orderNo, new Date().toISOString(), child || null, target && target > 0 ? target : null).run();
+      return json({ id, name: name.trim(), child: child || null, weeklyTarget: target && target > 0 ? target : null });
+    },
+    async updateWeeklyTarget(env, request) {
+      const { id, weeklyTarget } = await request.json();
+      if (!id) return json({ error: "缺少 id" }, { status: 400 });
+      let target = null;
+      if (weeklyTarget !== null && weeklyTarget !== undefined && weeklyTarget !== "") {
+        target = Math.round(Number(weeklyTarget));
+        if (!Number.isFinite(target) || target <= 0) return json({ error: "每週次數必須是正整數" }, { status: 400 });
+      }
+      await env.DB.prepare(`UPDATE ${habitsTable} SET weekly_target = ? WHERE id = ?`).bind(target, id).run();
+      return json({ ok: true, weeklyTarget: target });
     },
     async del(env, request) {
       const { id } = await request.json();
@@ -1353,6 +1378,7 @@ export default {
       if (path === "/api/open/study-habits/log" && request.method === "GET") return await studyHabitHandlers.logGet(env, url);
       if (path === "/api/open/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
       if (path === "/api/open/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
+      if (path === "/api/open/study-habits/weekly-target" && request.method === "POST") return await studyHabitHandlers.updateWeeklyTarget(env, request);
 
       if (path === "/api/open/meal-times" && request.method === "GET") return await mealTimeHandlers.get(env, url);
       if (path === "/api/open/meal-times" && request.method === "POST") return await mealTimeHandlers.post(env, request);
