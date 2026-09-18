@@ -146,9 +146,7 @@
     background:rgba(255,255,255,.7);
   }
   .plant-card .target-edit:hover, .plant-card .target-edit:active{ opacity:1; background:var(--study-bg); }
-  .plant-card .weekly-target-badge{
-    font-size:9px; color:var(--study); font-weight:700; margin-top:2px;
-  }
+  .plant-card .quota-emoji{ font-size:26px; }
   .plant-card.seed{ border-style:dashed; }
   .plant-card.bloom{ border-color:var(--child-c, var(--study)); background:var(--child-bg, var(--study-bg)); }
   .plant-card.healthy{ border-color:var(--child-c, var(--study)); }
@@ -158,6 +156,10 @@
   .plant-card.wilting .status{ color:#B96B77; }
   .plant-card.dead{ border-color:#9a958c; background:#F1EEE7; opacity:.85; }
   .plant-card.dead .status{ color:#8a857c; font-weight:700; }
+  .plant-card.quota{ border-color:#B8862E; }
+  .plant-card.quota .status{ color:#8C6521; font-weight:700; }
+  .plant-card.quota-hit{ border-color:var(--child-c, var(--study)); }
+  .plant-card.quota-hit .status{ color:var(--child-c, var(--study)); font-weight:700; }
   .habit-add{
     display:flex;
     gap:8px;
@@ -432,6 +434,17 @@
     return { label: days + ' 天沒澆水', cls: 'dead', days };
   }
 
+  function quotaStage(h){
+    const target = h.weeklyTarget;
+    const count = h.weekCount || 0;
+    const doneToday = daysSince(h.lastDate) === 0;
+    const remaining = target - count;
+    const label = remaining > 0
+      ? `本週剩 ${remaining} 次`
+      : (count === target ? '✅ 本週已達標' : `✅ 已達標＋${count - target}`);
+    return { label, cls: doneToday ? 'bloom' : (remaining <= 0 ? 'quota-hit' : 'quota'), days: 0 };
+  }
+
   const PLANT_ICONS = {
     seed: `<svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true">
       <path d="M25,58 L75,58 L69,96 Q68,99 65,99 L35,99 Q32,99 31,96 Z" fill="#E4DED0"/>
@@ -652,17 +665,17 @@
   let editMode = false;
 
   function plantCardHtml(h){
-    const stage = plantStage(h);
+    const isQuota = !!h.weeklyTarget;
+    const stage = isQuota ? quotaStage(h) : plantStage(h);
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
-    const targetBadge = h.weeklyTarget ? `<div class="weekly-target-badge">🎯 每週${h.weeklyTarget}次</div>` : '';
+    const emojiHtml = isQuota ? `<span class="quota-emoji">🎯</span>` : PLANT_ICONS[stage.cls];
     return `<div class="plant-card ${stage.cls}" data-id="${h.id}" title="點一下：完成/取消今天的打卡">
       ${removeHtml}
       ${targetEditHtml}
-      <div class="emoji">${PLANT_ICONS[stage.cls]}</div>
+      <div class="emoji">${emojiHtml}</div>
       <div class="name">${escapeHtml(h.name)}</div>
       <div class="status">${stage.label}</div>
-      ${targetBadge}
     </div>`;
   }
 
@@ -678,7 +691,9 @@
       return;
     }
     // most-neglected first, so the plants that most need watering show up first
-    list.sort((a, b) => plantStage(b).days - plantStage(a).days);
+    // (weekly-quota habits don't wilt, so they never bubble to the front)
+    const neglectDays = h => h.weeklyTarget ? 0 : plantStage(h).days;
+    list.sort((a, b) => neglectDays(b) - neglectDays(a));
     const doneToday = list.filter(h => daysSince(h.lastDate) === 0).length;
     const bonusToday = list.reduce((sum, h) => sum + (daysSince(h.lastDate) === 0 ? (h.todayBonus || 0) : 0), 0);
     const penalty = weeklyPenaltyState.child === activeChild ? weeklyPenaltyState.count : 0;
