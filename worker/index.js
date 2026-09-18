@@ -862,6 +862,17 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
          GROUP BY h.id ORDER BY h.order_no`
       );
       const res = await (bonusRescue ? stmt.bind(today) : stmt).all();
+      const hasQuotaHabit = res.results.some(h => h.weeklyTarget);
+      if (hasQuotaHabit) {
+        const dow = taipeiNow().getUTCDay();
+        const mondayStr = addDaysStr(today, dow === 0 ? -6 : 1 - dow);
+        const weekCounts = await env.DB.prepare(
+          `SELECT habit_id as habitId, COUNT(*) as c FROM ${logsTable} WHERE date >= ? AND date <= ? GROUP BY habit_id`
+        ).bind(mondayStr, today).all();
+        const weekCountMap = {};
+        weekCounts.results.forEach(r => { weekCountMap[r.habitId] = r.c; });
+        res.results.forEach(h => { if (h.weeklyTarget) h.weekCount = weekCountMap[h.id] || 0; });
+      }
       return json(res.results);
     },
     async post(env, request) {
@@ -917,19 +928,19 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
         return json({ ok: true, done: false });
       }
       // rescuing a plant that had gone a long time without water earns a bonus
+      // (not applicable to weekly-quota habits, which are never wilting by design)
       let bonus = 0;
       if (bonusRescue) {
-        const prevRow = await env.DB.prepare(
-          `SELECT MAX(date) as prevDate FROM ${logsTable} WHERE habit_id = ? AND date < ?`
-        ).bind(habitId, date).first();
-        let baseDateStr = prevRow && prevRow.prevDate ? prevRow.prevDate : null;
-        if (!baseDateStr) {
-          const habitRow = await env.DB.prepare(`SELECT created_at FROM ${habitsTable} WHERE id = ?`).bind(habitId).first();
-          baseDateStr = habitRow && habitRow.created_at ? habitRow.created_at.slice(0, 10) : null;
-        }
-        if (baseDateStr) {
-          const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
-          if (gap >= 7) bonus = 1;
+        const habitRow = await env.DB.prepare(`SELECT created_at, weekly_target FROM ${habitsTable} WHERE id = ?`).bind(habitId).first();
+        if (habitRow && !habitRow.weekly_target) {
+          const prevRow = await env.DB.prepare(
+            `SELECT MAX(date) as prevDate FROM ${logsTable} WHERE habit_id = ? AND date < ?`
+          ).bind(habitId, date).first();
+          const baseDateStr = (prevRow && prevRow.prevDate) || (habitRow.created_at ? habitRow.created_at.slice(0, 10) : null);
+          if (baseDateStr) {
+            const gap = Math.round((new Date(date) - new Date(baseDateStr)) / 86400000);
+            if (gap >= 7) bonus = 1;
+          }
         }
       }
       await env.DB.prepare(
@@ -1062,13 +1073,14 @@ const mealWeeklyHandlers = {
 // backfill isn't skewed by watering that happened after the fact
 async function computeNeglectCount(env, child, asOfDate) {
   const res = await env.DB.prepare(
-    `SELECT h.id as id, h.created_at as createdAt,
+    `SELECT h.id as id, h.created_at as createdAt, h.weekly_target as weeklyTarget,
        (SELECT MAX(l.date) FROM study_habit_logs l WHERE l.habit_id = h.id AND l.date <= ?) as lastDate
      FROM study_habits h
      WHERE h.child = ?`
   ).bind(asOfDate, child).all();
   let count = 0;
   res.results.forEach(h => {
+    if (h.weeklyTarget) return; // weekly-quota habits aren't meant to be watered daily
     const baseDateStr = h.lastDate || (h.createdAt ? h.createdAt.slice(0, 10) : null);
     if (!baseDateStr) return;
     const gap = Math.round((new Date(asOfDate) - new Date(baseDateStr)) / 86400000);
