@@ -30,9 +30,12 @@ INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VAL
 `;
 
 // cheap non-cryptographic hash so the bootstrap flag below automatically
-// invalidates itself whenever SCHEMA_SQL's text changes (a table/column added
-// or removed) — a fixed flag value would otherwise stay "done" forever and
-// silently skip creating anything added after the flag was first set
+// invalidates itself whenever this setup logic's text changes (a table,
+// column, or migration step added or removed) — a fixed flag value would
+// otherwise stay "done" forever and silently skip anything added afterward.
+// Hashed over SCHEMA_SQL *and* ensureSchema's own source (not just
+// SCHEMA_SQL) so a change to the ALTER TABLE / backfill statements below —
+// which live in code, not in that string — invalidates the flag too.
 function hashSchema(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
@@ -42,14 +45,16 @@ function hashSchema(s) {
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
-  // fast path: once bootstrap has completed for the current SCHEMA_SQL, a cold
-  // start (schemaReady reset to false) only costs a single query instead of
-  // re-running every CREATE TABLE, ALTER TABLE and one-time backfill below
+  const fingerprint = SCHEMA_SQL + ensureSchema.toString();
+  // fast path: once bootstrap has completed for the current setup logic, a
+  // cold start (schemaReady reset to false) only costs a single query
+  // instead of re-running every CREATE TABLE, ALTER TABLE and one-time
+  // backfill below
   try {
     const bootstrapped = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'schema_bootstrap_done'"
     ).first();
-    if (bootstrapped && bootstrapped.value === hashSchema(SCHEMA_SQL)) { schemaReady = true; return; }
+    if (bootstrapped && bootstrapped.value === hashSchema(fingerprint)) { schemaReady = true; return; }
   } catch (e) {
     // app_settings table itself doesn't exist yet (fresh DB) — fall through to full setup below
   }
@@ -218,7 +223,7 @@ async function ensureSchema(env) {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-    ).bind(hashSchema(SCHEMA_SQL)).run();
+    ).bind(hashSchema(fingerprint)).run();
   } catch (e) {
     // best-effort; a failed write here just means the next cold start redoes full setup
   }
