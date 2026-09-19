@@ -373,54 +373,15 @@
     background:#fff;
     border:1.5px solid #E3B5AC;
     border-radius:14px;
-    padding:4px 12px;
+    padding:12px;
   }
-  .rescue-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:9px 0;
-    border-bottom:1px dashed #EAD8D4;
-  }
-  .rescue-row:last-of-type{ border-bottom:none; }
-  .rescue-row .emoji{ width:28px; height:28px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-  .rescue-row .emoji svg{ width:26px; height:26px; display:block; }
-  .rescue-info{ flex:1 1 auto; min-width:0; }
-  .rescue-info .name{ font-size:13px; font-weight:700; color:var(--ink); }
-  .rescue-info .note{ font-size:11px; color:#9C4E5A; margin-top:1px; }
-  .rescue-drops{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; max-width:90px; }
-  .rescue-drops .drop-row{ margin-top:0; }
-  .rescue-edit-btn{
-    flex:0 0 auto;
-    width:26px;
-    height:26px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:13px;
-    border-radius:8px;
-    background:var(--paper-deep);
-    color:var(--ink-soft);
-    cursor:pointer;
-  }
-  .rescue-edit-btn:active{ background:var(--line); }
-  .rescue-go{
-    flex:0 0 auto;
-    padding:6px 12px;
-    border-radius:999px;
-    border:none;
-    background:#B96B77;
-    color:#fff;
-    font-weight:700;
-    font-size:12px;
-    cursor:pointer;
-    font-family:inherit;
-  }
-  .rescue-go:active{ transform:scale(.95); }
+  .rescue-block .plant-card.wilting{ background:#F6E8E5; }
+  .rescue-block .plant-card.fading{ background:#FBF1DD; }
   .rescue-cheer{
     font-size:11px;
     color:var(--ink-soft);
-    padding:8px 0 10px;
+    padding:0 0 10px;
+    margin-bottom:10px;
     line-height:1.7;
     border-bottom:1px dashed #EAD8D4;
   }
@@ -543,14 +504,12 @@
     return (cls === 'wilting' || cls === 'dead') ? 'rescue' : 'progress';
   }
 
-  // the reason a habit landed in the rescue section, spelled out since the
-  // row has room for it (unlike the compact grid cards)
-  function rescueNote(h){
-    if (!h.weeklyTarget) return plantStage(h).label;
+  // a short reason for the rescue-section card's status line — quota habits'
+  // wilting/fading states are otherwise blank (kept calm in the in-progress
+  // grid), so the rescue grid fills that in since it's exactly what's urgent
+  function rescueLabel(h){
     const remaining = h.weeklyTarget - (h.weekCount || 0);
-    const daysLeft = weekDaysLeft();
-    if (remaining > daysLeft) return `這週來不及了，還差 ${remaining} 次`;
-    return `最後衝刺！還差 ${remaining} 次，剩 ${daysLeft} 天`;
+    return remaining > weekDaysLeft() ? '這週來不及了' : '最後衝刺';
   }
 
   function dropSvg(state){
@@ -794,10 +753,13 @@
 
   let editMode = false;
 
-  function plantCardHtml(h){
+  function plantCardHtml(h, inRescue){
     const isQuota = !!h.weeklyTarget;
     const stage = isQuota ? quotaStage(h) : plantStage(h);
     const iconKey = stage.cls === 'today' ? 'healthy' : stage.cls;
+    // quota wilting/fading cards are blank in the calm in-progress grid, but the
+    // rescue grid is exactly where that reason belongs
+    const label = (inRescue && isQuota && !stage.label) ? rescueLabel(h) : stage.label;
     const removeHtml = editMode ? `<span class="remove" data-remove="${h.id}" title="刪除這個習慣">✕</span>` : '';
     const targetEditHtml = editMode ? `<span class="target-edit" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : '';
     const dropsHtml = isQuota
@@ -810,34 +772,9 @@
       ${targetEditHtml}
       <div class="emoji">${PLANT_ICONS[iconKey]}</div>
       <div class="name">${escapeHtml(h.name)}</div>
-      <div class="status">${stage.label}</div>
+      <div class="status">${label}</div>
       ${dropsHtml}
       ${streakHtml}
-    </div>`;
-  }
-
-  function rescueRowHtml(h){
-    const isQuota = !!h.weeklyTarget;
-    const stage = isQuota ? quotaStage(h) : plantStage(h);
-    const iconKey = stage.cls === 'today' ? 'healthy' : stage.cls;
-    const dropsHtml = isQuota
-      ? `<div class="rescue-drops">
-           <div class="drop-row">${dropRowHtml(h.weeklyTarget, h.weekCount || 0)}</div>
-           <div class="drop-frac">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>
-         </div>`
-      : '';
-    const editHtml = editMode
-      ? `<span class="rescue-edit-btn" data-remove="${h.id}" title="刪除這個習慣">✕</span>${isQuota ? `<span class="rescue-edit-btn" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : ''}`
-      : '';
-    return `<div class="rescue-row" data-id="${h.id}">
-      <div class="emoji">${PLANT_ICONS[iconKey]}</div>
-      <div class="rescue-info">
-        <div class="name">${escapeHtml(h.name)}</div>
-        <div class="note">${escapeHtml(rescueNote(h))}</div>
-      </div>
-      ${dropsHtml}
-      ${editHtml}
-      <button type="button" class="rescue-go" data-rescue-go="${h.id}">去澆水</button>
     </div>`;
   }
 
@@ -869,7 +806,8 @@
 
     const name = escapeHtml(activeChild);
     const rescueHtml = rescue.length
-      ? `<div class="rescue-cheer">你願意先救一株嗎？小小的行動，會讓它重新長大 🌱</div>` + rescue.map(rescueRowHtml).join('')
+      ? `<div class="rescue-cheer">你願意先救一株嗎？小小的行動，會讓它重新長大 🌱</div>
+         <div class="plant-grid">${rescue.map(h => plantCardHtml(h, true)).join('')}</div>`
       : `<p class="rescue-empty">目前沒有急需照顧的項目，太棒了！</p>`;
     const progressHtml = progress.length
       ? `<div class="plant-grid">${progress.map(plantCardHtml).join('')}</div>`
@@ -915,12 +853,6 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         editWeeklyTarget(btn.dataset.targetEdit);
-      });
-    });
-    wrap.querySelectorAll('[data-rescue-go]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleHabit(btn.dataset.rescueGo);
       });
     });
     if (editMode) bindHabitAddForm();
