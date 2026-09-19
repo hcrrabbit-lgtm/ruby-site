@@ -390,6 +390,20 @@
   .rescue-info .note{ font-size:11px; color:#9C4E5A; margin-top:1px; }
   .rescue-drops{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; max-width:90px; }
   .rescue-drops .drop-row{ margin-top:0; }
+  .rescue-edit-btn{
+    flex:0 0 auto;
+    width:26px;
+    height:26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    border-radius:8px;
+    background:var(--paper-deep);
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .rescue-edit-btn:active{ background:var(--line); }
   .rescue-go{
     flex:0 0 auto;
     padding:6px 12px;
@@ -812,6 +826,9 @@
            <div class="drop-frac">${Math.min(h.weekCount || 0, h.weeklyTarget)}／${h.weeklyTarget}</div>
          </div>`
       : '';
+    const editHtml = editMode
+      ? `<span class="rescue-edit-btn" data-remove="${h.id}" title="刪除這個習慣">✕</span>${isQuota ? `<span class="rescue-edit-btn" data-target-edit="${h.id}" title="設定每週目標次數">🎯</span>` : ''}`
+      : '';
     return `<div class="rescue-row" data-id="${h.id}">
       <div class="emoji">${PLANT_ICONS[iconKey]}</div>
       <div class="rescue-info">
@@ -819,6 +836,7 @@
         <div class="note">${escapeHtml(rescueNote(h))}</div>
       </div>
       ${dropsHtml}
+      ${editHtml}
       <button type="button" class="rescue-go" data-rescue-go="${h.id}">去澆水</button>
     </div>`;
   }
