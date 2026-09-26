@@ -134,6 +134,11 @@
   .plant-card .emoji{ line-height:1; margin-bottom:3px; display:flex; justify-content:center; }
   .plant-card .emoji svg{ display:block; width:30px; height:30px; }
   .plant-card .name{ font-size:13px; font-weight:700; color:var(--ink); word-break:break-word; margin-bottom:1px; }
+  .plant-card .rename-icon{
+    display:inline-block; font-size:12px; opacity:.6; padding:3px; border-radius:6px;
+    vertical-align:1px; line-height:1;
+  }
+  .plant-card .rename-icon:hover, .plant-card .rename-icon:active{ opacity:1; background:var(--study-bg); }
   .plant-card .status{ font-size:10.5px; color:var(--ink-soft); }
   .plant-card .remove{
     position:absolute; top:4px; right:6px;
@@ -771,7 +776,7 @@
       ${removeHtml}
       ${targetEditHtml}
       <div class="emoji">${PLANT_ICONS[iconKey]}</div>
-      <div class="name">${escapeHtml(h.name)}</div>
+      <div class="name">${escapeHtml(h.name)}${editMode ? ` <span class="rename-icon" data-rename="${h.id}" title="修改名稱">✏️</span>` : ''}</div>
       <div class="status">${label}</div>
       ${dropsHtml}
       ${streakHtml}
@@ -839,7 +844,7 @@
     });
     wrap.querySelectorAll('.plant-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (e.target.dataset.remove || e.target.dataset.targetEdit) return;
+        if (e.target.dataset.remove || e.target.dataset.targetEdit || e.target.dataset.rename) return;
         toggleHabit(card.dataset.id);
       });
     });
@@ -853,6 +858,12 @@
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         editWeeklyTarget(btn.dataset.targetEdit);
+      });
+    });
+    wrap.querySelectorAll('[data-rename]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renameHabit(btn.dataset.rename);
       });
     });
     if (editMode) bindHabitAddForm();
@@ -1011,6 +1022,22 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, weeklyTarget })
+    }).then(r => r.json());
+    if (res.error) { alert(res.error); return; }
+    loadHabits();
+  }
+
+  async function renameHabit(id){
+    const habit = habitState.habits.find(h => h.id === id);
+    if (!habit) return;
+    const input = prompt('新的習慣名稱：', habit.name);
+    if (input === null) return;
+    const name = input.trim();
+    if (!name) { alert('名稱不能空白'); return; }
+    const res = await fetch(API + '/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
     }).then(r => r.json());
     if (res.error) { alert(res.error); return; }
     loadHabits();

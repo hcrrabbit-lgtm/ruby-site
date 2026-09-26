@@ -911,6 +911,13 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
       await env.DB.prepare(`UPDATE ${habitsTable} SET weekly_target = ? WHERE id = ?`).bind(target, id).run();
       return json({ ok: true, weeklyTarget: target });
     },
+    async rename(env, request) {
+      const { id, name } = await request.json();
+      if (!id) return json({ error: "缺少 id" }, { status: 400 });
+      if (!name || !name.trim()) return json({ error: "缺少習慣名稱" }, { status: 400 });
+      await env.DB.prepare(`UPDATE ${habitsTable} SET name = ? WHERE id = ?`).bind(name.trim(), id).run();
+      return json({ ok: true, name: name.trim() });
+    },
     async del(env, request) {
       const { id } = await request.json();
       if (!id) return json({ error: "缺少 id" }, { status: 400 });
@@ -1389,6 +1396,7 @@ export default {
       if (path === "/api/open/study-habits/log" && request.method === "POST") return await studyHabitHandlers.logToggle(env, request);
       if (path === "/api/open/study-habits/month" && request.method === "GET") return await studyHabitHandlers.month(env, url);
       if (path === "/api/open/study-habits/weekly-target" && request.method === "POST") return await studyHabitHandlers.updateWeeklyTarget(env, request);
+      if (path === "/api/open/study-habits/rename" && request.method === "POST") return await studyHabitHandlers.rename(env, request);
 
       if (path === "/api/open/meal-times" && request.method === "GET") return await mealTimeHandlers.get(env, url);
       if (path === "/api/open/meal-times" && request.method === "POST") return await mealTimeHandlers.post(env, request);
