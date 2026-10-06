@@ -331,9 +331,10 @@
   .stats-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .students-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .stats-table-wrap{
-    overflow-x:auto;overflow-y:visible;background:var(--card);border:1px solid var(--line);
+    overflow-x:auto;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
   }
+  #panel-progress .stats-table-wrap{max-height:70vh;overflow-y:auto;}
   .stats-table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;}
   .stats-table th, .stats-table td{
     border:1px solid var(--line);padding:6px 8px;text-align:center;white-space:nowrap;
