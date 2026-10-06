@@ -626,7 +626,7 @@
     <div class="summary-bar">
       <span class="count" id="attCount">30 位學生</span>
       <div class="summary-chip">遲到 <b id="lateCount">0</b> 人</div>
-      <div class="summary-chip">缺席 <b id="absentCount">0</b> 人</div>
+      <div class="summary-chip">請假 <b id="absentCount">0</b> 人</div>
     </div>
     <div class="sort-group">
       <span class="sort-label">排序方式</span>
@@ -1406,7 +1406,7 @@ function renderRoster(){
         <div class="student-row-controls">
           <div class="att-controls">
             <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
-            <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">缺席</button>
+            <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">請假</button>
           </div>
           <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0} 次</div>
           <div class="beh-controls">
@@ -1525,7 +1525,7 @@ const STATS_FIXED_COLUMNS = [
   { key: "plus", label: "加分", sub: "累計" },
   { key: "minus", label: "扣分", sub: "累計" },
   { key: "late", label: "遲到", sub: "累計" },
-  { key: "absent", label: "缺席", sub: "累計" }
+  { key: "absent", label: "請假", sub: "累計" }
 ];
 
 function renderStatsTable(){
@@ -1577,7 +1577,7 @@ function renderStatsTable(){
       <td class="stats-plus">${beh.plus}</td>
       <td class="stats-minus">${beh.minus}</td>
       <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="late" title="點擊查看遲到日期">${statsLateFor(st.id)}</td>
-      <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="absent" title="點擊查看缺席日期">${statsAbsentFor(st.id)}</td>
+      <td class="stats-clickable" data-detail-student="${st.id}" data-detail-status="absent" title="點擊查看請假日期">${statsAbsentFor(st.id)}</td>
       ${assignmentCells}
       <td class="no-print"></td>
     </tr>`;
@@ -1709,7 +1709,7 @@ function renderStatsTable(){
 async function openAttendanceDetail(studentId, status){
   const st = rosterCache.find(s => s.id === studentId);
   if(!st) return;
-  const statusLabel = status === "absent" ? "缺席" : "遲到";
+  const statusLabel = status === "absent" ? "請假" : "遲到";
 
   const existing = document.getElementById("attendDetailModal");
   if(existing) existing.remove();
@@ -1744,7 +1744,7 @@ async function openAttendanceDetail(studentId, status){
 
 function exportStatsCsv(){
   const list = getStatsList();
-  const header = ["座號", "姓名", "加分累計", "扣分累計", "遲到累計", "缺席累計", ...statsAssignments.map(a => a.name)];
+  const header = ["座號", "姓名", "加分累計", "扣分累計", "遲到累計", "請假累計", ...statsAssignments.map(a => a.name)];
   const rows = [header];
   list.forEach(st => {
     const beh = statsBehaviorFor(st.id);
@@ -1895,7 +1895,7 @@ function openSeatScore(studentId){
       <div class="seat-score-tally" id="seatScoreTally"></div>
       <div class="seat-score-att">
         <button class="att-btn late" id="seatScoreLateBtn" data-state="late">遲到</button>
-        <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent">缺席</button>
+        <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent">請假</button>
       </div>
       <div class="seat-score-late-total" id="seatScoreLateTotal"></div>
       <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
@@ -2713,7 +2713,7 @@ document.getElementById("resetTestDataBtn").addEventListener("click", async () =
     + "・所有作品照片、分數、等第、備註(作業欄位本身會保留)\n"
     + "・所有學生大頭照\n"
     + "・所有加分/扣分紀錄\n"
-    + "・所有遲到/缺席紀錄\n\n"
+    + "・所有遲到/請假紀錄\n\n"
     + "確定要繼續嗎?";
   if(!confirm(warning)) return;
   const typed = prompt("請輸入「RESET」以確認清除(區分大小寫):");
