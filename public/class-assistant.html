@@ -331,7 +331,7 @@
   .stats-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .students-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .stats-table-wrap{
-    overflow-x:auto;background:var(--card);border:1px solid var(--line);
+    overflow-x:auto;overflow-y:visible;background:var(--card);border:1px solid var(--line);
     border-radius:var(--radius);
   }
   .stats-table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;}
@@ -432,7 +432,10 @@
   .progress-table th, .progress-table td{white-space:normal;}
   .progress-table thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line);}
   .progress-table td.progress-week{color:var(--ink-soft);font-weight:700;white-space:nowrap;width:72px;}
-  .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
+  .progress-table tr.progress-current-week td.progress-week{color:var(--clay);}
+  .progress-table tr.progress-current-week td{border-top:2px solid var(--clay);border-bottom:2px solid var(--clay);}
+  .progress-table tr.progress-current-week td:first-child{border-left:2px solid var(--clay);}
+  .progress-table tr.progress-current-week td:last-child{border-right:2px solid var(--clay);}
   .progress-week-range{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
   .progress-class-weekday{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
   .progress-cell-holiday{background:#E8E1CC;}
