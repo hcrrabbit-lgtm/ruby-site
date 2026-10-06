@@ -434,6 +434,8 @@
   .progress-table tr.progress-current-week td.progress-week{color:var(--sage-dark);}
   .progress-week-range{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
   .progress-class-weekday{display:block;font-size:10px;font-weight:400;color:var(--ink-soft);margin-top:2px;}
+  .progress-cell-holiday{background:#E8E1CC;}
+  .progress-cell-holiday .progress-note-input{background:#DDD3B5;border-color:#C9BC98;color:var(--ink-soft);}
   .progress-note-input{
     width:100%;min-width:120px;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);
     background:var(--card);color:var(--ink);resize:none;overflow:hidden;font-family:inherit;box-sizing:border-box;
@@ -740,6 +742,19 @@ function formatWeekRange(week){
   return `${fmt(rangeStart)}~${fmt(rangeEnd)}`;
 }
 
+// Maps a class's weekly art-class slot in a given 課程-tab week onto the fixed
+// school calendar (SEMESTER_HOLIDAYS, defined further down) to tell whether that
+// specific class+week cell falls on a day school is out, so it can be dimmed.
+function classHolidayOn(classId, week){
+  if(!semesterStart) return null;
+  const entry = weeklySchedule.find(s => s.classId === classId);
+  if(!entry || entry.weekday < 1 || entry.weekday > 5) return null;
+  const classDate = new Date(semesterStart + "T00:00:00");
+  classDate.setDate(classDate.getDate() + (week - 1) * 7 + (entry.weekday - 1));
+  const ymd = `${classDate.getFullYear()}-${pad(classDate.getMonth() + 1)}-${pad(classDate.getDate())}`;
+  return holidayOn(ymd);
+}
+
 function autoGrowTextarea(el){
   el.style.height = "auto";
   el.style.height = el.scrollHeight + "px";
@@ -792,7 +807,10 @@ function renderProgressTable(){
   for(let w = 1; w <= PROGRESS_WEEKS; w++){
     const cells = currentClasses.map(c => {
       const note = (progressData[c.id] && progressData[c.id][w]) || "";
-      return `<td><textarea class="progress-note-input" rows="2" data-class="${c.id}" data-week="${w}">${escapeHtml(note)}</textarea></td>`;
+      const holiday = classHolidayOn(c.id, w);
+      const tdClass = holiday ? ` class="progress-cell-holiday"` : "";
+      const title = holiday ? ` title="${escapeHtml(holiday.label)}"` : "";
+      return `<td${tdClass}${title}><textarea class="progress-note-input" rows="2" data-class="${c.id}" data-week="${w}">${escapeHtml(note)}</textarea></td>`;
     }).join("");
     const range = formatWeekRange(w);
     const weekLabel = `第${w}週${range ? `<span class="progress-week-range">${range}</span>` : ""}`;
