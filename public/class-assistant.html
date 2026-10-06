@@ -335,6 +335,7 @@
     border-radius:var(--radius);
   }
   #panel-progress .stats-table-wrap{max-height:70vh;overflow-y:auto;}
+  #panel-stats .stats-table-wrap{max-height:70vh;overflow-y:auto;}
   .stats-table{border-collapse:collapse;width:100%;min-width:520px;font-size:13px;}
   .stats-table th, .stats-table td{
     border:1px solid var(--line);padding:6px 8px;text-align:center;white-space:nowrap;
@@ -359,6 +360,18 @@
   .stats-table td.stats-plus{color:var(--sage-dark);font-weight:600;}
   .stats-table td.stats-minus{color:var(--clay);font-weight:600;}
   .stats-table tfoot td{background:var(--paper);font-weight:700;}
+  #statsTable thead th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--line);}
+  #statsTable td.stats-seat, #statsTable th[data-key="seat"]{
+    position:sticky;left:0;z-index:1;background:var(--card);
+    width:48px;min-width:48px;max-width:48px;box-shadow:1px 0 0 var(--line);
+  }
+  #statsTable td.stats-name, #statsTable th[data-key="name"]{
+    position:sticky;left:48px;z-index:1;background:var(--card);box-shadow:1px 0 0 var(--line);
+  }
+  #statsTable thead th[data-key="seat"], #statsTable thead th[data-key="name"]{
+    z-index:3;background:var(--paper);
+  }
+  #statsTable tfoot td:first-child{position:sticky;left:0;z-index:1;box-shadow:1px 0 0 var(--line);}
   .stats-score-input{
     width:52px;font-size:13px;padding:4px;border-radius:6px;border:1px solid var(--line);
     text-align:center;background:var(--card);color:var(--ink);
@@ -467,7 +480,11 @@
     #panel-stats{position:absolute;left:0;top:0;width:100%;}
     .no-print{display:none !important;}
     .print-only{display:block;margin-bottom:6px;font-size:14px;font-weight:700;}
-    .stats-table-wrap{overflow:visible;}
+    .stats-table-wrap{overflow:visible;max-height:none;}
+    #statsTable thead th,
+    #statsTable td.stats-seat, #statsTable th[data-key="seat"],
+    #statsTable td.stats-name, #statsTable th[data-key="name"],
+    #statsTable tfoot td:first-child{position:static;box-shadow:none;}
     .stats-table{font-size:9px;min-width:0;}
     .stats-table th, .stats-table td{padding:2px 4px;}
     .stats-table thead th.assignment-col{padding:2px;}
