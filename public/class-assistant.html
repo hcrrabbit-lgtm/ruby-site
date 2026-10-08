@@ -541,7 +541,18 @@
   .student-note-date{font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
   .student-note-text{white-space:pre-wrap;word-break:break-word;}
   .student-note-remove{background:none;border:none;color:var(--clay);font-size:14px;cursor:pointer;padding:2px;flex-shrink:0;}
+  .student-note-edit{background:none;border:none;color:var(--ink-soft);font-size:14px;cursor:pointer;padding:2px;flex-shrink:0;}
   .student-notes-empty{padding:10px 2px;font-size:13px;color:var(--ink-soft);text-align:center;}
+  .student-note-edit-box textarea{
+    width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);
+    background:var(--paper);color:var(--ink);resize:vertical;font-family:inherit;box-sizing:border-box;
+  }
+  .student-note-edit-actions{display:flex;gap:6px;margin-top:6px;}
+  .student-note-edit-actions button{
+    flex:1;padding:6px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;
+  }
+  .student-note-edit-save{background:var(--sage);color:#fff;}
+  .student-note-edit-cancel{background:var(--line);color:var(--ink);}
   .student-notes-add{width:100%;margin-top:12px;}
   .student-notes-add textarea{
     width:100%;font-size:14px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
@@ -1087,6 +1098,15 @@ async function apiGet(path){
 async function apiPost(path, body){
   const res = await fetch(path, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error("api error " + path);
+  return await res.json();
+}
+async function apiPut(path, body){
+  const res = await fetch(path, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
@@ -1920,26 +1940,9 @@ function openSeatScore(studentId){
     try{
       const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
       listEl.innerHTML = notes.length
-        ? notes.map(n => `
-            <div class="student-note-item">
-              <div class="student-note-body">
-                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
-                <div class="student-note-text">${escapeHtml(n.note)}</div>
-              </div>
-              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
-            </div>`).join("")
+        ? notes.map(renderNoteItem).join("")
         : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
-      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
-          try{
-            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
-            await refreshSeatNotes();
-          }catch(e){
-            alert("刪除失敗,請稍後再試。");
-          }
-        });
-      });
+      wireNoteItemActions(listEl, notes, refreshSeatNotes);
     }catch(e){
       listEl.textContent = "載入失敗,請稍後再試";
     }
@@ -2018,6 +2021,61 @@ function formatNoteDate(iso){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function renderNoteItem(n){
+  return `
+    <div class="student-note-item" data-note-id="${n.id}">
+      <div class="student-note-body">
+        <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
+        <div class="student-note-text">${escapeHtml(n.note)}</div>
+      </div>
+      <button class="student-note-edit" data-id="${n.id}" title="編輯">✎</button>
+      <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
+    </div>`;
+}
+
+function wireNoteItemActions(listEl, notes, refreshFn){
+  listEl.querySelectorAll(".student-note-remove").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if(!confirm("確定要刪除這筆紀錄嗎?")) return;
+      try{
+        await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
+        await refreshFn();
+      }catch(e){
+        alert("刪除失敗,請稍後再試。");
+      }
+    });
+  });
+  listEl.querySelectorAll(".student-note-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const item = listEl.querySelector(`.student-note-item[data-note-id="${id}"]`);
+      const note = notes.find(n => n.id === id);
+      if(!item || !note) return;
+      const body = item.querySelector(".student-note-body");
+      body.innerHTML = `
+        <div class="student-note-edit-box">
+          <textarea rows="2">${escapeHtml(note.note)}</textarea>
+          <div class="student-note-edit-actions">
+            <button type="button" class="student-note-edit-save">儲存</button>
+            <button type="button" class="student-note-edit-cancel">取消</button>
+          </div>
+        </div>`;
+      item.querySelector(".student-note-edit-cancel").addEventListener("click", refreshFn);
+      item.querySelector(".student-note-edit-save").addEventListener("click", async () => {
+        const textarea = item.querySelector(".student-note-edit-box textarea");
+        const updated = textarea.value.trim();
+        if(!updated) return;
+        try{
+          await apiPut("/api/student-notes", { id, note: updated });
+          await refreshFn();
+        }catch(e){
+          alert("修改失敗,請稍後再試。");
+        }
+      });
+    });
+  });
+}
+
 async function openStudentNotes(studentId){
   const st = rosterCache.find(s => s.id === studentId);
   if(!st) return;
@@ -2049,26 +2107,9 @@ async function openStudentNotes(studentId){
     try{
       const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
       listEl.innerHTML = notes.length
-        ? notes.map(n => `
-            <div class="student-note-item">
-              <div class="student-note-body">
-                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
-                <div class="student-note-text">${escapeHtml(n.note)}</div>
-              </div>
-              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
-            </div>`).join("")
+        ? notes.map(renderNoteItem).join("")
         : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
-      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
-          try{
-            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
-            await refresh();
-          }catch(e){
-            alert("刪除失敗,請稍後再試。");
-          }
-        });
-      });
+      wireNoteItemActions(listEl, notes, refresh);
     }catch(e){
       listEl.textContent = "載入失敗,請稍後再試";
     }

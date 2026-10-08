@@ -327,6 +327,13 @@ async function handleStudentNotesPost(env, request) {
   return json({ id: res.meta.last_row_id, note: note.trim(), createdAt });
 }
 
+async function handleStudentNotesPut(env, request) {
+  const { id, note } = await request.json();
+  if (!id || !note || !note.trim()) return json({ error: "缺少 id 或 note" }, { status: 400 });
+  await env.DB.prepare("UPDATE student_notes SET note = ? WHERE id = ?").bind(note.trim(), id).run();
+  return json({ ok: true, note: note.trim() });
+}
+
 async function handleStudentNotesDelete(env, request) {
   const { id } = await request.json();
   if (!id) return json({ error: "缺少 id" }, { status: 400 });
@@ -1338,6 +1345,7 @@ export default {
       if (path === "/api/students" && request.method === "DELETE") return await handleStudentDelete(env, request);
       if (path === "/api/student-notes" && request.method === "GET") return await handleStudentNotesGet(env, url);
       if (path === "/api/student-notes" && request.method === "POST") return await handleStudentNotesPost(env, request);
+      if (path === "/api/student-notes" && request.method === "PUT") return await handleStudentNotesPut(env, request);
       if (path === "/api/student-notes" && request.method === "DELETE") return await handleStudentNotesDelete(env, request);
       if (path === "/api/student-notes/class" && request.method === "GET") return await handleStudentNotesForClass(env, url);
       if (path === "/api/students/photo" && request.method === "POST") return await handleStudentPhotoUpload(env, request, url);
