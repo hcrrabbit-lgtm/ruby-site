@@ -499,6 +499,11 @@
   .growth-table th{ text-align:left; color:var(--ink-soft); font-weight:500; font-size:12px; padding:6px 4px; }
   .growth-table td{ padding:6px 4px; border-top:1px solid var(--line); }
   .growth-table td:last-child{ text-align:right; width:30px; }
+  .grade-tag{
+    display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px;
+    background:var(--child-bg, var(--study-bg)); color:var(--child-c, var(--study));
+    font-size:11px; font-weight:700; white-space:nowrap; vertical-align:1px;
+  }
 </style>
 </head>
 <body>
@@ -1438,6 +1443,24 @@
   }
   const childCls = () => CHILD_SLUG[activeChild] || '';
 
+  // 讀小一那一學年的開始年份（學年從 8 月算起）。
+  // 2026 學年 Cathy 國二、Rina 小三。
+  const GRADE1_YEAR = { Cathy: 2019, Rina: 2024 };
+  const GRADE_NAMES = { '-3': '幼幼班', '-2': '小班', '-1': '中班', '0': '大班',
+    1: '小一', 2: '小二', 3: '小三', 4: '小四', 5: '小五', 6: '小六',
+    7: '國一', 8: '國二', 9: '國三', 10: '高一', 11: '高二', 12: '高三' };
+  function gradeOf(dateStr, child){
+    const start = GRADE1_YEAR[child || activeChild];
+    if (!start || !dateStr) return '';
+    const [y, m] = dateStr.split('-').map(Number);
+    const schoolYear = m >= 8 ? y : y - 1;
+    return GRADE_NAMES[String(schoolYear - start + 1)] || '';
+  }
+  function gradeTag(dateStr){
+    const g = gradeOf(dateStr);
+    return g ? `<span class="grade-tag">${g}</span>` : '';
+  }
+
   // ---------- 里程碑 ----------
   const TRACKS = {
     ienglish: { title: '📘 I English', unit: 'Level' },
@@ -1457,7 +1480,7 @@
       const gap = prev ? gapText(daysBetween(prev.date, l.date)) : '';
       return `<li class="${i === 0 ? 'top' : ''}">
         <span class="lv">${escapeHtml(l.label)}</span>
-        <span class="dt">${fmtDate(l.date)}</span>
+        <span class="dt">${fmtDate(l.date)}${gradeTag(l.date)}</span>
         ${gap ? `<span class="gap">${gap}</span>` : ''}
         <button class="rec-del" data-del-level="${l.id}" title="刪除這筆">✕</button>
       </li>`;
@@ -1492,7 +1515,7 @@
           <span class="contest-medal">${medalFor(c.result)}</span>
           <div class="contest-body">
             <div class="contest-name">${escapeHtml(c.name)}</div>
-            <div class="contest-meta">${fmtDate(c.date)}${c.division ? `　${escapeHtml(c.division)}` : ''}　<b>${escapeHtml(c.result)}</b></div>
+            <div class="contest-meta">${fmtDate(c.date)}${gradeTag(c.date)}${c.division ? `　${escapeHtml(c.division)}` : ''}　<b>${escapeHtml(c.result)}</b></div>
           </div>
           <button class="rec-del" data-del-contest="${c.id}" title="刪除這筆">✕</button>
         </li>`).join('')}</ul>`
@@ -1646,7 +1669,7 @@
     const color = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A';
     const table = rows.length
       ? `<table class="growth-table"><thead><tr><th>日期</th><th>身高</th><th>體重</th><th></th></tr></thead><tbody>
-          ${rows.slice().reverse().map(r => `<tr><td>${fmtDate(r.date)}</td>
+          ${rows.slice().reverse().map(r => `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}</td>
             <td>${r.heightCm != null ? r.heightCm + ' cm' : '—'}</td>
             <td>${r.weightKg != null ? r.weightKg + ' kg' : '—'}</td>
             <td><button class="rec-del" data-del-growth="${r.id}" title="刪除這筆">✕</button></td></tr>`).join('')}
