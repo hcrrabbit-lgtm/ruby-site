@@ -21,6 +21,9 @@
       "database_id": "55e99051-819a-4ab2-b230-8004962c7375"
     }
   ],
+  "ai": {
+    "binding": "AI"
+  },
   "r2_buckets": [
     {
       "binding": "PHOTOS",

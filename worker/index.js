@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS weekly_penalties (child TEXT NOT NULL, week_date TEXT
 CREATE TABLE IF NOT EXISTS bank_withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, points INTEGER NOT NULL, amount INTEGER NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS meal_weekly_status (child TEXT NOT NULL, week_date TEXT NOT NULL, total INTEGER NOT NULL, success INTEGER NOT NULL, threshold REAL NOT NULL, passed INTEGER NOT NULL, level_after INTEGER NOT NULL, PRIMARY KEY(child, week_date));
 CREATE TABLE IF NOT EXISTS habit_streak_bonus (habit_id TEXT NOT NULL, week_date TEXT NOT NULL, streak INTEGER NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(habit_id, week_date));
+CREATE TABLE IF NOT EXISTS bm_levels (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, track TEXT NOT NULL, label TEXT NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS bm_contests (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, name TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -1254,6 +1257,119 @@ async function handleGrades(env, url) {
   return json({ assignments: assignments.map(a => a.name), behaviorWeight, results });
 }
 
+// ---- Better Me 里程碑／比賽／成長紀錄 (served under /api/open/, no login) ----
+const BM_CHILDREN = new Set(["Cathy", "Rina"]);
+const BM_TRACKS = new Set(["ienglish", "yehu"]);
+const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function bmClean(s, max) {
+  return String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+async function bmRecordsGet(env, url) {
+  const child = url.searchParams.get("child");
+  if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
+  const [levels, contests, growth] = await Promise.all([
+    env.DB.prepare("SELECT id, track, label, date FROM bm_levels WHERE child = ? ORDER BY date, id").bind(child).all(),
+    env.DB.prepare("SELECT id, date, name, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
+    env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all()
+  ]);
+  return json({ levels: levels.results, contests: contests.results, growth: growth.results });
+}
+
+async function bmLevelPost(env, request) {
+  const b = await request.json();
+  const label = bmClean(b.label, 20);
+  if (!BM_CHILDREN.has(b.child) || !BM_TRACKS.has(b.track) || !label || !BM_DATE_RE.test(b.date || "")) {
+    return json({ error: "資料不完整" }, { status: 400 });
+  }
+  await env.DB.prepare("INSERT INTO bm_levels (child, track, label, date, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(b.child, b.track, label, b.date, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+async function bmContestPost(env, request) {
+  const b = await request.json();
+  const name = bmClean(b.name, 80);
+  const result = bmClean(b.result, 40);
+  if (!BM_CHILDREN.has(b.child) || !name || !result || !BM_DATE_RE.test(b.date || "")) {
+    return json({ error: "資料不完整" }, { status: 400 });
+  }
+  await env.DB.prepare("INSERT INTO bm_contests (child, date, name, result, created_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(b.child, b.date, name, result, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+async function bmGrowthPost(env, request) {
+  const b = await request.json();
+  const h = b.heightCm === "" || b.heightCm == null ? null : Number(b.heightCm);
+  const w = b.weightKg === "" || b.weightKg == null ? null : Number(b.weightKg);
+  const okH = h === null || (Number.isFinite(h) && h >= 50 && h <= 220);
+  const okW = w === null || (Number.isFinite(w) && w >= 5 && w <= 150);
+  if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || (h === null && w === null) || !okH || !okW) {
+    return json({ error: "資料不完整或數字不合理" }, { status: 400 });
+  }
+  await env.DB.prepare(
+    `INSERT INTO bm_growth (child, date, height_cm, weight_kg, created_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(child, date) DO UPDATE SET
+       height_cm = COALESCE(excluded.height_cm, bm_growth.height_cm),
+       weight_kg = COALESCE(excluded.weight_kg, bm_growth.weight_kg)`
+  ).bind(b.child, b.date, h, w, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+async function bmDelete(env, request, table) {
+  const b = await request.json();
+  const id = Number(b.id);
+  if (!Number.isInteger(id)) return json({ error: "id 不正確" }, { status: 400 });
+  await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id).run();
+  return json({ ok: true });
+}
+
+// 讀獎狀照片：照片只在這次請求裡交給 AI 讀，不寫進 R2 或資料庫；
+// 只回傳比賽名稱／成績／日期三個欄位，姓名一律不回傳。
+async function bmReadCertificate(env, request) {
+  if (!env.AI) return json({ error: "AI 讀取功能還沒開啟，請先手動輸入" }, { status: 503 });
+  const b = await request.json();
+  const image = String(b.image || "");
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 3_000_000) {
+    return json({ error: "照片格式不對或太大" }, { status: 400 });
+  }
+  const instructions =
+    "這是一張台灣的圍棋比賽獎狀照片。請只讀出三件事，用 JSON 回答，不要有其他文字：" +
+    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","result":"成績，例如 第三名、優勝、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
+    "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
+  let raw;
+  try {
+    const out = await env.AI.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: instructions },
+          { type: "image_url", image_url: { url: image } }
+        ]
+      }],
+      max_tokens: 300,
+      temperature: 0
+    });
+    raw = out && out.response;
+  } catch (err) {
+    return json({ error: "AI 讀取失敗，請手動輸入" }, { status: 502 });
+  }
+  let parsed = raw;
+  if (typeof raw === "string") {
+    const m = raw.match(/\{[\s\S]*\}/);
+    try { parsed = m ? JSON.parse(m[0]) : null; } catch (e) { parsed = null; }
+  }
+  if (!parsed || typeof parsed !== "object") return json({ error: "看不懂這張照片，請手動輸入" }, { status: 422 });
+  const date = bmClean(parsed.date, 10);
+  return json({
+    name: bmClean(parsed.name, 80),
+    result: bmClean(parsed.result, 40),
+    date: BM_DATE_RE.test(date) ? date : ""
+  });
+}
+
 async function handleUsage(env) {
   if (!env.CF_ANALYTICS_TOKEN || !env.CF_ACCOUNT_ID) {
     return json({ error: "尚未設定 CF_ANALYTICS_TOKEN 或 CF_ACCOUNT_ID" }, { status: 400 });
@@ -1410,6 +1526,15 @@ export default {
       if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
       if (path === "/api/open/study-habits/bank/withdraw" && request.method === "POST") return await bankHandlers.withdraw(env, request);
+
+      if (path === "/api/open/better-me/records" && request.method === "GET") return await bmRecordsGet(env, url);
+      if (path === "/api/open/better-me/levels" && request.method === "POST") return await bmLevelPost(env, request);
+      if (path === "/api/open/better-me/levels" && request.method === "DELETE") return await bmDelete(env, request, "bm_levels");
+      if (path === "/api/open/better-me/contests" && request.method === "POST") return await bmContestPost(env, request);
+      if (path === "/api/open/better-me/contests" && request.method === "DELETE") return await bmDelete(env, request, "bm_contests");
+      if (path === "/api/open/better-me/contests/read-photo" && request.method === "POST") return await bmReadCertificate(env, request);
+      if (path === "/api/open/better-me/growth" && request.method === "POST") return await bmGrowthPost(env, request);
+      if (path === "/api/open/better-me/growth" && request.method === "DELETE") return await bmDelete(env, request, "bm_growth");
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);

@@ -409,25 +409,128 @@
     z-index:50;
   }
   .streak-toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* ---- 分頁：每日習慣／里程碑／成長紀錄 ---- */
+  .view-tabs{
+    display:flex; gap:4px; margin:-8px 0 20px; padding:4px;
+    background:var(--paper-deep); border-radius:12px;
+  }
+  .view-btn{
+    flex:1; padding:9px 6px; border:0; border-radius:9px; background:transparent;
+    font:inherit; font-size:13.5px; font-weight:700; color:var(--ink-soft); cursor:pointer;
+  }
+  .view-btn.active{ background:#fff; color:var(--ink); box-shadow:var(--shadow); }
+
+  .rec-card{
+    background:#fff; border:1.5px solid var(--line); border-radius:16px;
+    padding:14px 16px 16px; margin-bottom:16px;
+  }
+  .rec-card.child-cathy{ --child-c:#4C8C5A; --child-bg:#E9F3E9; border-color:#C3DFC5; }
+  .rec-card.child-rina{ --child-c:#3B7EA8; --child-bg:#E6F0F6; border-color:#BFDCEC; }
+  .rec-title{ font-family:'Noto Serif TC',serif; font-size:16px; margin:0 0 10px; color:var(--ink); }
+  .rec-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:520px){ .rec-grid{ grid-template-columns:1fr; } }
+  .rec-grid .rec-card{ margin-bottom:0; }
+  .rec-now{
+    display:flex; align-items:baseline; gap:8px; margin-bottom:10px;
+    padding:10px 12px; border-radius:12px; background:var(--child-bg, var(--study-bg));
+  }
+  .rec-now .lbl{ font-size:12px; color:var(--ink-soft); }
+  .rec-now .val{ font-size:26px; font-weight:700; color:var(--child-c, var(--study)); line-height:1.1; }
+  .rec-now .sub{ font-size:12px; color:var(--ink-soft); margin-left:auto; text-align:right; }
+
+  .ladder{ list-style:none; margin:0; padding:0 0 0 22px; position:relative; }
+  .ladder::before{ content:""; position:absolute; left:4px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  .ladder li{ position:relative; display:flex; align-items:center; gap:10px; padding:5px 0; font-size:13px; }
+  .ladder li::before{
+    content:""; position:absolute; left:-23px; width:10px; height:10px; border-radius:50%;
+    background:#fff; border:2px solid var(--child-c, var(--study));
+  }
+  .ladder li.top::before{ background:var(--child-c, var(--study)); }
+  .ladder .lv{ font-weight:700; color:var(--ink); min-width:62px; }
+  .ladder .dt{ color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  .ladder .gap{ color:var(--ink-soft); font-size:11.5px; }
+
+  .rec-del{
+    margin-left:auto; border:0; background:none; color:#B5AC98; cursor:pointer;
+    font-size:14px; padding:2px 6px; line-height:1;
+  }
+  .rec-del:hover{ color:#B5524A; }
+  .rec-empty{ font-size:13px; color:var(--ink-soft); margin:2px 0 8px; }
+
+  .rec-form{ display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  .rec-form label{ display:flex; flex-direction:column; gap:3px; font-size:11.5px; color:var(--ink-soft); }
+  .rec-form input, .rec-form select{
+    font:inherit; font-size:14px; padding:7px 9px; border:1px solid var(--line);
+    border-radius:8px; background:#fff; color:var(--ink); min-width:0;
+  }
+  .rec-form input[type=number]{ width:78px; }
+  .rec-form input[type=date]{ width:142px; }
+  .rec-form .grow{ flex:1 1 160px; }
+  .rec-form .grow input{ width:100%; }
+  .rec-btn{
+    padding:8px 14px; border-radius:8px; border:1px solid var(--child-c, var(--study));
+    background:var(--child-bg, var(--study-bg)); color:var(--child-c, var(--study));
+    font:inherit; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .rec-btn.solid{ background:var(--child-c, var(--study)); color:#fff; }
+  .rec-btn:disabled{ opacity:.55; cursor:default; }
+
+  .contest-list{ list-style:none; margin:0; padding:0; }
+  .contest-list li{ display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-top:1px solid var(--line); }
+  .contest-list li:first-child{ border-top:0; }
+  .contest-medal{ font-size:20px; line-height:1.2; }
+  .contest-body{ flex:1; min-width:0; }
+  .contest-name{ font-size:13.5px; font-weight:700; color:var(--ink); word-break:break-word; }
+  .contest-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .contest-meta b{ color:var(--child-c, var(--study)); }
+  .photo-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%; }
+  .photo-note{ font-size:11.5px; color:var(--ink-soft); line-height:1.6; }
+  .photo-status{ font-size:12.5px; color:var(--child-c, var(--study)); font-weight:700; }
+  .photo-status.err{ color:#B5524A; }
+
+  .growth-now{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .growth-now .rec-now{ margin:0; flex-direction:column; align-items:flex-start; gap:2px; }
+  .growth-now .sub{ margin:0; text-align:left; }
+  .growth-chart{ margin-top:6px; }
+  .growth-chart h3{ font-size:13px; margin:12px 0 4px; color:var(--ink-soft); font-weight:700; }
+  .growth-chart svg{ width:100%; height:auto; display:block; }
+  .growth-table{ width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
+  .growth-table th{ text-align:left; color:var(--ink-soft); font-weight:500; font-size:12px; padding:6px 4px; }
+  .growth-table td{ padding:6px 4px; border-top:1px solid var(--line); }
+  .growth-table td:last-child{ text-align:right; width:30px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>✅ Better Me</h1>
-  <ul class="rules-list">
-    <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
-    <li><span>設定「每週目標次數」的習慣：達標當週還是每天可以 <b>+1 分</b>（一週最多 7 天）；<b>連續 4 週都達標，額外 +4 分</b>；沒達標不扣分，只是沒有這筆額外獎勵。</span></li>
-  </ul>
 
   <div class="child-tabs" id="childTabs"></div>
 
-  <div id="habitToday"></div>
+  <div class="view-tabs" role="tablist">
+    <button type="button" class="view-btn" data-view="habits">🌱 每日習慣</button>
+    <button type="button" class="view-btn" data-view="milestones">🏅 里程碑</button>
+    <button type="button" class="view-btn" data-view="growth">📏 成長紀錄</button>
+  </div>
 
-  <div id="bankSection"></div>
+  <div class="view" id="viewHabits">
+    <ul class="rules-list">
+      <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
+      <li><span>設定「每週目標次數」的習慣：達標當週還是每天可以 <b>+1 分</b>（一週最多 7 天）；<b>連續 4 週都達標，額外 +4 分</b>；沒達標不扣分，只是沒有這筆額外獎勵。</span></li>
+    </ul>
 
-  <div id="habitMonthSections"></div>
+    <div id="habitToday"></div>
 
-  <div id="mealSection"></div>
+    <div id="bankSection"></div>
+
+    <div id="habitMonthSections"></div>
+
+    <div id="mealSection"></div>
+  </div>
+
+  <div class="view" id="viewMilestones" hidden></div>
+
+  <div class="view" id="viewGrowth" hidden></div>
 </div>
 
 <script>
@@ -752,6 +855,7 @@
         loadHabitMonth();
         loadStreakCheck();
         loadBank();
+        if (window.reloadRecordViews) window.reloadRecordViews();
       });
     });
   }
@@ -1273,6 +1377,316 @@
   }
 
   loadHabits();
+</script>
+<script>
+  // ---- 里程碑（I English／野狐圍棋／比賽）與成長紀錄 ----
+  const REC_API = '/api/open/better-me';
+  const VIEWS = { habits: 'viewHabits', milestones: 'viewMilestones', growth: 'viewGrowth' };
+  let activeView = 'habits';
+  try { activeView = localStorage.getItem('betterMeView') || 'habits'; } catch (e) {}
+  if (!VIEWS[activeView]) activeView = 'habits';
+  let recData = null;
+  let recLoadSeq = 0;
+
+  function showView(view){
+    activeView = view;
+    try { localStorage.setItem('betterMeView', view); } catch (e) {}
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    Object.entries(VIEWS).forEach(([k, id]) => { document.getElementById(id).hidden = k !== view; });
+    if (view !== 'habits') loadRecords();
+  }
+  document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+
+  window.reloadRecordViews = function(){ if (activeView !== 'habits') loadRecords(); };
+
+  async function loadRecords(){
+    const seq = ++recLoadSeq;
+    const child = activeChild;
+    const box = document.getElementById(VIEWS[activeView]);
+    if (child !== 'Cathy' && child !== 'Rina') {
+      box.innerHTML = `<p class="rec-empty">里程碑和成長紀錄只有 Cathy 和 Rina 有喔。</p>`;
+      return;
+    }
+    let data;
+    try {
+      data = await fetch(REC_API + '/records?child=' + encodeURIComponent(child)).then(r => r.json());
+    } catch (e) {
+      if (seq === recLoadSeq) box.innerHTML = `<p class="rec-empty">讀取失敗，請稍後再試。</p>`;
+      return;
+    }
+    if (seq !== recLoadSeq) return;
+    recData = data;
+    if (activeView === 'milestones') renderMilestones();
+    if (activeView === 'growth') renderGrowth();
+  }
+
+  async function recSend(path, method, body){
+    const r = await fetch(REC_API + path, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(out.error || '儲存失敗');
+    return out;
+  }
+
+  function fmtDate(d){ const [y, m, dd] = d.split('-'); return `${y}/${Number(m)}/${Number(dd)}`; }
+  function daysBetween(a, b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
+  function gapText(days){
+    if (days < 1) return '';
+    if (days < 60) return `花了 ${days} 天`;
+    return `花了約 ${Math.round(days / 30)} 個月`;
+  }
+  const childCls = () => CHILD_SLUG[activeChild] || '';
+
+  // ---------- 里程碑 ----------
+  const TRACKS = {
+    ienglish: { title: '📘 I English', unit: 'Level' },
+    yehu: { title: '⚫ 野狐圍棋', unit: '級段' }
+  };
+
+  function levelCardHtml(track){
+    const t = TRACKS[track];
+    const rows = recData.levels.filter(l => l.track === track);
+    const latest = rows[rows.length - 1];
+    const nowHtml = latest
+      ? `<div class="rec-now"><span class="lbl">目前</span><span class="val">${escapeHtml(latest.label)}</span>
+           <span class="sub">${fmtDate(latest.date)}<br>升上來的</span></div>`
+      : `<p class="rec-empty">還沒有紀錄，升級時記下來吧！</p>`;
+    const ladder = rows.slice().reverse().map((l, i, arr) => {
+      const prev = arr[i + 1];
+      const gap = prev ? gapText(daysBetween(prev.date, l.date)) : '';
+      return `<li class="${i === 0 ? 'top' : ''}">
+        <span class="lv">${escapeHtml(l.label)}</span>
+        <span class="dt">${fmtDate(l.date)}</span>
+        ${gap ? `<span class="gap">${gap}</span>` : ''}
+        <button class="rec-del" data-del-level="${l.id}" title="刪除這筆">✕</button>
+      </li>`;
+    }).join('');
+    const unitInput = track === 'yehu'
+      ? `<label>級數<input type="number" min="1" max="30" inputmode="numeric" class="lv-num"></label>
+         <label>單位<select class="lv-unit"><option value="級">級</option><option value="段">段</option></select></label>`
+      : `<label>Level<input type="number" min="1" max="50" inputmode="numeric" class="lv-num"></label>`;
+    return `<div class="rec-card ${childCls()}">
+      <h2 class="rec-title">${t.title}</h2>
+      ${nowHtml}
+      ${rows.length ? `<ul class="ladder">${ladder}</ul>` : ''}
+      <form class="rec-form" data-track="${track}">
+        ${unitInput}
+        <label>升級日期<input type="date" class="lv-date" value="${todayStr()}" max="${todayStr()}"></label>
+        <button class="rec-btn solid" type="submit">＋ 記錄升級</button>
+      </form>
+    </div>`;
+  }
+
+  function medalFor(result){
+    if (/冠軍|第一名|第1名|金/.test(result)) return '🥇';
+    if (/亞軍|第二名|第2名|銀/.test(result)) return '🥈';
+    if (/季軍|第三名|第3名|銅/.test(result)) return '🥉';
+    return '🏆';
+  }
+
+  function contestCardHtml(){
+    const list = recData.contests;
+    const items = list.length
+      ? `<ul class="contest-list">${list.map(c => `<li>
+          <span class="contest-medal">${medalFor(c.result)}</span>
+          <div class="contest-body">
+            <div class="contest-name">${escapeHtml(c.name)}</div>
+            <div class="contest-meta">${fmtDate(c.date)}　<b>${escapeHtml(c.result)}</b></div>
+          </div>
+          <button class="rec-del" data-del-contest="${c.id}" title="刪除這筆">✕</button>
+        </li>`).join('')}</ul>`
+      : `<p class="rec-empty">還沒有比賽紀錄。</p>`;
+    return `<div class="rec-card ${childCls()}">
+      <h2 class="rec-title">🏆 圍棋比賽成績</h2>
+      ${items}
+      <form class="rec-form" id="contestForm">
+        <div class="photo-row">
+          <button type="button" class="rec-btn" id="contestPhotoBtn">📷 拍獎狀自動填寫</button>
+          <input type="file" accept="image/*" capture="environment" id="contestPhoto" hidden>
+          <span class="photo-status" id="contestPhotoStatus"></span>
+        </div>
+        <div class="photo-note">照片只用來讀出文字，不會被存下來；獎狀上的姓名不會記錄。讀完請檢查一下再按儲存。</div>
+        <label class="grow">比賽名稱<input type="text" maxlength="80" id="contestName" placeholder="例如：南投縣縣長盃圍棋賽"></label>
+        <label>成績<input type="text" maxlength="40" id="contestResult" placeholder="例如：第三名" style="width:120px"></label>
+        <label>日期<input type="date" id="contestDate" value="${todayStr()}" max="${todayStr()}"></label>
+        <button class="rec-btn solid" type="submit">儲存</button>
+      </form>
+    </div>`;
+  }
+
+  function renderMilestones(){
+    const box = document.getElementById('viewMilestones');
+    box.innerHTML = `<div class="rec-grid">${levelCardHtml('ienglish')}${levelCardHtml('yehu')}</div>
+      <div style="height:16px"></div>${contestCardHtml()}`;
+
+    box.querySelectorAll('form[data-track]').forEach(f => f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const track = f.dataset.track;
+      const n = parseInt(f.querySelector('.lv-num').value, 10);
+      const date = f.querySelector('.lv-date').value;
+      if (!n || !date) { alert('請填等級和日期'); return; }
+      const label = track === 'yehu' ? `${n}${f.querySelector('.lv-unit').value}` : `Level ${n}`;
+      try { await recSend('/levels', 'POST', { child: activeChild, track, label, date }); playChime(); }
+      catch (err) { alert(err.message); }
+      loadRecords();
+    }));
+    box.querySelectorAll('[data-del-level]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這筆升級紀錄嗎？')) return;
+      await recSend('/levels', 'DELETE', { id: Number(b.dataset.delLevel) }).catch(err => alert(err.message));
+      loadRecords();
+    }));
+    box.querySelectorAll('[data-del-contest]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這筆比賽紀錄嗎？')) return;
+      await recSend('/contests', 'DELETE', { id: Number(b.dataset.delContest) }).catch(err => alert(err.message));
+      loadRecords();
+    }));
+
+    const photo = document.getElementById('contestPhoto');
+    document.getElementById('contestPhotoBtn').addEventListener('click', () => photo.click());
+    photo.addEventListener('change', () => { if (photo.files[0]) readCertificate(photo.files[0]); photo.value = ''; });
+
+    document.getElementById('contestForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('contestName').value.trim();
+      const result = document.getElementById('contestResult').value.trim();
+      const date = document.getElementById('contestDate').value;
+      if (!name || !result || !date) { alert('比賽名稱、成績、日期都要填'); return; }
+      try { await recSend('/contests', 'POST', { child: activeChild, name, result, date }); playChime(); }
+      catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+  }
+
+  // 先在手機上把照片縮小，再送去讀字，省流量也比較快
+  function shrinkImage(file, maxSide){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('照片打不開')); };
+      img.src = url;
+    });
+  }
+
+  async function readCertificate(file){
+    const status = document.getElementById('contestPhotoStatus');
+    const btn = document.getElementById('contestPhotoBtn');
+    status.className = 'photo-status';
+    status.textContent = '讀取中…';
+    btn.disabled = true;
+    try {
+      const image = await shrinkImage(file, 1280);
+      const out = await recSend('/contests/read-photo', 'POST', { image });
+      if (out.name) document.getElementById('contestName').value = out.name;
+      if (out.result) document.getElementById('contestResult').value = out.result;
+      if (out.date) document.getElementById('contestDate').value = out.date;
+      const missing = [!out.name && '名稱', !out.result && '成績', !out.date && '日期'].filter(Boolean);
+      status.textContent = missing.length ? `讀好了，${missing.join('、')}請自己補上` : '讀好了！請確認後按儲存';
+    } catch (err) {
+      status.className = 'photo-status err';
+      status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- 成長紀錄 ----------
+  function growthChartSvg(rows, key, unit, color){
+    const pts = rows.filter(r => r[key] != null).map(r => ({ t: new Date(r.date).getTime(), v: r[key], d: r.date }));
+    if (pts.length < 2) return `<p class="rec-empty">記錄兩次以上，就會出現曲線。</p>`;
+    const w = 340, h = 150, padL = 34, padR = 12, padT = 14, padB = 24;
+    const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+    let lo = Math.min(...pts.map(p => p.v)), hi = Math.max(...pts.map(p => p.v));
+    const span = Math.max(hi - lo, unit === 'cm' ? 4 : 2);
+    lo = Math.floor(lo - span * 0.15); hi = Math.ceil(hi + span * 0.15);
+    const x = t => padL + (w - padL - padR) * (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0));
+    const y = v => padT + (h - padT - padB) * (1 - (v - lo) / (hi - lo));
+    const grid = [lo, Math.round((lo + hi) / 2), hi].map(v =>
+      `<line x1="${padL}" x2="${w - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#E3DCC9"/>
+       <text x="${padL - 5}" y="${(y(v) + 3).toFixed(1)}" font-size="9" fill="#6B655C" text-anchor="end">${v}</text>`).join('');
+    const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+    const dots = pts.map(p => `<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3" fill="${color}"><title>${fmtDate(p.d)}：${p.v} ${unit}</title></circle>`).join('');
+    const last = pts[pts.length - 1];
+    const lastLbl = `<text x="${Math.min(x(last.t), w - padR).toFixed(1)}" y="${(y(last.v) - 7).toFixed(1)}" font-size="10" font-weight="700" fill="${color}" text-anchor="end">${last.v}</text>`;
+    const xl = [pts[0], last].map((p, i) =>
+      `<text x="${x(p.t).toFixed(1)}" y="${h - 7}" font-size="9" fill="#6B655C" text-anchor="${i ? 'end' : 'start'}">${fmtDate(p.d)}</text>`).join('');
+    return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${unit === 'cm' ? '身高' : '體重'}變化">${grid}
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}${lastLbl}${xl}</svg>`;
+  }
+
+  function growthNowHtml(rows, key, label, unit){
+    const has = rows.filter(r => r[key] != null);
+    if (!has.length) return `<div class="rec-now"><span class="lbl">${label}</span><span class="val">—</span></div>`;
+    const last = has[has.length - 1], prev = has[has.length - 2];
+    let diff = '';
+    if (prev) {
+      const d = Math.round((last[key] - prev[key]) * 10) / 10;
+      diff = `比上次 ${d > 0 ? '+' : ''}${d} ${unit}`;
+    }
+    return `<div class="rec-now"><span class="lbl">${label}（${fmtDate(last.date)}）</span>
+      <span class="val">${last[key]}<small style="font-size:14px"> ${unit}</small></span>
+      <span class="sub">${diff}</span></div>`;
+  }
+
+  function renderGrowth(){
+    const box = document.getElementById('viewGrowth');
+    const rows = recData.growth;
+    const color = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A';
+    const table = rows.length
+      ? `<table class="growth-table"><thead><tr><th>日期</th><th>身高</th><th>體重</th><th></th></tr></thead><tbody>
+          ${rows.slice().reverse().map(r => `<tr><td>${fmtDate(r.date)}</td>
+            <td>${r.heightCm != null ? r.heightCm + ' cm' : '—'}</td>
+            <td>${r.weightKg != null ? r.weightKg + ' kg' : '—'}</td>
+            <td><button class="rec-del" data-del-growth="${r.id}" title="刪除這筆">✕</button></td></tr>`).join('')}
+        </tbody></table>`
+      : `<p class="rec-empty">還沒有紀錄，量完身高體重記下來吧！</p>`;
+    box.innerHTML = `<div class="rec-card ${childCls()}">
+        <h2 class="rec-title">📏 身高體重</h2>
+        <div class="growth-now">${growthNowHtml(rows, 'heightCm', '身高', 'cm')}${growthNowHtml(rows, 'weightKg', '體重', 'kg')}</div>
+        <form class="rec-form" id="growthForm" style="margin-top:0;border-top:0;padding-top:0">
+          <label>日期<input type="date" id="gDate" value="${todayStr()}" max="${todayStr()}"></label>
+          <label>身高 cm<input type="number" step="0.1" min="50" max="220" inputmode="decimal" id="gHeight"></label>
+          <label>體重 kg<input type="number" step="0.1" min="5" max="150" inputmode="decimal" id="gWeight"></label>
+          <button class="rec-btn solid" type="submit">儲存</button>
+        </form>
+      </div>
+      <div class="rec-card ${childCls()}">
+        <h2 class="rec-title">📈 成長曲線</h2>
+        <div class="growth-chart"><h3>身高（cm）</h3>${growthChartSvg(rows, 'heightCm', 'cm', color)}</div>
+        <div class="growth-chart"><h3>體重（kg）</h3>${growthChartSvg(rows, 'weightKg', 'kg', '#C9A227')}</div>
+      </div>
+      <div class="rec-card ${childCls()}">
+        <h2 class="rec-title">🗂 歷次紀錄</h2>
+        ${table}
+      </div>`;
+
+    document.getElementById('growthForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const date = document.getElementById('gDate').value;
+      const heightCm = document.getElementById('gHeight').value;
+      const weightKg = document.getElementById('gWeight').value;
+      if (!date || (!heightCm && !weightKg)) { alert('請填日期，身高或體重至少填一個'); return; }
+      try { await recSend('/growth', 'POST', { child: activeChild, date, heightCm, weightKg }); playChime(); }
+      catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+    box.querySelectorAll('[data-del-growth]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+      await recSend('/growth', 'DELETE', { id: Number(b.dataset.delGrowth) }).catch(err => alert(err.message));
+      loadRecords();
+    }));
+  }
+
+  showView(activeView);
 </script>
 </body>
 </html>
