@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS meal_weekly_status (child TEXT NOT NULL, week_date TE
 CREATE TABLE IF NOT EXISTS habit_streak_bonus (habit_id TEXT NOT NULL, week_date TEXT NOT NULL, streak INTEGER NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(habit_id, week_date));
 CREATE TABLE IF NOT EXISTS bm_levels (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, track TEXT NOT NULL, label TEXT NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_contests (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, name TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS bm_vision (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, va_r REAL, va_l REAL, sph_r INTEGER, sph_l INTEGER, cyl_r INTEGER, cyl_l INTEGER, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, date));
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -1275,12 +1276,16 @@ function bmClean(s, max) {
 async function bmRecordsGet(env, url) {
   const child = url.searchParams.get("child");
   if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
-  const [levels, contests, growth] = await Promise.all([
+  const [levels, contests, growth, vision] = await Promise.all([
     env.DB.prepare("SELECT id, track, label, date FROM bm_levels WHERE child = ? ORDER BY date, id").bind(child).all(),
     env.DB.prepare("SELECT id, date, name, division, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
-    env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all()
+    env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all(),
+    env.DB.prepare(
+      `SELECT id, date, va_r as vaR, va_l as vaL, sph_r as sphR, sph_l as sphL, cyl_r as cylR, cyl_l as cylL, note
+       FROM bm_vision WHERE child = ? ORDER BY date`
+    ).bind(child).all()
   ]);
-  return json({ levels: levels.results, contests: contests.results, growth: growth.results });
+  return json({ levels: levels.results, contests: contests.results, growth: growth.results, vision: vision.results });
 }
 
 async function bmLevelPost(env, request) {
@@ -1322,6 +1327,35 @@ async function bmGrowthPost(env, request) {
        height_cm = COALESCE(excluded.height_cm, bm_growth.height_cm),
        weight_kg = COALESCE(excluded.weight_kg, bm_growth.weight_kg)`
   ).bind(b.child, b.date, h, w, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+// 視力：裸視（0.01–2.0）；度數用「度」記，近視為負（-125 = 近視125度）、遠視為正；散光記為正數的度數
+async function bmVisionPost(env, request) {
+  const b = await request.json();
+  const num = (v, lo, hi, intOnly) => {
+    if (v === "" || v == null) return { ok: true, v: null };
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < lo || n > hi) return { ok: false };
+    return { ok: true, v: intOnly ? Math.round(n) : Math.round(n * 100) / 100 };
+  };
+  const f = {
+    vaR: num(b.vaR, 0.01, 2.0), vaL: num(b.vaL, 0.01, 2.0),
+    sphR: num(b.sphR, -2000, 1000, true), sphL: num(b.sphL, -2000, 1000, true),
+    cylR: num(b.cylR, 0, 800, true), cylL: num(b.cylL, 0, 800, true)
+  };
+  const vals = Object.values(f);
+  if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || vals.some(x => !x.ok) || vals.every(x => x.v === null)) {
+    return json({ error: "資料不完整或數字不合理" }, { status: 400 });
+  }
+  await env.DB.prepare(
+    `INSERT INTO bm_vision (child, date, va_r, va_l, sph_r, sph_l, cyl_r, cyl_l, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(child, date) DO UPDATE SET
+       va_r = COALESCE(excluded.va_r, bm_vision.va_r), va_l = COALESCE(excluded.va_l, bm_vision.va_l),
+       sph_r = COALESCE(excluded.sph_r, bm_vision.sph_r), sph_l = COALESCE(excluded.sph_l, bm_vision.sph_l),
+       cyl_r = COALESCE(excluded.cyl_r, bm_vision.cyl_r), cyl_l = COALESCE(excluded.cyl_l, bm_vision.cyl_l),
+       note = CASE WHEN excluded.note != '' THEN excluded.note ELSE bm_vision.note END`
+  ).bind(b.child, b.date, f.vaR.v, f.vaL.v, f.sphR.v, f.sphL.v, f.cylR.v, f.cylL.v, bmClean(b.note, 80), new Date().toISOString()).run();
   return json({ ok: true });
 }
 
@@ -1383,6 +1417,34 @@ async function bmReadCertificate(env, request) {
     name: bmClean(p.name, 80),
     division: bmClean(p.division, 40),
     result: bmClean(p.result, 40),
+    date: BM_DATE_RE.test(date) ? date : ""
+  });
+}
+
+// 讀視力檢查單／驗光單：只回傳視力數字和日期。
+async function bmReadVision(env, request) {
+  const instructions =
+    "這張照片是台灣學校的視力檢查通知單，或眼科／眼鏡行的驗光單（電腦驗光機印出來的小紙條也算）。" +
+    "請讀出左右眼的資料，用 JSON 回答，不要有其他文字：" +
+    '{"vaR":右眼裸視視力數字或null,"vaL":左眼裸視視力數字或null,"sphR":右眼球面度數或null,"sphL":左眼球面度數或null,"cylR":右眼散光度數或null,"cylL":左眼散光度數或null,"date":"檢查日期 YYYY-MM-DD，沒有就填空字串"}。' +
+    "規則：R 或「右」是右眼，L 或「左」是左眼。裸視是像 0.8、1.0、0.5 的數字（不是戴眼鏡的矯正視力）。" +
+    "球面度數 S/SPH 若寫成 -1.25 這種屈光度，請乘以 100 變成 -125；近視是負數、遠視是正數；若單子直接寫「近視 125 度」就填 -125。" +
+    "散光 C/CYL 只填度數大小的正數，例如 -0.50 填 50；軸度 A/AXIS 不用。驗光單若同一眼有好幾行，用標示 AVE 或平均的那行，沒有就用第一行。" +
+    "民國年請換算成西元（民國年＋1911）。看不清楚就填 null，不要猜。不要寫出任何人名或其他個人資料。";
+  const r = await bmReadImage(env, request, instructions);
+  if (r.error) return r.error;
+  const p = r.data;
+  const num = (v, lo, hi, intOnly) => {
+    const n = Number(v);
+    if (v === null || v === "" || !Number.isFinite(n) || n < lo || n > hi) return null;
+    return intOnly ? Math.round(n) : Math.round(n * 100) / 100;
+  };
+  const date = bmClean(p.date, 10);
+  return json({
+    vaR: num(p.vaR, 0.01, 2.0), vaL: num(p.vaL, 0.01, 2.0),
+    sphR: num(p.sphR, -2000, 1000, true), sphL: num(p.sphL, -2000, 1000, true),
+    cylR: num(p.cylR, 0, 800, true) ?? (num(p.cylR, -800, 0, true) != null ? -num(p.cylR, -800, 0, true) : null),
+    cylL: num(p.cylL, 0, 800, true) ?? (num(p.cylL, -800, 0, true) != null ? -num(p.cylL, -800, 0, true) : null),
     date: BM_DATE_RE.test(date) ? date : ""
   });
 }
@@ -1573,6 +1635,9 @@ export default {
       if (path === "/api/open/better-me/contests" && request.method === "POST") return await bmContestPost(env, request);
       if (path === "/api/open/better-me/contests" && request.method === "DELETE") return await bmDelete(env, request, "bm_contests");
       if (path === "/api/open/better-me/contests/read-photo" && request.method === "POST") return await bmReadCertificate(env, request);
+      if (path === "/api/open/better-me/vision" && request.method === "POST") return await bmVisionPost(env, request);
+      if (path === "/api/open/better-me/vision" && request.method === "DELETE") return await bmDelete(env, request, "bm_vision");
+      if (path === "/api/open/better-me/vision/read-photo" && request.method === "POST") return await bmReadVision(env, request);
       if (path === "/api/open/better-me/growth/read-photo" && request.method === "POST") return await bmReadGrowth(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "POST") return await bmGrowthPost(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "DELETE") return await bmDelete(env, request, "bm_growth");

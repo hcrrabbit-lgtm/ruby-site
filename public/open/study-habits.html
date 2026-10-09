@@ -499,6 +499,23 @@
   .growth-table th{ text-align:left; color:var(--ink-soft); font-weight:500; font-size:12px; padding:6px 4px; }
   .growth-table td{ padding:6px 4px; border-top:1px solid var(--line); }
   .growth-table td:last-child{ text-align:right; width:30px; }
+  .eye-form{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .eye-form th{ color:var(--ink-soft); font-weight:500; text-align:left; padding:4px 4px 4px 0; white-space:nowrap; }
+  .eye-form thead th{ text-align:center; font-weight:700; color:var(--ink); }
+  .eye-form td{ padding:3px 3px; }
+  .eye-form .pair{ display:flex; gap:4px; }
+  .eye-form input, .eye-form select{
+    font:inherit; font-size:14px; padding:6px 7px; border:1px solid var(--line);
+    border-radius:8px; background:#fff; color:var(--ink); width:100%; min-width:0;
+  }
+  .eye-form select{ width:auto; flex:0 0 auto; padding:6px 4px; }
+  .eye-now{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .eye-now .rec-now{ margin:0; flex-direction:column; align-items:flex-start; gap:2px; }
+  .eye-now .sub{ margin:0; text-align:left; line-height:1.6; }
+  .chart-legend{ display:flex; gap:14px; font-size:12px; color:var(--ink-soft); margin:2px 0 0; }
+  .chart-legend i{ display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px; }
+  .vision-table td{ font-size:12.5px; }
+  .vision-table .note{ display:block; font-size:11px; color:var(--ink-soft); }
   .grade-tag{
     display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px;
     background:var(--child-bg, var(--study-bg)); color:var(--child-c, var(--study));
@@ -513,9 +530,10 @@
   <div class="child-tabs" id="childTabs"></div>
 
   <div class="view-tabs" role="tablist">
-    <button type="button" class="view-btn" data-view="habits">🌱 每日習慣</button>
+    <button type="button" class="view-btn" data-view="habits">🌱 習慣</button>
     <button type="button" class="view-btn" data-view="milestones">🏅 里程碑</button>
-    <button type="button" class="view-btn" data-view="growth">📏 成長紀錄</button>
+    <button type="button" class="view-btn" data-view="growth">📏 成長</button>
+    <button type="button" class="view-btn" data-view="vision">👀 視力</button>
   </div>
 
   <div class="view" id="viewHabits">
@@ -536,6 +554,8 @@
   <div class="view" id="viewMilestones" hidden></div>
 
   <div class="view" id="viewGrowth" hidden></div>
+
+  <div class="view" id="viewVision" hidden></div>
 </div>
 
 <script>
@@ -1386,7 +1406,7 @@
 <script>
   // ---- 里程碑（I English／野狐圍棋／比賽）與成長紀錄 ----
   const REC_API = '/api/open/better-me';
-  const VIEWS = { habits: 'viewHabits', milestones: 'viewMilestones', growth: 'viewGrowth' };
+  const VIEWS = { habits: 'viewHabits', milestones: 'viewMilestones', growth: 'viewGrowth', vision: 'viewVision' };
   let activeView = 'habits';
   try { activeView = localStorage.getItem('betterMeView') || 'habits'; } catch (e) {}
   if (!VIEWS[activeView]) activeView = 'habits';
@@ -1423,6 +1443,7 @@
     recData = data;
     if (activeView === 'milestones') renderMilestones();
     if (activeView === 'growth') renderGrowth();
+    if (activeView === 'vision') renderVision();
   }
 
   async function recSend(path, method, body){
@@ -1720,6 +1741,184 @@
       await recSend('/growth', 'DELETE', { id: Number(b.dataset.delGrowth) }).catch(err => alert(err.message));
       loadRecords();
     }));
+  }
+
+  // ---------- 視力 ----------
+  // 度數用「度」：近視存負數（-125）、遠視存正數；散光存正數
+  function sphText(v){
+    if (v == null) return '';
+    if (v === 0) return '0 度';
+    return v < 0 ? `近視 ${-v} 度` : `遠視 ${v} 度`;
+  }
+  const vaText = v => v == null ? null : (Number.isInteger(v) ? v.toFixed(1) : String(v));
+  function eyeSummary(r, side){
+    const va = vaText(r['va' + side]), sph = r['sph' + side], cyl = r['cyl' + side];
+    const parts = [sphText(sph), cyl ? `散光 ${cyl} 度` : ''].filter(Boolean);
+    return { va, extra: parts.join('、') };
+  }
+
+  // 多條線的小圖：series = [{ key, label, color, map? }]
+  function multiLineSvg(rows, series, opts){
+    const all = [];
+    series.forEach(sr => rows.forEach(r => {
+      const raw = r[sr.key];
+      if (raw != null) all.push({ s: sr, t: new Date(r.date).getTime(), v: sr.map ? sr.map(raw) : raw, d: r.date });
+    }));
+    const dates = new Set(all.map(p => p.d));
+    if (dates.size < 2) return `<p class="rec-empty">記錄兩次以上，就會出現曲線。</p>`;
+    const w = 340, h = 150, padL = 34, padR = 12, padT = 14, padB = 24;
+    const ts = all.map(p => p.t), t0 = Math.min(...ts), t1 = Math.max(...ts);
+    let lo = opts.lo != null ? opts.lo : Math.min(...all.map(p => p.v));
+    let hi = opts.hi != null ? Math.max(opts.hi, ...all.map(p => p.v)) : Math.max(...all.map(p => p.v));
+    if (opts.lo == null) {
+      const step = opts.step || 1, span = Math.max(hi - lo, opts.minSpan || 1);
+      lo = Math.floor((lo - span * 0.15) / step) * step; hi = Math.ceil((hi + span * 0.15) / step) * step;
+      if ((hi - lo) / step % 2) hi += step; // keep the middle gridline on a whole step
+    }
+    const x = t => padL + (w - padL - padR) * (t1 === t0 ? 0.5 : (t - t0) / (t1 - t0));
+    const y = v => padT + (h - padT - padB) * (1 - (v - lo) / (hi - lo));
+    const ticks = opts.ticks || [lo, (lo + hi) / 2, hi];
+    const fmt = opts.fmt || (v => Math.round(v));
+    const grid = ticks.map(v =>
+      `<line x1="${padL}" x2="${w - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#E3DCC9"/>
+       <text x="${padL - 5}" y="${(y(v) + 3).toFixed(1)}" font-size="9" fill="#6B655C" text-anchor="end">${fmt(v)}</text>`).join('');
+    const lines = series.map(sr => {
+      const pts = all.filter(p => p.s === sr).sort((a, b) => a.t - b.t);
+      if (!pts.length) return '';
+      const path = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+      const dots = pts.map(p => `<circle cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3" fill="${sr.color}"><title>${sr.label} ${fmtDate(p.d)}：${fmt(p.v)}</title></circle>`).join('');
+      return `<path d="${path}" fill="none" stroke="${sr.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}`;
+    }).join('');
+    const firstD = all.reduce((a, b) => a.t <= b.t ? a : b).d, lastD = all.reduce((a, b) => a.t >= b.t ? a : b).d;
+    const xl = `<text x="${padL}" y="${h - 7}" font-size="9" fill="#6B655C">${fmtDate(firstD)}</text>
+      <text x="${w - padR}" y="${h - 7}" font-size="9" fill="#6B655C" text-anchor="end">${fmtDate(lastD)}</text>`;
+    const legend = `<div class="chart-legend">${series.map(sr => `<span><i style="background:${sr.color}"></i>${sr.label}</span>`).join('')}</div>`;
+    return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${opts.title || ''}">${grid}${lines}${xl}</svg>${legend}`;
+  }
+
+  function eyeNowCard(rows, side, label){
+    const has = rows.filter(r => r['va' + side] != null || r['sph' + side] != null || r['cyl' + side] != null);
+    if (!has.length) return `<div class="rec-now"><span class="lbl">${label}</span><span class="val">—</span></div>`;
+    const last = has[has.length - 1];
+    const { va, extra } = eyeSummary(last, side);
+    return `<div class="rec-now"><span class="lbl">${label}（${fmtDate(last.date)}）</span>
+      <span class="val">${va != null ? va : '—'}<small style="font-size:12px;font-weight:500"> 裸視</small></span>
+      <span class="sub">${escapeHtml(extra)}</span></div>`;
+  }
+
+  function renderVision(){
+    const box = document.getElementById('viewVision');
+    const rows = recData.vision || [];
+    const cR = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A', cL = '#C9A227';
+    const eyeInputs = side => `
+      <td><input type="number" step="0.1" min="0.01" max="2" inputmode="decimal" id="vVa${side}" placeholder="例 0.8"></td>`;
+    const sphInputs = side => `
+      <td><div class="pair"><select id="vSphType${side}"><option value="-1">近視</option><option value="1">遠視</option></select>
+      <input type="number" step="25" min="0" max="2000" inputmode="numeric" id="vSph${side}" placeholder="度"></div></td>`;
+    const cylInputs = side => `
+      <td><input type="number" step="25" min="0" max="800" inputmode="numeric" id="vCyl${side}" placeholder="度"></td>`;
+    const table = rows.length
+      ? `<table class="growth-table vision-table"><thead><tr><th>日期</th><th>右眼</th><th>左眼</th><th></th></tr></thead><tbody>
+          ${rows.slice().reverse().map(r => {
+            const R = eyeSummary(r, 'R'), L = eyeSummary(r, 'L');
+            const cell = e => `${e.va != null ? e.va : '—'}${e.extra ? `<span class="note">${escapeHtml(e.extra)}</span>` : ''}`;
+            return `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}${r.note ? `<span class="note">${escapeHtml(r.note)}</span>` : ''}</td>
+              <td>${cell(R)}</td><td>${cell(L)}</td>
+              <td><button class="rec-del" data-del-vision="${r.id}" title="刪除這筆">✕</button></td></tr>`;
+          }).join('')}
+        </tbody></table>`
+      : `<p class="rec-empty">還沒有視力紀錄。</p>`;
+    const hasSph = rows.some(r => r.sphR != null || r.sphL != null);
+    box.innerHTML = `<div class="rec-card ${childCls()}">
+        <h2 class="rec-title">👀 視力檢查</h2>
+        <div class="eye-now">${eyeNowCard(rows, 'R', '右眼')}${eyeNowCard(rows, 'L', '左眼')}</div>
+        <form class="rec-form" id="visionForm" style="margin-top:0;border-top:0;padding-top:0">
+          <div class="photo-row">
+            <button type="button" class="rec-btn" id="visionPhotoBtn">📷 拍檢查單自動填寫</button>
+            <input type="file" accept="image/*" capture="environment" id="visionPhoto" hidden>
+            <span class="photo-status" id="visionPhotoStatus"></span>
+          </div>
+          <div class="photo-note">可以拍學校的視力檢查通知單，或眼科、眼鏡行的驗光單。照片只用來讀數字，不會被存下來。讀完請檢查一下再按儲存。</div>
+          <table class="eye-form">
+            <thead><tr><th></th><th>右眼</th><th>左眼</th></tr></thead>
+            <tbody>
+              <tr><th>裸視</th>${eyeInputs('R')}${eyeInputs('L')}</tr>
+              <tr><th>度數</th>${sphInputs('R')}${sphInputs('L')}</tr>
+              <tr><th>散光</th>${cylInputs('R')}${cylInputs('L')}</tr>
+            </tbody>
+          </table>
+          <label>日期<input type="date" id="vDate" value="${todayStr()}" max="${todayStr()}"></label>
+          <label class="grow">備註<input type="text" maxlength="80" id="vNote" placeholder="例如：學校檢查、眼科散瞳後"></label>
+          <button class="rec-btn solid" type="submit">儲存</button>
+        </form>
+      </div>
+      <div class="rec-card ${childCls()}">
+        <h2 class="rec-title">📈 視力變化</h2>
+        <div class="growth-chart"><h3>裸視視力（越高越好）</h3>${multiLineSvg(rows,
+          [{ key: 'vaR', label: '右眼', color: cR }, { key: 'vaL', label: '左眼', color: cL }],
+          { lo: 0, hi: 1.5, ticks: [0, 0.5, 1.0, 1.5], fmt: v => (Math.round(v * 10) / 10).toFixed(1), title: '裸視視力變化' })}</div>
+        ${hasSph ? `<div class="growth-chart"><h3>近視度數（度，越高越深；遠視顯示為負數）</h3>${multiLineSvg(rows,
+          [{ key: 'sphR', label: '右眼', color: cR, map: v => -v }, { key: 'sphL', label: '左眼', color: cL, map: v => -v }],
+          { minSpan: 100, step: 25, title: '近視度數變化' })}</div>` : ''}
+      </div>
+      <div class="rec-card ${childCls()}">
+        <h2 class="rec-title">🗂 歷次紀錄</h2>
+        ${table}
+      </div>`;
+
+    document.getElementById('visionForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const g = id => document.getElementById(id).value.trim();
+      const sph = side => g('vSph' + side) === '' ? '' : Number(g('vSphType' + side)) * Number(g('vSph' + side));
+      const body = {
+        child: activeChild, date: g('vDate'), note: g('vNote'),
+        vaR: g('vVaR'), vaL: g('vVaL'), sphR: sph('R'), sphL: sph('L'), cylR: g('vCylR'), cylL: g('vCylL')
+      };
+      if (!body.date || ['vaR', 'vaL', 'sphR', 'sphL', 'cylR', 'cylL'].every(k => body[k] === '')) {
+        alert('請填日期，視力或度數至少填一個'); return;
+      }
+      try { await recSend('/vision', 'POST', body); playChime(); }
+      catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+    box.querySelectorAll('[data-del-vision]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這筆視力紀錄嗎？')) return;
+      await recSend('/vision', 'DELETE', { id: Number(b.dataset.delVision) }).catch(err => alert(err.message));
+      loadRecords();
+    }));
+    const vPhoto = document.getElementById('visionPhoto');
+    document.getElementById('visionPhotoBtn').addEventListener('click', () => vPhoto.click());
+    vPhoto.addEventListener('change', () => { if (vPhoto.files[0]) readVisionPhoto(vPhoto.files[0]); vPhoto.value = ''; });
+  }
+
+  async function readVisionPhoto(file){
+    const status = document.getElementById('visionPhotoStatus');
+    const btn = document.getElementById('visionPhotoBtn');
+    status.className = 'photo-status';
+    status.textContent = '讀取中…';
+    btn.disabled = true;
+    try {
+      const image = await shrinkImage(file, 1600);
+      const out = await recSend('/vision/read-photo', 'POST', { image });
+      const set = (id, v) => { if (v != null) document.getElementById(id).value = v; };
+      set('vVaR', out.vaR); set('vVaL', out.vaL); set('vCylR', out.cylR); set('vCylL', out.cylL);
+      ['R', 'L'].forEach(side => {
+        const v = out['sph' + side];
+        if (v != null) {
+          document.getElementById('vSphType' + side).value = v > 0 ? '1' : '-1';
+          document.getElementById('vSph' + side).value = Math.abs(v);
+        }
+      });
+      if (out.date) document.getElementById('vDate').value = out.date;
+      const got = ['vaR', 'vaL', 'sphR', 'sphL', 'cylR', 'cylL'].filter(k => out[k] != null).length;
+      if (!got) { status.className = 'photo-status err'; status.textContent = '照片上找不到視力數字，請手動輸入'; }
+      else status.textContent = `讀好了！${out.date ? '' : '日期用今天，'}請確認後按儲存`;
+    } catch (err) {
+      status.className = 'photo-status err';
+      status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   async function readGrowthPhoto(file){
