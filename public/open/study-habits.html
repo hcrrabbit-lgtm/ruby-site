@@ -410,6 +410,38 @@
   }
   .streak-toast.show{ opacity:1; transform:translate(-50%, 0); }
 
+  /* ---- 公布欄 ---- */
+  .notice-board{
+    background:#FFF8E6; border:1.5px solid #EAD9A8; border-radius:16px;
+    padding:12px 14px 6px; margin:0 0 14px;
+  }
+  .notice-title{ font-family:'Noto Serif TC',serif; font-size:15px; margin:0 0 8px; color:#7A5A12; }
+  .notice-list{ list-style:none; margin:0; padding:0; }
+  .notice-list li{ display:flex; align-items:center; gap:12px; padding:9px 0; border-top:1px dashed #EAD9A8; }
+  .notice-list li:first-child{ border-top:0; }
+  .notice-badge{
+    flex:0 0 auto; width:66px; text-align:center; padding:5px 4px; border-radius:10px;
+    background:#fff; border:1.5px solid #EAD9A8; color:#7A5A12; line-height:1.15;
+  }
+  .notice-badge .n{ display:block; font-size:22px; font-weight:700; }
+  .notice-badge .u{ display:block; font-size:10.5px; }
+  .notice-badge.today{ background:#E8806F; border-color:#E8806F; color:#fff; }
+  .notice-badge.soon{ background:#FBE3B5; }
+  .notice-badge.pin{ font-size:20px; padding:9px 6px; }
+  .notice-text{ flex:1; min-width:0; font-size:14px; color:var(--ink); line-height:1.6; white-space:pre-line; word-break:break-word; }
+  .notice-date{ display:block; font-size:11.5px; color:var(--ink-soft); }
+  .notice-empty{ font-size:13px; color:var(--ink-soft); margin:0 0 8px; }
+
+  .rules-fold{ margin:0 0 24px; }
+  .rules-fold summary{
+    cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:700; color:var(--ink-soft); padding:6px 2px;
+  }
+  .rules-fold summary::-webkit-details-marker{ display:none; }
+  .rules-fold summary::after{ content:"▾"; font-size:11px; transition:transform .15s; }
+  .rules-fold[open] summary::after{ transform:rotate(180deg); }
+  .rules-fold .rules-list{ margin:6px 0 0; }
+
   /* ---- 分頁：每日習慣／里程碑／成長紀錄 ---- */
   .view-tabs{
     display:flex; gap:4px; margin:-8px 0 20px; padding:4px;
@@ -546,10 +578,15 @@
   </div>
 
   <div class="view" id="viewHabits">
-    <ul class="rules-list">
+    <div id="noticeBoard"></div>
+
+    <details class="rules-fold">
+      <summary>📖 習慣規則說明</summary>
+      <ul class="rules-list">
       <li><span>每個習慣是一株小植物，點一下代表今天澆水，<b>+1 分</b></span></li>
       <li><span>設定「每週目標次數」的習慣：達標當週還是每天可以 <b>+1 分</b>（一週最多 7 天）；<b>連續 4 週都達標，額外 +4 分</b>；沒達標不扣分，只是沒有這筆額外獎勵。</span></li>
-    </ul>
+      </ul>
+    </details>
 
     <div id="habitToday"></div>
 
@@ -1432,7 +1469,46 @@
   }
   document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-  window.reloadRecordViews = function(){ recEditMode = false; if (activeView !== 'habits') loadRecords(); };
+  window.reloadRecordViews = function(){ recEditMode = false; renderNotices(); if (activeView !== 'habits') loadRecords(); };
+
+  // ---------- 公布欄 ----------
+  // 內容放在 notices.json，由 Claude 依 Ruby 的交代直接修改；過了日期自動不顯示
+  let noticeData = null;
+  async function loadNotices(){
+    try {
+      const r = await fetch('notices.json', { cache: 'no-store' });
+      noticeData = (await r.json()).notices || [];
+    } catch (e) { noticeData = []; }
+    renderNotices();
+  }
+  function renderNotices(){
+    const box = document.getElementById('noticeBoard');
+    if (!box || !noticeData) return;
+    const today = todayStr();
+    const list = noticeData
+      .filter(n => n && n.text && (!n.who || n.who === 'all' || n.who === activeChild))
+      .filter(n => !n.date || n.date >= today)
+      .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
+    const badge = n => {
+      if (!n.date) return `<span class="notice-badge pin">📢</span>`;
+      const d = daysBetween(today, n.date);
+      if (d === 0) return `<span class="notice-badge today"><span class="n">今天</span><span class="u">就是今天！</span></span>`;
+      return `<span class="notice-badge ${d <= 7 ? 'soon' : ''}"><span class="u">還有</span><span class="n">${d}</span><span class="u">天</span></span>`;
+    };
+    const wd = ['日', '一', '二', '三', '四', '五', '六'];
+    const dateLine = n => {
+      if (!n.date) return '';
+      const [y, m, dd] = n.date.split('-').map(Number);
+      return `<span class="notice-date">${m}/${dd}（${wd[new Date(y, m - 1, dd).getDay()]}）</span>`;
+    };
+    box.innerHTML = `<div class="notice-board">
+      <h2 class="notice-title">📌 公布欄</h2>
+      ${list.length
+        ? `<ul class="notice-list">${list.map(n => `<li>${badge(n)}<div class="notice-text">${escapeHtml(n.text)}${dateLine(n)}</div></li>`).join('')}</ul>`
+        : `<p class="notice-empty">目前沒有公告。</p>`}
+    </div>`;
+  }
+  loadNotices();
 
   // 平常不顯示刪除鈕，按「✏️ 編輯」才出現每筆的修改／刪除，避免誤按
   let recEditMode = false;
