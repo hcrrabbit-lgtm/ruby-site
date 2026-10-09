@@ -224,6 +224,12 @@ async function ensureSchema(env) {
     // column already exists, safe to ignore
   }
   try {
+    // 圍棋比賽的組別（例如 國小低年級組、15級組）
+    await env.DB.prepare("ALTER TABLE bm_contests ADD COLUMN division TEXT NOT NULL DEFAULT ''").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
@@ -1271,7 +1277,7 @@ async function bmRecordsGet(env, url) {
   if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
   const [levels, contests, growth] = await Promise.all([
     env.DB.prepare("SELECT id, track, label, date FROM bm_levels WHERE child = ? ORDER BY date, id").bind(child).all(),
-    env.DB.prepare("SELECT id, date, name, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
+    env.DB.prepare("SELECT id, date, name, division, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
     env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all()
   ]);
   return json({ levels: levels.results, contests: contests.results, growth: growth.results });
@@ -1292,11 +1298,12 @@ async function bmContestPost(env, request) {
   const b = await request.json();
   const name = bmClean(b.name, 80);
   const result = bmClean(b.result, 40);
+  const division = bmClean(b.division, 40);
   if (!BM_CHILDREN.has(b.child) || !name || !result || !BM_DATE_RE.test(b.date || "")) {
     return json({ error: "資料不完整" }, { status: 400 });
   }
-  await env.DB.prepare("INSERT INTO bm_contests (child, date, name, result, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(b.child, b.date, name, result, new Date().toISOString()).run();
+  await env.DB.prepare("INSERT INTO bm_contests (child, date, name, division, result, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(b.child, b.date, name, division, result, new Date().toISOString()).run();
   return json({ ok: true });
 }
 
@@ -1327,7 +1334,7 @@ async function bmDelete(env, request, table) {
 }
 
 // 讀獎狀照片：照片只在這次請求裡交給 AI 讀，不寫進 R2 或資料庫；
-// 只回傳比賽名稱／成績／日期三個欄位，姓名一律不回傳。
+// 只回傳比賽名稱／組別／成績／日期四個欄位，姓名一律不回傳。
 async function bmReadCertificate(env, request) {
   if (!env.AI) return json({ error: "AI 讀取功能還沒開啟，請先手動輸入" }, { status: 503 });
   const b = await request.json();
@@ -1336,8 +1343,8 @@ async function bmReadCertificate(env, request) {
     return json({ error: "照片格式不對或太大" }, { status: 400 });
   }
   const instructions =
-    "這是一張台灣的圍棋比賽獎狀照片。請只讀出三件事，用 JSON 回答，不要有其他文字：" +
-    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","result":"成績，例如 第三名、優勝、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
+    "這是一張台灣的圍棋比賽獎狀照片。請只讀出四件事，用 JSON 回答，不要有其他文字：" +
+    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
     "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
   let raw;
   try {
@@ -1365,6 +1372,7 @@ async function bmReadCertificate(env, request) {
   const date = bmClean(parsed.date, 10);
   return json({
     name: bmClean(parsed.name, 80),
+    division: bmClean(parsed.division, 40),
     result: bmClean(parsed.result, 40),
     date: BM_DATE_RE.test(date) ? date : ""
   });

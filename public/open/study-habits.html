@@ -1492,7 +1492,7 @@
           <span class="contest-medal">${medalFor(c.result)}</span>
           <div class="contest-body">
             <div class="contest-name">${escapeHtml(c.name)}</div>
-            <div class="contest-meta">${fmtDate(c.date)}　<b>${escapeHtml(c.result)}</b></div>
+            <div class="contest-meta">${fmtDate(c.date)}${c.division ? `　${escapeHtml(c.division)}` : ''}　<b>${escapeHtml(c.result)}</b></div>
           </div>
           <button class="rec-del" data-del-contest="${c.id}" title="刪除這筆">✕</button>
         </li>`).join('')}</ul>`
@@ -1506,8 +1506,9 @@
           <input type="file" accept="image/*" capture="environment" id="contestPhoto" hidden>
           <span class="photo-status" id="contestPhotoStatus"></span>
         </div>
-        <div class="photo-note">照片只用來讀出文字，不會被存下來；獎狀上的姓名不會記錄。讀完請檢查一下再按儲存。</div>
+        <div class="photo-note">照片只用來讀出比賽名稱、組別、成績和日期，不會被存下來；獎狀上的姓名不會記錄。讀完請檢查一下再按儲存。</div>
         <label class="grow">比賽名稱<input type="text" maxlength="80" id="contestName" placeholder="例如：南投縣縣長盃圍棋賽"></label>
+        <label>組別<input type="text" maxlength="40" id="contestDivision" placeholder="例如：國小低年級組" style="width:150px"></label>
         <label>成績<input type="text" maxlength="40" id="contestResult" placeholder="例如：第三名" style="width:120px"></label>
         <label>日期<input type="date" id="contestDate" value="${todayStr()}" max="${todayStr()}"></label>
         <button class="rec-btn solid" type="submit">儲存</button>
@@ -1550,9 +1551,10 @@
       e.preventDefault();
       const name = document.getElementById('contestName').value.trim();
       const result = document.getElementById('contestResult').value.trim();
+      const division = document.getElementById('contestDivision').value.trim();
       const date = document.getElementById('contestDate').value;
       if (!name || !result || !date) { alert('比賽名稱、成績、日期都要填'); return; }
-      try { await recSend('/contests', 'POST', { child: activeChild, name, result, date }); playChime(); }
+      try { await recSend('/contests', 'POST', { child: activeChild, name, division, result, date }); playChime(); }
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
@@ -1587,9 +1589,10 @@
       const image = await shrinkImage(file, 1280);
       const out = await recSend('/contests/read-photo', 'POST', { image });
       if (out.name) document.getElementById('contestName').value = out.name;
+      if (out.division) document.getElementById('contestDivision').value = out.division;
       if (out.result) document.getElementById('contestResult').value = out.result;
       if (out.date) document.getElementById('contestDate').value = out.date;
-      const missing = [!out.name && '名稱', !out.result && '成績', !out.date && '日期'].filter(Boolean);
+      const missing = [!out.name && '名稱', !out.division && '組別', !out.result && '成績', !out.date && '日期'].filter(Boolean);
       status.textContent = missing.length ? `讀好了，${missing.join('、')}請自己補上` : '讀好了！請確認後按儲存';
     } catch (err) {
       status.className = 'photo-status err';
