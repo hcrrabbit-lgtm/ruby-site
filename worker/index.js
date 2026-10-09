@@ -1333,19 +1333,14 @@ async function bmDelete(env, request, table) {
   return json({ ok: true });
 }
 
-// 讀獎狀照片：照片只在這次請求裡交給 AI 讀，不寫進 R2 或資料庫；
-// 只回傳比賽名稱／組別／成績／日期四個欄位，姓名一律不回傳。
-async function bmReadCertificate(env, request) {
-  if (!env.AI) return json({ error: "AI 讀取功能還沒開啟，請先手動輸入" }, { status: 503 });
+// 照片只在這次請求裡交給 AI 讀字，不寫進 R2 或資料庫；回傳後就丟掉。
+async function bmReadImage(env, request, instructions) {
+  if (!env.AI) return { error: json({ error: "AI 讀取功能還沒開啟，請先手動輸入" }, { status: 503 }) };
   const b = await request.json();
   const image = String(b.image || "");
   if (!/^data:image\/(jpeg|png|webp);base64,/.test(image) || image.length > 3_000_000) {
-    return json({ error: "照片格式不對或太大" }, { status: 400 });
+    return { error: json({ error: "照片格式不對或太大" }, { status: 400 }) };
   }
-  const instructions =
-    "這是一張台灣的圍棋比賽獎狀照片。請只讀出四件事，用 JSON 回答，不要有其他文字：" +
-    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
-    "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
   let raw;
   try {
     const out = await env.AI.run("@cf/meta/llama-4-scout-17b-16e-instruct", {
@@ -1361,19 +1356,56 @@ async function bmReadCertificate(env, request) {
     });
     raw = out && out.response;
   } catch (err) {
-    return json({ error: "AI 讀取失敗，請手動輸入" }, { status: 502 });
+    return { error: json({ error: "AI 讀取失敗，請手動輸入" }, { status: 502 }) };
   }
   let parsed = raw;
   if (typeof raw === "string") {
     const m = raw.match(/\{[\s\S]*\}/);
     try { parsed = m ? JSON.parse(m[0]) : null; } catch (e) { parsed = null; }
   }
-  if (!parsed || typeof parsed !== "object") return json({ error: "看不懂這張照片，請手動輸入" }, { status: 422 });
-  const date = bmClean(parsed.date, 10);
+  if (!parsed || typeof parsed !== "object") {
+    return { error: json({ error: "看不懂這張照片，請手動輸入" }, { status: 422 }) };
+  }
+  return { data: parsed };
+}
+
+// 讀獎狀：只回傳比賽名稱／組別／成績／日期四個欄位，姓名一律不回傳。
+async function bmReadCertificate(env, request) {
+  const instructions =
+    "這是一張台灣的圍棋比賽獎狀照片。請只讀出四件事，用 JSON 回答，不要有其他文字：" +
+    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
+    "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
+  const r = await bmReadImage(env, request, instructions);
+  if (r.error) return r.error;
+  const p = r.data;
+  const date = bmClean(p.date, 10);
   return json({
-    name: bmClean(parsed.name, 80),
-    division: bmClean(parsed.division, 40),
-    result: bmClean(parsed.result, 40),
+    name: bmClean(p.name, 80),
+    division: bmClean(p.division, 40),
+    result: bmClean(p.result, 40),
+    date: BM_DATE_RE.test(date) ? date : ""
+  });
+}
+
+// 讀身高體重：體重計螢幕、身高尺、或學校健康檢查單都可以；只回傳數字和日期。
+async function bmReadGrowth(env, request) {
+  const instructions =
+    "這張照片可能是體重計的螢幕、量身高的尺或身高計，或是學校的健康檢查紀錄單。" +
+    "請找出身高（公分）和體重（公斤），用 JSON 回答，不要有其他文字：" +
+    '{"heightCm":數字或null,"weightKg":數字或null,"date":"量測日期 YYYY-MM-DD，照片上沒有就填空字串"}。' +
+    "體重計若顯示磅（lb）請換算成公斤；身高若是公尺請換算成公分。民國年請換算成西元（民國年＋1911）。" +
+    "如果單子上有好幾次紀錄，只取日期最新的那一次。不確定的數字填 null，不要猜。不要寫出任何人名或其他個人資料。";
+  const r = await bmReadImage(env, request, instructions);
+  if (r.error) return r.error;
+  const p = r.data;
+  const num = (v, lo, hi) => {
+    const n = Number(v);
+    return v !== null && v !== "" && Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n * 10) / 10 : null;
+  };
+  const date = bmClean(p.date, 10);
+  return json({
+    heightCm: num(p.heightCm, 50, 220),
+    weightKg: num(p.weightKg, 5, 150),
     date: BM_DATE_RE.test(date) ? date : ""
   });
 }
@@ -1541,6 +1573,7 @@ export default {
       if (path === "/api/open/better-me/contests" && request.method === "POST") return await bmContestPost(env, request);
       if (path === "/api/open/better-me/contests" && request.method === "DELETE") return await bmDelete(env, request, "bm_contests");
       if (path === "/api/open/better-me/contests/read-photo" && request.method === "POST") return await bmReadCertificate(env, request);
+      if (path === "/api/open/better-me/growth/read-photo" && request.method === "POST") return await bmReadGrowth(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "POST") return await bmGrowthPost(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "DELETE") return await bmDelete(env, request, "bm_growth");
 

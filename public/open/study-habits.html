@@ -1656,6 +1656,12 @@
         <h2 class="rec-title">📏 身高體重</h2>
         <div class="growth-now">${growthNowHtml(rows, 'heightCm', '身高', 'cm')}${growthNowHtml(rows, 'weightKg', '體重', 'kg')}</div>
         <form class="rec-form" id="growthForm" style="margin-top:0;border-top:0;padding-top:0">
+          <div class="photo-row">
+            <button type="button" class="rec-btn" id="growthPhotoBtn">📷 拍照自動填寫</button>
+            <input type="file" accept="image/*" capture="environment" id="growthPhoto" hidden>
+            <span class="photo-status" id="growthPhotoStatus"></span>
+          </div>
+          <div class="photo-note">可以拍體重計螢幕、身高尺，或學校的健康檢查單。照片只用來讀數字，不會被存下來。讀完請檢查一下再按儲存。</div>
           <label>日期<input type="date" id="gDate" value="${todayStr()}" max="${todayStr()}"></label>
           <label>身高 cm<input type="number" step="0.1" min="50" max="220" inputmode="decimal" id="gHeight"></label>
           <label>體重 kg<input type="number" step="0.1" min="5" max="150" inputmode="decimal" id="gWeight"></label>
@@ -1682,11 +1688,42 @@
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
+    const gPhoto = document.getElementById('growthPhoto');
+    document.getElementById('growthPhotoBtn').addEventListener('click', () => gPhoto.click());
+    gPhoto.addEventListener('change', () => { if (gPhoto.files[0]) readGrowthPhoto(gPhoto.files[0]); gPhoto.value = ''; });
+
     box.querySelectorAll('[data-del-growth]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('確定要刪除這筆紀錄嗎？')) return;
       await recSend('/growth', 'DELETE', { id: Number(b.dataset.delGrowth) }).catch(err => alert(err.message));
       loadRecords();
     }));
+  }
+
+  async function readGrowthPhoto(file){
+    const status = document.getElementById('growthPhotoStatus');
+    const btn = document.getElementById('growthPhotoBtn');
+    status.className = 'photo-status';
+    status.textContent = '讀取中…';
+    btn.disabled = true;
+    try {
+      const image = await shrinkImage(file, 1280);
+      const out = await recSend('/growth/read-photo', 'POST', { image });
+      if (out.heightCm != null) document.getElementById('gHeight').value = out.heightCm;
+      if (out.weightKg != null) document.getElementById('gWeight').value = out.weightKg;
+      if (out.date) document.getElementById('gDate').value = out.date;
+      if (out.heightCm == null && out.weightKg == null) {
+        status.className = 'photo-status err';
+        status.textContent = '照片上找不到身高或體重，請手動輸入';
+      } else {
+        const got = [out.heightCm != null && '身高', out.weightKg != null && '體重'].filter(Boolean).join('和');
+        status.textContent = `讀到${got}了！${out.date ? '' : '日期用今天，'}請確認後按儲存`;
+      }
+    } catch (err) {
+      status.className = 'photo-status err';
+      status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   showView(activeView);
