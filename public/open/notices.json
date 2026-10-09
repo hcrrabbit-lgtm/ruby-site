@@ -1,4 +1,10 @@
 {
   "說明": "Better Me 公布欄。date 填倒數到哪一天（不填就一直顯示），過了那天會自動消失；who 填 all、Cathy 或 Rina。",
-  "notices": []
+  "notices": [
+    {
+      "text": "🏆 彰化縣長盃圍棋比賽",
+      "date": "2026-10-18",
+      "who": "all"
+    }
+  ]
 }
