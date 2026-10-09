@@ -1507,19 +1507,20 @@
     const today = todayStr();
     const list = noticeData
       .filter(n => n && n.text && (!n.who || n.who === 'all' || n.who === activeChild))
-      .filter(n => !n.date || n.date >= today)
+      .filter(n => !n.date || (n.end || n.date) >= today)
       .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
     const badge = n => {
       if (!n.date) return `<span class="notice-badge pin">📢</span>`;
       const d = daysBetween(today, n.date);
+      if (d < 0) return `<span class="notice-badge today">進行中</span>`;
       if (d === 0) return `<span class="notice-badge today">就是今天！</span>`;
       return `<span class="notice-badge ${d <= 7 ? 'soon' : ''}">還有 ${d} 天</span>`;
     };
     const wd = ['日', '一', '二', '三', '四', '五', '六'];
     const dateLine = n => {
       if (!n.date) return '';
-      const [y, m, dd] = n.date.split('-').map(Number);
-      return `<span class="notice-date">${m}/${dd}（${wd[new Date(y, m - 1, dd).getDay()]}）</span>`;
+      const one = ds => { const [yy, mm, d2] = ds.split('-').map(Number); return `${mm}/${d2}（${wd[new Date(yy, mm - 1, d2).getDay()]}）`; };
+      return `<span class="notice-date">${one(n.date)}${n.end && n.end !== n.date ? '–' + one(n.end) : ''}</span>`;
     };
     box.innerHTML = `<div class="notice-board">
       <h2 class="notice-title">📌 公布欄</h2>
