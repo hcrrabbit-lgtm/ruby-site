@@ -1312,7 +1312,7 @@ async function bmGrowthPost(env, request) {
   const h = b.heightCm === "" || b.heightCm == null ? null : Number(b.heightCm);
   const w = b.weightKg === "" || b.weightKg == null ? null : Number(b.weightKg);
   const okH = h === null || (Number.isFinite(h) && h >= 50 && h <= 220);
-  const okW = w === null || (Number.isFinite(w) && w >= 5 && w <= 150);
+  const okW = w === null || (Number.isFinite(w) && w >= 1 && w <= 150);
   if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || (h === null && w === null) || !okH || !okW) {
     return json({ error: "資料不完整或數字不合理" }, { status: 400 });
   }
@@ -1405,7 +1405,7 @@ async function bmReadGrowth(env, request) {
   const date = bmClean(p.date, 10);
   return json({
     heightCm: num(p.heightCm, 50, 220),
-    weightKg: num(p.weightKg, 5, 150),
+    weightKg: num(p.weightKg, 1, 150),
     date: BM_DATE_RE.test(date) ? date : ""
   });
 }

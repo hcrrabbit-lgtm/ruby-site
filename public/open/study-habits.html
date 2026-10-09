@@ -1687,7 +1687,7 @@
           <div class="photo-note">可以拍體重計螢幕、身高尺，或學校的健康檢查單。照片只用來讀數字，不會被存下來。讀完請檢查一下再按儲存。</div>
           <label>日期<input type="date" id="gDate" value="${todayStr()}" max="${todayStr()}"></label>
           <label>身高 cm<input type="number" step="0.1" min="50" max="220" inputmode="decimal" id="gHeight"></label>
-          <label>體重 kg<input type="number" step="0.1" min="5" max="150" inputmode="decimal" id="gWeight"></label>
+          <label>體重 kg<input type="number" step="0.01" min="1" max="150" inputmode="decimal" id="gWeight"></label>
           <button class="rec-btn solid" type="submit">儲存</button>
         </form>
       </div>
@@ -1750,23 +1750,27 @@
   }
 
   // 一次匯入多筆身高（舊紀錄搬家用）：資料放在網址 # 後面，只在打開的那支手機上送出，
-  // 不會寫進程式碼。格式：#import=Cathy,2013-08-20_52.8,2014-10-19_74,...
+  // 不會寫進程式碼。格式：#import=Cathy,2013-08-20_52.8,...（身高）
+  // 或 #import=Cathy-weight,2013-08-20_3.78,...（體重）
   // （舊格式 | 和 : 也接受）。用頁面上的按鈕確認，不用 confirm()，因為 App 內建瀏覽器常常不顯示跳出視窗。
   function importFromHash(){
     let hash = location.hash;
     try { hash = decodeURIComponent(hash); } catch (e) {}
-    const m = hash.match(/^#import=(Cathy|Rina)[,|](.+)$/);
+    const m = hash.match(/^#import=(Cathy|Rina)(?:-(height|weight))?[,|](.+)$/);
     if (!m) return;
     history.replaceState(null, '', location.pathname + location.search);
     const child = m[1];
-    const rows = m[2].split(/[,|]/).map(x => x.split(/[_:]/))
-      .filter(([d, h]) => BM_DATE_OK(d) && Number(h) >= 50 && Number(h) <= 220);
+    const isWeight = m[2] === 'weight';
+    const kind = isWeight ? '體重' : '身高';
+    const [lo, hi] = isWeight ? [1, 150] : [50, 220];
+    const rows = m[3].split(/[,|]/).map(x => x.split(/[_:]/))
+      .filter(([d, v]) => BM_DATE_OK(d) && Number(v) >= lo && Number(v) <= hi);
     if (!rows.length) return;
     const bar = document.createElement('div');
     bar.className = 'rec-card import-bar';
-    bar.innerHTML = `<h2 class="rec-title">📥 匯入舊的身高紀錄</h2>
-      <p style="margin:0 0 12px;font-size:14px;line-height:1.7">要把 <b>${rows.length} 筆</b>身高加進 <b>${child}</b> 的成長紀錄嗎？<br>
-      （${fmtDate(rows[0][0])} 到 ${fmtDate(rows[rows.length - 1][0])}；同一天已有的體重會保留）</p>
+    bar.innerHTML = `<h2 class="rec-title">📥 匯入舊的${kind}紀錄</h2>
+      <p style="margin:0 0 12px;font-size:14px;line-height:1.7">要把 <b>${rows.length} 筆</b>${kind}加進 <b>${child}</b> 的成長紀錄嗎？<br>
+      （${fmtDate(rows[0][0])} 到 ${fmtDate(rows[rows.length - 1][0])}；同一天已有的${isWeight ? '身高' : '體重'}會保留）</p>
       <div style="display:flex;gap:8px"><button type="button" class="rec-btn solid import-go" style="font-size:15px;padding:10px 18px">✅ 確定加入</button>
       <button type="button" class="rec-btn import-no" style="font-size:15px;padding:10px 18px">取消</button></div>
       <p class="import-msg photo-status" style="margin:10px 0 0"></p>`;
@@ -1777,9 +1781,10 @@
       bar.querySelectorAll('button').forEach(b => b.disabled = true);
       const msg = bar.querySelector('.import-msg');
       let ok = 0;
-      for (const [date, h] of rows) {
+      for (const [date, v] of rows) {
         msg.textContent = `加入中…（${ok}/${rows.length}）`;
-        try { await recSend('/growth', 'POST', { child, date, heightCm: h, weightKg: '' }); ok++; } catch (e) {}
+        const body = isWeight ? { child, date, heightCm: '', weightKg: v } : { child, date, heightCm: v, weightKg: '' };
+        try { await recSend('/growth', 'POST', body); ok++; } catch (e) {}
       }
       msg.textContent = `完成！加入了 ${ok} 筆${ok < rows.length ? `，有 ${rows.length - ok} 筆失敗` : ''}`;
       if (ok < rows.length) msg.classList.add('err');
