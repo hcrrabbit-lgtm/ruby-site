@@ -456,6 +456,15 @@
     font-size:14px; padding:2px 6px; line-height:1;
   }
   .rec-del:hover{ color:#B5524A; }
+  .rec-toolbar{ display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:-6px 0 12px; }
+  .rec-toolbar-hint{ font-size:12px; color:var(--ink-soft); }
+  .rec-toolbar .rec-btn{ background:#fff; border-color:var(--line); color:var(--ink-soft); }
+  .rec-toolbar .rec-btn.on{ background:#FFF3D6; border-color:#E3C77A; color:#8A6A1F; }
+  .row-acts{ margin-left:auto; display:flex; gap:2px; flex:0 0 auto; white-space:nowrap; }
+  .row-acts .rec-del{ margin-left:0; }
+  .rec-edit{ border:0; background:none; cursor:pointer; font-size:14px; padding:2px 6px; line-height:1; }
+  .rec-form.editing{ background:#FFF8E6; border-radius:12px; padding:12px; border-top:0; outline:2px dashed #E3C77A; }
+  .growth-table td:last-child{ white-space:nowrap; }
   .rec-empty{ font-size:13px; color:var(--ink-soft); margin:2px 0 8px; }
 
   .rec-form{ display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
@@ -498,7 +507,7 @@
   .growth-table{ width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
   .growth-table th{ text-align:left; color:var(--ink-soft); font-weight:500; font-size:12px; padding:6px 4px; }
   .growth-table td{ padding:6px 4px; border-top:1px solid var(--line); }
-  .growth-table td:last-child{ text-align:right; width:30px; }
+  .growth-table td:last-child{ text-align:right; width:1%; }
   .eye-form{ width:100%; border-collapse:collapse; font-size:12.5px; }
   .eye-form th{ color:var(--ink-soft); font-weight:500; text-align:left; padding:4px 4px 4px 0; white-space:nowrap; }
   .eye-form thead th{ text-align:center; font-weight:700; color:var(--ink); }
@@ -1416,13 +1425,56 @@
   function showView(view){
     activeView = view;
     try { localStorage.setItem('betterMeView', view); } catch (e) {}
+    recEditMode = false;
     document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
     Object.entries(VIEWS).forEach(([k, id]) => { document.getElementById(id).hidden = k !== view; });
     if (view !== 'habits') loadRecords();
   }
   document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-  window.reloadRecordViews = function(){ if (activeView !== 'habits') loadRecords(); };
+  window.reloadRecordViews = function(){ recEditMode = false; if (activeView !== 'habits') loadRecords(); };
+
+  // 平常不顯示刪除鈕，按「✏️ 編輯」才出現每筆的修改／刪除，避免誤按
+  let recEditMode = false;
+  function editToolbarHtml(){
+    return `<div class="rec-toolbar">
+      ${recEditMode ? '<span class="rec-toolbar-hint">按 ✏️ 修改、✕ 刪除</span>' : ''}
+      <button type="button" class="rec-btn rec-edit-toggle ${recEditMode ? 'on' : ''}">${recEditMode ? '✔ 完成編輯' : '✏️ 編輯'}</button>
+    </div>`;
+  }
+  function rowActs(kind, id){
+    if (!recEditMode) return '';
+    return `<span class="row-acts">
+      <button type="button" class="rec-edit" data-edit-${kind}="${id}" title="修改這筆">✏️</button>
+      <button type="button" class="rec-del" data-del-${kind}="${id}" title="刪除這筆">✕</button>
+    </span>`;
+  }
+  function rerenderRecords(){
+    if (!recData) return;
+    if (activeView === 'milestones') renderMilestones();
+    if (activeView === 'growth') renderGrowth();
+    if (activeView === 'vision') renderVision();
+  }
+  function bindEditToggle(box){
+    const t = box.querySelector('.rec-edit-toggle');
+    if (t) t.addEventListener('click', () => { recEditMode = !recEditMode; rerenderRecords(); });
+  }
+  // 把一筆舊紀錄帶進表單，按鈕改成「更新這筆」
+  function startEditing(form, id, fill){
+    fill();
+    form.dataset.editId = id;
+    form.classList.add('editing');
+    const btn = form.querySelector('button[type=submit]');
+    btn.textContent = '💾 更新這筆';
+    if (!form.querySelector('.rec-cancel')) {
+      const c = document.createElement('button');
+      c.type = 'button'; c.className = 'rec-btn rec-cancel'; c.textContent = '取消修改';
+      c.addEventListener('click', rerenderRecords);
+      btn.after(c);
+    }
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  const editIdOf = form => form && form.dataset.editId ? Number(form.dataset.editId) : undefined;
 
   async function loadRecords(){
     const seq = ++recLoadSeq;
@@ -1503,7 +1555,7 @@
         <span class="lv">${escapeHtml(l.label)}</span>
         <span class="dt">${fmtDate(l.date)}${gradeTag(l.date)}</span>
         ${gap ? `<span class="gap">${gap}</span>` : ''}
-        <button class="rec-del" data-del-level="${l.id}" title="刪除這筆">✕</button>
+        ${rowActs('level', l.id)}
       </li>`;
     }).join('');
     const unitInput = track === 'yehu'
@@ -1514,7 +1566,7 @@
       <h2 class="rec-title">${t.title}</h2>
       ${nowHtml}
       ${rows.length ? `<ul class="ladder">${ladder}</ul>` : ''}
-      <form class="rec-form" data-track="${track}">
+      <form novalidate class="rec-form" data-track="${track}">
         ${unitInput}
         <label>升級日期<input type="date" class="lv-date" value="${todayStr()}" max="${todayStr()}"></label>
         <button class="rec-btn solid" type="submit">＋ 記錄升級</button>
@@ -1538,13 +1590,13 @@
             <div class="contest-name">${escapeHtml(c.name)}</div>
             <div class="contest-meta">${fmtDate(c.date)}${gradeTag(c.date)}${c.division ? `　${escapeHtml(c.division)}` : ''}　<b>${escapeHtml(c.result)}</b></div>
           </div>
-          <button class="rec-del" data-del-contest="${c.id}" title="刪除這筆">✕</button>
+          ${rowActs('contest', c.id)}
         </li>`).join('')}</ul>`
       : `<p class="rec-empty">還沒有比賽紀錄。</p>`;
     return `<div class="rec-card ${childCls()}">
       <h2 class="rec-title">🏆 圍棋比賽成績</h2>
       ${items}
-      <form class="rec-form" id="contestForm">
+      <form novalidate class="rec-form" id="contestForm">
         <div class="photo-row">
           <button type="button" class="rec-btn" id="contestPhotoBtn">📷 拍獎狀自動填寫</button>
           <input type="file" accept="image/*" capture="environment" id="contestPhoto" hidden>
@@ -1562,7 +1614,7 @@
 
   function renderMilestones(){
     const box = document.getElementById('viewMilestones');
-    box.innerHTML = `<div class="rec-grid">${levelCardHtml('ienglish')}${levelCardHtml('yehu')}</div>
+    box.innerHTML = `${editToolbarHtml()}<div class="rec-grid">${levelCardHtml('ienglish')}${levelCardHtml('yehu')}</div>
       <div style="height:16px"></div>${contestCardHtml()}`;
 
     box.querySelectorAll('form[data-track]').forEach(f => f.addEventListener('submit', async e => {
@@ -1572,9 +1624,30 @@
       const date = f.querySelector('.lv-date').value;
       if (!n || !date) { alert('請填等級和日期'); return; }
       const label = track === 'yehu' ? `${n}${f.querySelector('.lv-unit').value}` : `Level ${n}`;
-      try { await recSend('/levels', 'POST', { child: activeChild, track, label, date }); playChime(); }
-      catch (err) { alert(err.message); }
+      try { await recSend('/levels', 'POST', { child: activeChild, track, label, date, id: editIdOf(f) }); playChime(); }
+      catch (err) { alert(err.message); return; }
       loadRecords();
+    }));
+    bindEditToggle(box);
+    box.querySelectorAll('[data-edit-level]').forEach(b => b.addEventListener('click', () => {
+      const l = recData.levels.find(x => x.id === Number(b.dataset.editLevel));
+      if (!l) return;
+      const f = box.querySelector(`form[data-track="${l.track}"]`);
+      startEditing(f, l.id, () => {
+        f.querySelector('.lv-num').value = parseInt(l.label.replace(/\D+/g, ''), 10) || '';
+        if (f.querySelector('.lv-unit')) f.querySelector('.lv-unit').value = /段/.test(l.label) ? '段' : '級';
+        f.querySelector('.lv-date').value = l.date;
+      });
+    }));
+    box.querySelectorAll('[data-edit-contest]').forEach(b => b.addEventListener('click', () => {
+      const c = recData.contests.find(x => x.id === Number(b.dataset.editContest));
+      if (!c) return;
+      startEditing(document.getElementById('contestForm'), c.id, () => {
+        document.getElementById('contestName').value = c.name;
+        document.getElementById('contestDivision').value = c.division || '';
+        document.getElementById('contestResult').value = c.result;
+        document.getElementById('contestDate').value = c.date;
+      });
     }));
     box.querySelectorAll('[data-del-level]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('確定要刪除這筆升級紀錄嗎？')) return;
@@ -1598,7 +1671,7 @@
       const division = document.getElementById('contestDivision').value.trim();
       const date = document.getElementById('contestDate').value;
       if (!name || !result || !date) { alert('比賽名稱、成績、日期都要填'); return; }
-      try { await recSend('/contests', 'POST', { child: activeChild, name, division, result, date }); playChime(); }
+      try { await recSend('/contests', 'POST', { child: activeChild, name, division, result, date, id: editIdOf(e.target) }); playChime(); }
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
@@ -1693,13 +1766,13 @@
           ${rows.slice().reverse().map(r => `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}</td>
             <td>${r.heightCm != null ? r.heightCm + ' cm' : '—'}</td>
             <td>${r.weightKg != null ? r.weightKg + ' kg' : '—'}</td>
-            <td><button class="rec-del" data-del-growth="${r.id}" title="刪除這筆">✕</button></td></tr>`).join('')}
+            <td>${rowActs('growth', r.id)}</td></tr>`).join('')}
         </tbody></table>`
       : `<p class="rec-empty">還沒有紀錄，量完身高體重記下來吧！</p>`;
-    box.innerHTML = `<div class="rec-card ${childCls()}">
+    box.innerHTML = `${editToolbarHtml()}<div class="rec-card ${childCls()}">
         <h2 class="rec-title">📏 身高體重</h2>
         <div class="growth-now">${growthNowHtml(rows, 'heightCm', '身高', 'cm')}${growthNowHtml(rows, 'weightKg', '體重', 'kg')}</div>
-        <form class="rec-form" id="growthForm" style="margin-top:0;border-top:0;padding-top:0">
+        <form novalidate class="rec-form" id="growthForm" style="margin-top:0;border-top:0;padding-top:0">
           <div class="photo-row">
             <button type="button" class="rec-btn" id="growthPhotoBtn">📷 拍照自動填寫</button>
             <input type="file" accept="image/*" capture="environment" id="growthPhoto" hidden>
@@ -1728,10 +1801,20 @@
       const heightCm = document.getElementById('gHeight').value;
       const weightKg = document.getElementById('gWeight').value;
       if (!date || (!heightCm && !weightKg)) { alert('請填日期，身高或體重至少填一個'); return; }
-      try { await recSend('/growth', 'POST', { child: activeChild, date, heightCm, weightKg }); playChime(); }
+      try { await recSend('/growth', 'POST', { child: activeChild, date, heightCm, weightKg, id: editIdOf(e.target) }); playChime(); }
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
+    bindEditToggle(box);
+    box.querySelectorAll('[data-edit-growth]').forEach(b => b.addEventListener('click', () => {
+      const r = recData.growth.find(x => x.id === Number(b.dataset.editGrowth));
+      if (!r) return;
+      startEditing(document.getElementById('growthForm'), r.id, () => {
+        document.getElementById('gDate').value = r.date;
+        document.getElementById('gHeight').value = r.heightCm != null ? r.heightCm : '';
+        document.getElementById('gWeight').value = r.weightKg != null ? r.weightKg : '';
+      });
+    }));
     const gPhoto = document.getElementById('growthPhoto');
     document.getElementById('growthPhotoBtn').addEventListener('click', () => gPhoto.click());
     gPhoto.addEventListener('change', () => { if (gPhoto.files[0]) readGrowthPhoto(gPhoto.files[0]); gPhoto.value = ''; });
@@ -1811,12 +1894,12 @@
     const rows = recData.vision || [];
     const cR = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A', cL = '#C9A227';
     const eyeInputs = side => `
-      <td><input type="number" step="0.1" min="0.01" max="2" inputmode="decimal" id="vVa${side}" placeholder="例 0.8"></td>`;
+      <td><input type="number" step="any" min="0.01" max="2" inputmode="decimal" id="vVa${side}" placeholder="例 0.8"></td>`;
     const sphInputs = side => `
       <td><div class="pair"><select id="vSphType${side}"><option value="-1">近視</option><option value="1">遠視</option></select>
-      <input type="number" step="25" min="0" max="2000" inputmode="numeric" id="vSph${side}" placeholder="度"></div></td>`;
+      <input type="number" step="any" min="0" max="2000" inputmode="numeric" id="vSph${side}" placeholder="度"></div></td>`;
     const cylInputs = side => `
-      <td><input type="number" step="25" min="0" max="800" inputmode="numeric" id="vCyl${side}" placeholder="度"></td>`;
+      <td><input type="number" step="any" min="0" max="800" inputmode="numeric" id="vCyl${side}" placeholder="度"></td>`;
     const table = rows.length
       ? `<table class="growth-table vision-table"><thead><tr><th>日期</th><th>右眼</th><th>左眼</th><th></th></tr></thead><tbody>
           ${rows.slice().reverse().map(r => {
@@ -1824,15 +1907,15 @@
             const cell = e => `${e.va != null ? e.va : '—'}${e.extra ? `<span class="note">${escapeHtml(e.extra)}</span>` : ''}`;
             return `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}${r.note ? `<span class="note">${escapeHtml(r.note)}</span>` : ''}</td>
               <td>${cell(R)}</td><td>${cell(L)}</td>
-              <td><button class="rec-del" data-del-vision="${r.id}" title="刪除這筆">✕</button></td></tr>`;
+              <td>${rowActs('vision', r.id)}</td></tr>`;
           }).join('')}
         </tbody></table>`
       : `<p class="rec-empty">還沒有視力紀錄。</p>`;
     const hasSph = rows.some(r => r.sphR != null || r.sphL != null);
-    box.innerHTML = `<div class="rec-card ${childCls()}">
+    box.innerHTML = `${editToolbarHtml()}<div class="rec-card ${childCls()}">
         <h2 class="rec-title">👀 視力檢查</h2>
         <div class="eye-now">${eyeNowCard(rows, 'R', '右眼')}${eyeNowCard(rows, 'L', '左眼')}</div>
-        <form class="rec-form" id="visionForm" style="margin-top:0;border-top:0;padding-top:0">
+        <form novalidate class="rec-form" id="visionForm" style="margin-top:0;border-top:0;padding-top:0">
           <div class="photo-row">
             <button type="button" class="rec-btn" id="visionPhotoBtn">📷 拍檢查單自動填寫</button>
             <input type="file" accept="image/*" capture="environment" id="visionPhoto" hidden>
@@ -1872,7 +1955,8 @@
       const sph = side => g('vSph' + side) === '' ? '' : Number(g('vSphType' + side)) * Number(g('vSph' + side));
       const body = {
         child: activeChild, date: g('vDate'), note: g('vNote'),
-        vaR: g('vVaR'), vaL: g('vVaL'), sphR: sph('R'), sphL: sph('L'), cylR: g('vCylR'), cylL: g('vCylL')
+        vaR: g('vVaR'), vaL: g('vVaL'), sphR: sph('R'), sphL: sph('L'), cylR: g('vCylR'), cylL: g('vCylL'),
+        id: editIdOf(e.target)
       };
       if (!body.date || ['vaR', 'vaL', 'sphR', 'sphL', 'cylR', 'cylL'].every(k => body[k] === '')) {
         alert('請填日期，視力或度數至少填一個'); return;
@@ -1881,6 +1965,21 @@
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
+    bindEditToggle(box);
+    box.querySelectorAll('[data-edit-vision]').forEach(b => b.addEventListener('click', () => {
+      const r = (recData.vision || []).find(x => x.id === Number(b.dataset.editVision));
+      if (!r) return;
+      startEditing(document.getElementById('visionForm'), r.id, () => {
+        const set = (id, v) => { document.getElementById(id).value = v != null ? v : ''; };
+        set('vDate', r.date); set('vNote', r.note || '');
+        set('vVaR', r.vaR); set('vVaL', r.vaL); set('vCylR', r.cylR); set('vCylL', r.cylL);
+        ['R', 'L'].forEach(side => {
+          const v = r['sph' + side];
+          document.getElementById('vSphType' + side).value = v > 0 ? '1' : '-1';
+          set('vSph' + side, v != null ? Math.abs(v) : null);
+        });
+      });
+    }));
     box.querySelectorAll('[data-del-vision]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('確定要刪除這筆視力紀錄嗎？')) return;
       await recSend('/vision', 'DELETE', { id: Number(b.dataset.delVision) }).catch(err => alert(err.message));

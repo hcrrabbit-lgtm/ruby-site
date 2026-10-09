@@ -1273,6 +1273,22 @@ function bmClean(s, max) {
   return String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+// 有帶 id 就是「修改這一筆」；同一天已經有另一筆時回覆清楚的訊息
+function bmEditId(b) {
+  const id = Number(b.id);
+  return b.id != null && b.id !== "" && Number.isInteger(id) ? id : null;
+}
+async function bmRunUpdate(stmt) {
+  try {
+    const r = await stmt.run();
+    if (!r.meta || r.meta.changes === 0) return json({ error: "找不到這筆紀錄，請重新整理" }, { status: 404 });
+    return json({ ok: true });
+  } catch (err) {
+    if (/UNIQUE/i.test(String(err && err.message))) return json({ error: "這一天已經有另一筆紀錄了，請換日期或改那一筆" }, { status: 409 });
+    throw err;
+  }
+}
+
 async function bmRecordsGet(env, url) {
   const child = url.searchParams.get("child");
   if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
@@ -1294,6 +1310,11 @@ async function bmLevelPost(env, request) {
   if (!BM_CHILDREN.has(b.child) || !BM_TRACKS.has(b.track) || !label || !BM_DATE_RE.test(b.date || "")) {
     return json({ error: "資料不完整" }, { status: 400 });
   }
+  const editId = bmEditId(b);
+  if (editId !== null) {
+    return bmRunUpdate(env.DB.prepare("UPDATE bm_levels SET track = ?, label = ?, date = ? WHERE id = ? AND child = ?")
+      .bind(b.track, label, b.date, editId, b.child));
+  }
   await env.DB.prepare("INSERT INTO bm_levels (child, track, label, date, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(b.child, b.track, label, b.date, new Date().toISOString()).run();
   return json({ ok: true });
@@ -1306,6 +1327,11 @@ async function bmContestPost(env, request) {
   const division = bmClean(b.division, 40);
   if (!BM_CHILDREN.has(b.child) || !name || !result || !BM_DATE_RE.test(b.date || "")) {
     return json({ error: "資料不完整" }, { status: 400 });
+  }
+  const editId = bmEditId(b);
+  if (editId !== null) {
+    return bmRunUpdate(env.DB.prepare("UPDATE bm_contests SET date = ?, name = ?, division = ?, result = ? WHERE id = ? AND child = ?")
+      .bind(b.date, name, division, result, editId, b.child));
   }
   await env.DB.prepare("INSERT INTO bm_contests (child, date, name, division, result, created_at) VALUES (?, ?, ?, ?, ?, ?)")
     .bind(b.child, b.date, name, division, result, new Date().toISOString()).run();
@@ -1320,6 +1346,11 @@ async function bmGrowthPost(env, request) {
   const okW = w === null || (Number.isFinite(w) && w >= 1 && w <= 150);
   if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || (h === null && w === null) || !okH || !okW) {
     return json({ error: "資料不完整或數字不合理" }, { status: 400 });
+  }
+  const editId = bmEditId(b);
+  if (editId !== null) {
+    return bmRunUpdate(env.DB.prepare("UPDATE bm_growth SET date = ?, height_cm = ?, weight_kg = ? WHERE id = ? AND child = ?")
+      .bind(b.date, h, w, editId, b.child));
   }
   await env.DB.prepare(
     `INSERT INTO bm_growth (child, date, height_cm, weight_kg, created_at) VALUES (?, ?, ?, ?, ?)
@@ -1347,6 +1378,13 @@ async function bmVisionPost(env, request) {
   const vals = Object.values(f);
   if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || vals.some(x => !x.ok) || vals.every(x => x.v === null)) {
     return json({ error: "資料不完整或數字不合理" }, { status: 400 });
+  }
+  const editId = bmEditId(b);
+  if (editId !== null) {
+    return bmRunUpdate(env.DB.prepare(
+      `UPDATE bm_vision SET date = ?, va_r = ?, va_l = ?, sph_r = ?, sph_l = ?, cyl_r = ?, cyl_l = ?, note = ?
+       WHERE id = ? AND child = ?`
+    ).bind(b.date, f.vaR.v, f.vaL.v, f.sphR.v, f.sphL.v, f.cylR.v, f.cylL.v, bmClean(b.note, 80), editId, b.child));
   }
   await env.DB.prepare(
     `INSERT INTO bm_vision (child, date, va_r, va_l, sph_r, sph_l, cyl_r, cyl_l, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
