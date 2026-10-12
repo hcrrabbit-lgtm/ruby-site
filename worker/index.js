@@ -231,6 +231,27 @@ async function ensureSchema(env) {
     // column already exists, safe to ignore
   }
   try {
+    // 一次性：把 Ruby 自己的習慣清單放進「健康家庭」的每日習慣追蹤（已有同名的就跳過；跑過一次就不再跑，之後她刪掉的不會被加回來）
+    const seeded = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'ruby_habits_seed_v1'").first();
+    if (!seeded) {
+      const names = ["掃地", "拖地", "洗衣服", "澆水", "喝水 2000cc", "擦精油", "運動 10 分鐘", "陪孩子閱讀", "11:30 前睡覺"];
+      const existing = (await env.DB.prepare("SELECT name FROM habits").all()).results.map(r => r.name);
+      const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(order_no), 0) as m FROM habits").first();
+      let order = (maxRow && maxRow.m) || 0;
+      const base = Date.now();
+      for (let i = 0; i < names.length; i++) {
+        if (existing.includes(names[i])) continue;
+        order++;
+        await env.DB.prepare(
+          "INSERT INTO habits (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, NULL)"
+        ).bind("habit_" + (base + i), names[i], order, new Date().toISOString()).run();
+      }
+      await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('ruby_habits_seed_v1', '1')").run();
+    }
+  } catch (e) {
+    // best-effort; she can still add habits by hand on the page
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
