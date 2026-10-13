@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F7F3EB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="我的習慣">
+<title>我的習慣</title>
+<link rel="manifest" href="my-habits.webmanifest" crossorigin="use-credentials">
+<link rel="apple-touch-icon" href="images/my-habits/apple-touch-icon.png">
+<link rel="icon" href="images/my-habits/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB;
+    --paper-deep:#EFE8D9;
+    --ink:#2E2A25;
+    --ink-soft:#6B655C;
+    --line:#DDD4C1;
+
+    --c-art:#C4863A;      /* 美術教室：赭黃 */
+    --c-art-bg:#FBF0DE;
+    --c-admin:#3F6672;    /* 行政工作：藏青藍 */
+    --c-admin-bg:#E7EFF0;
+    --c-study:#5F8955;    /* 學習規劃：草綠 */
+    --c-study-bg:#EBF2E6;
+    --c-health:#B96B77;   /* 健康家庭：豆沙紅 */
+    --c-health-bg:#F6E9EA;
+    --c-tool:#6E568A;     /* AI指令工具：紫 */
+    --c-tool-bg:#EFE8F3;
+
+    --radius:14px;
+    --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--paper); color:var(--ink); }
+  body{
+    font-family:'Noto Sans TC', sans-serif;
+    padding:calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+    max-width:980px; margin:0 auto;
+  }
+  .page-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:6px; }
+  .page-head h1{ font-family:'Noto Serif TC', serif; font-size:24px; margin:0; letter-spacing:.06em; color:#3B352D; }
+  .page-head .date{ font-size:13px; color:var(--ink-soft); letter-spacing:.04em; }
+  .habit-section{ margin-top:8px !important; }
+  .habit-section > h3, .habit-section > h3 + .section-desc{ display:none; }
+  .section-desc{ color:var(--ink-soft); font-size:14px; }
+  /* ---------- 健康家庭：每日習慣追蹤 ---------- */
+  .habit-section{ margin-top:36px; }
+  .habit-section h3{
+    font-size:18px;
+    margin:0 0 4px;
+    color:var(--c-health);
+  }
+  .habit-today{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .habit-toolbar{ display:flex; justify-content:flex-end; gap:8px; margin:0 0 12px; }
+  .habit-toolbar button{
+    border:1px solid #D9CFBE; background:#FBF8F2; color:#6B6257;
+    border-radius:999px; padding:5px 12px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  .habit-today{
+    display:grid !important;
+    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+    gap:12px;
+  }
+  @media (max-width:520px){ .habit-today{ grid-template-columns:repeat(2, 1fr); gap:10px; } .habit-today .habit-tile{ aspect-ratio:5 / 4; } }
+  .habit-tile{
+    --tc:#8A9A7B;
+    position:relative;
+    aspect-ratio:1 / 1;
+    background:#F7F3EC;
+    border:1px solid #E3DACB;
+    border-radius:14px;
+    padding:14px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+    transition:background .2s ease, border-color .2s ease, transform .12s ease;
+    overflow:hidden;
+  }
+  .habit-tile::before{
+    content:""; position:absolute; left:14px; top:14px; width:22px; height:3px; border-radius:2px; background:var(--tc);
+  }
+  .habit-tile:active{ transform:scale(.97); }
+  .habit-tile .t-name{
+    font-family:'Noto Serif TC', serif; font-weight:700; font-size:18px; line-height:1.35;
+    color:#3B352D; margin-top:14px; letter-spacing:.02em;
+  }
+  .habit-tile .t-check{
+    position:absolute; right:12px; top:10px;
+    width:34px; height:34px; border-radius:50%;
+    border:1.5px solid #CFC4B2;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; color:transparent;
+    transition:all .2s ease;
+  }
+  .habit-tile .t-status{ font-size:12.5px; color:#8C8274; letter-spacing:.03em; }
+  .habit-tile .t-status.stale{ color:#A5654A; font-weight:700; }
+  .habit-tile.done{ background:var(--tc); border-color:var(--tc); }
+  .habit-tile.done::before{ background:rgba(255,255,255,.6); }
+  .habit-tile.done .t-name{ color:#fff; }
+  .habit-tile.done .t-status{ color:rgba(255,255,255,.85); }
+  .habit-tile.done .t-check{ background:#fff; border-color:#fff; color:var(--tc); }
+  .habit-tile.pop{ animation:tilePop .35s ease; }
+  @keyframes tilePop{ 0%{transform:scale(1)} 40%{transform:scale(1.05)} 100%{transform:scale(1)} }
+  .habit-tile .t-remove{
+    display:none; position:absolute; right:8px; bottom:8px;
+    border:none; background:rgba(0,0,0,.08); color:#5a5148; border-radius:999px;
+    padding:3px 9px; font-size:12px; cursor:pointer; font-family:inherit;
+  }
+  .habit-section.editing .habit-tile .t-remove{ display:block; }
+  .habit-section.editing .habit-tile{ cursor:default; }
+  .habit-section:not(.editing) .habit-add{ display:none; }
+  .habit-section.editing .habit-today{ margin-bottom:16px; }
+  .habit-today{ margin-bottom:28px; }
+  .habit-add{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .habit-add input{
+    flex:1;
+    max-width:240px;
+    padding:8px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+  }
+  .habit-add button{
+    padding:8px 16px;
+    border-radius:8px;
+    border:1px solid var(--c-health);
+    background:var(--c-health-bg);
+    color:var(--c-health);
+    font-weight:700;
+    cursor:pointer;
+    font-size:14px;
+  }
+  .habit-month-nav{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .habit-month-nav button{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:8px;
+    padding:4px 12px;
+    cursor:pointer;
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+  .habit-month-nav .label{
+    font-family:'Noto Serif TC',serif;
+    font-weight:700;
+    color:var(--c-health);
+    font-size:16px;
+  }
+  .habit-table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:#fff;
+    box-shadow:var(--shadow);
+  }
+  table.habit-table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  table.habit-table th, table.habit-table td{
+    border-bottom:1px solid var(--line);
+    padding:7px 5px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  table.habit-table th.habit-name-col, table.habit-table td.habit-name-col{
+    text-align:left;
+    padding-left:12px;
+    position:sticky;
+    left:0;
+    background:#fff;
+    font-weight:700;
+    color:var(--ink);
+    min-width:110px;
+  }
+  table.habit-table th{ color:var(--ink-soft); font-weight:500; }
+  table.habit-table td.today-col, table.habit-table th.today-col{ background:var(--c-health-bg); }
+  table.habit-table td.mark{ color:var(--c-health); font-weight:700; }
+  table.habit-table td.total-col, table.habit-table th.total-col{ font-weight:700; color:var(--c-health); }
+  .habit-empty{ color:var(--ink-soft); font-size:13.5px; padding:16px; text-align:center; }
+
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>我的習慣</h1>
+    <span class="date" id="todayLabel"></span>
+  </div>
+    <div class="habit-section">
+      <h3>✅ 每日習慣追蹤</h3>
+      <p class="section-desc" style="margin-bottom:14px;">點一下打卡今天完成的習慣，下面會自動累積成本月統計表。</p>
+
+      <div class="habit-toolbar">
+        <button id="habitSoundBtn" type="button">🔈 聲音開</button>
+        <button id="habitEditBtn" type="button">✎ 編輯</button>
+      </div>
+      <div id="habitToday" class="habit-today"></div>
+      <div class="habit-add">
+        <input id="habitNewName" type="text" placeholder="新增習慣，例如：喝水2000ml" maxlength="30">
+        <button id="habitAddBtn" type="button">＋ 新增</button>
+      </div>
+
+      <div class="habit-month-nav">
+        <button id="habitPrevMonth" type="button">‹</button>
+        <span class="label" id="habitMonthLabel"></span>
+        <button id="habitNextMonth" type="button">›</button>
+      </div>
+      <div class="habit-table-wrap">
+        <table class="habit-table" id="habitTable"></table>
+      </div>
+    </div>
+<script>
+  // ---------- 每日習慣追蹤 ----------
+  function pad2(n){ return n.toString().padStart(2, '0'); }
+  function todayStr(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+  function monthStr(d){ return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; }
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  const habitState = { habits: [], todayLog: {}, viewDate: new Date() };
+
+  async function loadHabits(){
+    try {
+      const [habits, todayLog] = await Promise.all([
+        fetch('/api/habits').then(r => r.json()),
+        fetch('/api/habits/log?date=' + todayStr()).then(r => r.json())
+      ]);
+      habitState.habits = habits;
+      habitState.todayLog = todayLog;
+      renderHabitToday();
+      loadHabitMonth();
+    } catch (e) { /* 健康家庭習慣追蹤載入失敗時不影響其他頁面 */ }
+  }
+
+  const TILE_COLORS = ['#8A9A7B','#B07D62','#B89B5E','#6F8193','#9C7A86','#6E7B5B','#A08C76','#7D8C8C','#A7786A'];
+  function daysBetween(a, b){
+    const [y1,m1,d1] = a.split('-').map(Number), [y2,m2,d2] = b.split('-').map(Number);
+    return Math.round((Date.UTC(y2,m2-1,d2) - Date.UTC(y1,m1-1,d1)) / 86400000);
+  }
+  function habitStatus(h, done){
+    if (done) return { text:'今天完成', stale:false };
+    if (!h.lastDate) return { text:'還沒打過勾', stale:false };
+    const n = daysBetween(h.lastDate, todayStr());
+    if (n <= 0) return { text:'今天完成', stale:false };
+    if (n === 1) return { text:'昨天有做', stale:false };
+    return { text:`${n} 天沒打勾`, stale:n >= 3 };
+  }
+  function renderHabitToday(){
+    const wrap = document.getElementById('habitToday');
+    if (!wrap) return;
+    if (habitState.habits.length === 0) {
+      wrap.innerHTML = '<p class="habit-empty" style="padding:0;">還沒有習慣項目，按右上「編輯」新增一個吧。</p>';
+      return;
+    }
+    wrap.innerHTML = habitState.habits.map((h, i) => {
+      const done = !!habitState.todayLog[h.id];
+      const st = habitStatus(h, done);
+      return `<div class="habit-tile ${done ? 'done' : ''}" data-id="${h.id}" style="--tc:${TILE_COLORS[i % TILE_COLORS.length]}" role="button" aria-pressed="${done}">
+        <span class="t-check">✓</span>
+        <div class="t-name">${escapeHtml(h.name)}</div>
+        <div class="t-status ${st.stale ? 'stale' : ''}">${st.text}</div>
+        <button class="t-remove" type="button" data-remove="${h.id}">刪除</button>
+      </div>`;
+    }).join('');
+    wrap.querySelectorAll('.habit-tile').forEach(tile => {
+      tile.addEventListener('click', (e) => {
+        if (e.target.dataset.remove) return;
+        if (document.querySelector('.habit-section.editing')) return;
+        habitSound(!tile.classList.contains('done'));
+        toggleHabit(tile.dataset.id);
+      });
+    });
+    wrap.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeHabit(btn.dataset.remove);
+      });
+    });
+  }
+
+  // 打勾音效（不用音檔，瀏覽器直接發聲）
+  let habitSoundOn = true;
+  try { habitSoundOn = localStorage.getItem('habitSound') !== 'off'; } catch (e) {}
+  let audioCtx = null;
+  function playTone(freq, start, dur, vol){
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime + start);
+    g.gain.exponentialRampToValueAtTime(vol, audioCtx.currentTime + start + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + start + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + start); o.stop(audioCtx.currentTime + start + dur + 0.05);
+  }
+  function habitSound(done){
+    if (!habitSoundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (done) { playTone(784, 0, 0.35, 0.18); playTone(1175, 0.09, 0.5, 0.14); }
+      else { playTone(392, 0, 0.25, 0.1); }
+    } catch (e) {}
+  }
+  function updateSoundBtn(){
+    const b = document.getElementById('habitSoundBtn');
+    if (b) b.textContent = habitSoundOn ? '🔈 聲音開' : '🔇 聲音關';
+  }
+  updateSoundBtn();
+  document.getElementById('habitSoundBtn')?.addEventListener('click', () => {
+    habitSoundOn = !habitSoundOn;
+    try { localStorage.setItem('habitSound', habitSoundOn ? 'on' : 'off'); } catch (e) {}
+    updateSoundBtn();
+    if (habitSoundOn) habitSound(true);
+  });
+  document.getElementById('habitEditBtn')?.addEventListener('click', (e) => {
+    const sec = document.querySelector('.habit-section');
+    const on = sec.classList.toggle('editing');
+    e.currentTarget.textContent = on ? '完成編輯' : '✎ 編輯';
+  });
+
+  async function toggleHabit(id){
+    const date = todayStr();
+    const res = await fetch('/api/habits/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habitId: id, date })
+    });
+    const data = await res.json();
+    const h = habitState.habits.find(x => x.id === id);
+    if (data.done) {
+      habitState.todayLog[id] = true;
+      if (h && h.lastDate !== date) { h.prevDate = h.lastDate; h.lastDate = date; }
+    } else {
+      delete habitState.todayLog[id];
+      if (h && h.lastDate === date) { h.lastDate = h.prevDate || null; h.prevDate = null; }
+    }
+    renderHabitToday();
+    if (data.done) document.querySelector(`.habit-tile[data-id="${id}"]`)?.classList.add('pop');
+    loadHabitMonth();
+  }
+
+  async function removeHabit(id){
+    if (!confirm('確定要刪除這個習慣嗎？相關紀錄也會一併刪除。')) return;
+    await fetch('/api/habits', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+    habitState.habits = habitState.habits.filter(h => h.id !== id);
+    delete habitState.todayLog[id];
+    renderHabitToday();
+    loadHabitMonth();
+  }
+
+  async function addHabit(){
+    const input = document.getElementById('habitNewName');
+    const name = input.value.trim();
+    if (!name) return;
+    const res = await fetch('/api/habits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.id) {
+      habitState.habits.push({ id: data.id, name: data.name });
+      input.value = '';
+      renderHabitToday();
+      loadHabitMonth();
+    }
+  }
+  document.getElementById('habitAddBtn')?.addEventListener('click', addHabit);
+  document.getElementById('habitNewName')?.addEventListener('keydown', e => { if (e.key === 'Enter') addHabit(); });
+
+  document.getElementById('habitPrevMonth')?.addEventListener('click', () => {
+    habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
+    loadHabitMonth();
+  });
+  document.getElementById('habitNextMonth')?.addEventListener('click', () => {
+    habitState.viewDate.setMonth(habitState.viewDate.getMonth() + 1);
+    loadHabitMonth();
+  });
+
+  async function loadHabitMonth(){
+    const label = document.getElementById('habitMonthLabel');
+    const m = monthStr(habitState.viewDate);
+    if (label) label.textContent = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
+    const data = await fetch('/api/habits/month?month=' + m).then(r => r.json());
+    renderHabitTable(data, m);
+  }
+
+  function renderHabitTable(data, month){
+    const wrap = document.querySelector('.habit-table-wrap');
+    if (!wrap) return;
+    const habits = data.habits || [];
+    if (habits.length === 0) {
+      wrap.innerHTML = '<p class="habit-empty">目前還沒有習慣項目可以統計。</p>';
+      return;
+    }
+    if (!wrap.querySelector('table')) wrap.innerHTML = '<table class="habit-table" id="habitTable"></table>';
+    const table = document.getElementById('habitTable');
+    const [y, mo] = month.split('-').map(Number);
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    const isCurrentMonth = monthStr(new Date()) === month;
+    const todayDate = new Date().getDate();
+
+    let thead = '<tr><th class="habit-name-col">習慣</th>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday = isCurrentMonth && d === todayDate;
+      thead += `<th class="${isToday ? 'today-col' : ''}">${d}</th>`;
+    }
+    thead += '<th class="total-col">完成</th></tr>';
+
+    let tbody = '';
+    habits.forEach(h => {
+      const doneDates = new Set(data.logs[h.id] || []);
+      let row = `<tr><td class="habit-name-col">${escapeHtml(h.name)}</td>`;
+      let count = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${y}-${pad2(mo)}-${pad2(d)}`;
+        const done = doneDates.has(dateStr);
+        if (done) count++;
+        const isToday = isCurrentMonth && d === todayDate;
+        row += `<td class="${done ? 'mark' : ''} ${isToday ? 'today-col' : ''}">${done ? '✓' : ''}</td>`;
+      }
+      row += `<td class="total-col">${count}/${daysInMonth}</td></tr>`;
+      tbody += row;
+    });
+
+    table.innerHTML = `<thead>${thead}</thead><tbody>${tbody}</tbody>`;
+  }
+
+  loadHabits();
+
+  (function(){
+    const d = new Date(), w = '日一二三四五六'[d.getDay()];
+    document.getElementById('todayLabel').textContent = `${d.getMonth()+1}月${d.getDate()}日 星期${w}`;
+  })();
+  // 從背景切回來（例如隔天打開）時重新整理，讓「今天」和天數保持正確
+  let lastDay = todayStr();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && todayStr() !== lastDay) location.reload();
+  });
+</script>
+</body>
+</html>
