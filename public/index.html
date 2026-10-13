@@ -430,12 +430,13 @@
   .habit-tile.done .t-check{ background:#fff; border-color:#fff; color:var(--tc); }
   .habit-tile.pop{ animation:tilePop .35s ease; }
   @keyframes tilePop{ 0%{transform:scale(1)} 40%{transform:scale(1.05)} 100%{transform:scale(1)} }
-  .habit-tile .t-remove{
-    display:none; position:absolute; right:8px; bottom:8px;
-    border:none; background:rgba(0,0,0,.08); color:#5a5148; border-radius:999px;
+  .habit-tile .t-edit-row{ display:none; position:absolute; right:8px; bottom:8px; gap:6px; }
+  .habit-section.editing .habit-tile .t-edit-row{ display:flex; }
+  .habit-section.editing .habit-tile .t-status{ visibility:hidden; }
+  .habit-tile .t-rename, .habit-tile .t-remove{
+    border:1px solid #E3DACB; background:rgba(255,255,255,.92); color:#5a5148; border-radius:999px;
     padding:3px 9px; font-size:12px; cursor:pointer; font-family:inherit;
   }
-  .habit-section.editing .habit-tile .t-remove{ display:block; }
   .habit-section.editing .habit-tile{ cursor:default; }
   .habit-section:not(.editing) .habit-add{ display:none; }
   .habit-section.editing .habit-today{ margin-bottom:16px; }
@@ -840,15 +841,24 @@
         <span class="t-check">✓</span>
         <div class="t-name">${escapeHtml(h.name)}</div>
         <div class="t-status ${st.stale ? 'stale' : ''}">${st.text}</div>
-        <button class="t-remove" type="button" data-remove="${h.id}">刪除</button>
+        <div class="t-edit-row">
+          <button class="t-rename" type="button" data-rename="${h.id}">改名</button>
+          <button class="t-remove" type="button" data-remove="${h.id}">刪除</button>
+        </div>
       </div>`;
     }).join('');
     wrap.querySelectorAll('.habit-tile').forEach(tile => {
       tile.addEventListener('click', (e) => {
-        if (e.target.dataset.remove) return;
+        if (e.target.dataset.remove || e.target.dataset.rename) return;
         if (document.querySelector('.habit-section.editing')) return;
         habitSound(!tile.classList.contains('done'));
         toggleHabit(tile.dataset.id);
+      });
+    });
+    wrap.querySelectorAll('[data-rename]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renameHabit(btn.dataset.rename);
       });
     });
     wrap.querySelectorAll('[data-remove]').forEach(btn => {
@@ -917,6 +927,26 @@
     renderHabitToday();
     if (data.done) document.querySelector(`.habit-tile[data-id="${id}"]`)?.classList.add('pop');
     loadHabitMonth();
+  }
+
+  async function renameHabit(id){
+    const h = habitState.habits.find(x => x.id === id);
+    if (!h) return;
+    const name = prompt('新的名稱：', h.name);
+    if (name === null || !name.trim() || name.trim() === h.name) return;
+    const res = await fetch('/api/habits/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name: name.trim() })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      h.name = data.name;
+      renderHabitToday();
+      loadHabitMonth();
+    } else {
+      alert('改名失敗，請再試一次');
+    }
   }
 
   async function removeHabit(id){
