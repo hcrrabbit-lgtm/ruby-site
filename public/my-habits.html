@@ -50,6 +50,50 @@
   .habit-section{ margin-top:8px !important; }
   .habit-section > h3, .habit-section > h3 + .section-desc{ display:none; }
   .section-desc{ color:var(--ink-soft); font-size:14px; }
+  /* ---------- 感恩日記 ---------- */
+  .gratitude{
+    margin:8px 0 32px; padding:20px 18px 18px;
+    background:#FBF8F2; border:1px solid #E3DACB; border-radius:16px;
+  }
+  .habit-section .gratitude h3{
+    font-family:'Noto Serif TC', serif; font-size:19px; margin:0; color:#3B352D; letter-spacing:.06em;
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  }
+  .gratitude h3 small{ font-family:'Noto Sans TC', sans-serif; font-size:12.5px; font-weight:400; color:#8C8274; letter-spacing:.03em; }
+  .g-sub{ font-size:13px; color:#8C8274; margin:4px 0 14px; }
+  .g-editing-label{ font-size:13px; color:#A5654A; margin:0 0 8px; display:none; }
+  .g-editing-label.show{ display:block; }
+  .g-line{ display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .g-line .num{
+    font-family:'Noto Serif TC', serif; color:#B07D62; font-weight:700; font-size:16px; width:18px; padding-top:9px; flex-shrink:0;
+  }
+  .g-line textarea{
+    flex:1; resize:none; min-height:42px; padding:9px 2px 8px; border:none; border-bottom:1px dashed #CFC4B2;
+    background:transparent; font-family:'Noto Serif TC', serif; font-size:16px; line-height:1.6; color:#3B352D; outline:none;
+  }
+  .g-line textarea:focus{ border-bottom-color:#8A9A7B; }
+  .g-line textarea::placeholder{ color:#BDB2A2; font-family:'Noto Sans TC', sans-serif; font-size:14px; }
+  .g-actions{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; flex-wrap:wrap; }
+  .g-more-line{ border:none; background:none; color:#8C8274; font-size:13px; cursor:pointer; padding:4px 0; font-family:inherit; }
+  .g-save{
+    border:none; background:#8A9A7B; color:#fff; border-radius:999px; padding:9px 20px;
+    font-size:14px; font-weight:700; letter-spacing:.06em; cursor:pointer; font-family:inherit;
+  }
+  .g-save:disabled{ opacity:.5; cursor:default; }
+  .g-msg{ font-size:13px; color:#6E7B5B; }
+  .g-list{ margin-top:22px; border-top:1px solid #E3DACB; padding-top:6px; }
+  .g-entry{ padding:14px 2px; border-bottom:1px dashed #E3DACB; cursor:pointer; }
+  .g-entry:last-child{ border-bottom:none; }
+  .g-entry .g-date{ font-size:12.5px; color:#8C8274; letter-spacing:.04em; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .g-entry .g-date span:last-child{ opacity:0; transition:opacity .15s; }
+  .g-entry:hover .g-date span:last-child{ opacity:1; }
+  .g-entry ol{ margin:0; padding-left:22px; font-family:'Noto Serif TC', serif; font-size:15px; line-height:1.7; color:#3B352D; }
+  .g-entry ol li::marker{ color:#B07D62; }
+  .g-loadmore{
+    display:block; margin:10px auto 0; border:1px solid #D9CFBE; background:#fff; color:#6B6257;
+    border-radius:999px; padding:6px 16px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  .g-empty{ font-size:13.5px; color:#8C8274; text-align:center; padding:14px 0 4px; }
   /* ---------- 健康家庭：每日習慣追蹤 ---------- */
   .habit-section{ margin-top:36px; }
   .habit-section h3{
@@ -221,6 +265,19 @@
       <div class="habit-add">
         <input id="habitNewName" type="text" placeholder="新增習慣，例如：喝水2000ml" maxlength="30">
         <button id="habitAddBtn" type="button">＋ 新增</button>
+      </div>
+
+      <div class="gratitude" id="gratitude">
+        <h3>🌱 感恩日記 <small id="gCount"></small></h3>
+        <p class="g-sub">今天有哪些小事，讓你覺得感謝？</p>
+        <p class="g-editing-label" id="gEditingLabel"></p>
+        <div id="gLines"></div>
+        <div class="g-actions">
+          <button class="g-more-line" id="gAddLine" type="button">＋ 再多寫一件</button>
+          <span class="g-msg" id="gMsg"></span>
+          <button class="g-save" id="gSave" type="button">收進日記</button>
+        </div>
+        <div class="g-list" id="gList"></div>
       </div>
 
       <div class="habit-month-nav">
@@ -486,6 +543,94 @@
   }
 
   loadHabits();
+
+  // ---------- 感恩日記 ----------
+  const gState = { date: null, entries: [], hasMore: false, total: 0 };
+  function gFmtDate(ds){
+    const [y, m, d] = ds.split('-').map(Number);
+    const w = '日一二三四五六'[new Date(y, m - 1, d).getDay()];
+    return `${m}月${d}日 星期${w}`;
+  }
+  function gAutoGrow(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+  function gRenderLines(items){
+    const wrap = document.getElementById('gLines');
+    const list = items.slice();
+    while (list.length < 3) list.push('');
+    const ph = ['例如：孩子主動說要幫忙洗碗', '例如：下午的陽光很舒服', '例如：同事幫我代了一節課'];
+    wrap.innerHTML = list.map((t, i) => `<div class="g-line"><span class="num">${i + 1}</span>
+      <textarea rows="1" maxlength="300" placeholder="${ph[i] || '還有什麼值得感謝的？'}">${escapeHtml(t)}</textarea></div>`).join('');
+    wrap.querySelectorAll('textarea').forEach(t => { gAutoGrow(t); t.addEventListener('input', () => { gAutoGrow(t); gMsg(''); }); });
+  }
+  function gMsg(t){ document.getElementById('gMsg').textContent = t; }
+  function gEdit(date){
+    gState.date = date;
+    const e = gState.entries.find(x => x.date === date);
+    gRenderLines(e ? e.items : []);
+    const lbl = document.getElementById('gEditingLabel');
+    if (date !== todayStr()) {
+      lbl.innerHTML = `正在修改 ${gFmtDate(date)} 的日記　<a href="#" id="gBackToday" style="color:#6F8193">回到今天</a>`;
+      lbl.classList.add('show');
+      document.getElementById('gBackToday').addEventListener('click', ev => { ev.preventDefault(); gEdit(todayStr()); });
+    } else { lbl.classList.remove('show'); }
+    gMsg('');
+  }
+  function gRenderList(){
+    const box = document.getElementById('gList');
+    const past = gState.entries.filter(e => e.date !== todayStr());
+    document.getElementById('gCount').textContent = gState.total ? `已經寫了 ${gState.total} 天` : '';
+    if (past.length === 0) { box.innerHTML = '<p class="g-empty">寫下的日記會收在這裡。</p>'; return; }
+    box.innerHTML = past.map(e => `<div class="g-entry" data-date="${e.date}">
+        <div class="g-date"><span>${gFmtDate(e.date)}</span><span>點一下修改</span></div>
+        <ol>${e.items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ol>
+      </div>`).join('') + (gState.hasMore ? '<button class="g-loadmore" id="gLoadMore" type="button">看更早的日記</button>' : '');
+    box.querySelectorAll('.g-entry').forEach(el => el.addEventListener('click', () => {
+      gEdit(el.dataset.date);
+      document.getElementById('gratitude').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    document.getElementById('gLoadMore')?.addEventListener('click', () => gLoad(true));
+  }
+  async function gLoad(more){
+    try {
+      const last = gState.entries[gState.entries.length - 1];
+      const q = more && last ? `?limit=14&before=${last.date}` : '?limit=15';
+      const data = await fetch('/api/gratitude' + q).then(r => r.json());
+      gState.entries = more ? gState.entries.concat(data.entries) : data.entries;
+      gState.hasMore = data.hasMore; gState.total = data.total;
+      if (!more) gEdit(todayStr());
+      gRenderList();
+    } catch (e) { /* 載入失敗不影響習慣方塊 */ }
+  }
+  document.getElementById('gAddLine')?.addEventListener('click', () => {
+    const items = [...document.querySelectorAll('#gLines textarea')].map(t => t.value);
+    items.push('');
+    gRenderLines(items);
+    const ts = document.querySelectorAll('#gLines textarea'); ts[ts.length - 1].focus();
+  });
+  document.getElementById('gSave')?.addEventListener('click', async () => {
+    const btn = document.getElementById('gSave');
+    const items = [...document.querySelectorAll('#gLines textarea')].map(t => t.value.trim()).filter(Boolean);
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/gratitude', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: gState.date, items })
+      }).then(r => r.json());
+      if (res.error) throw new Error(res.error);
+      const had = gState.entries.some(e => e.date === gState.date);
+      gState.entries = gState.entries.filter(e => e.date !== gState.date);
+      if (!res.deleted) {
+        gState.entries.push({ date: gState.date, items: res.items });
+        gState.entries.sort((a, b) => a.date < b.date ? 1 : -1);
+        if (!had) gState.total++;
+      } else if (had) gState.total--;
+      if (!res.deleted && typeof habitSound === 'function') habitSound(true);
+      const wasPast = gState.date !== todayStr();
+      gRenderList();
+      if (wasPast) { gEdit(todayStr()); gMsg('已更新 ✓'); } else gMsg(res.deleted ? '已清空' : '已收進日記 ✓');
+    } catch (e) { gMsg('沒存到，請再按一次'); }
+    btn.disabled = false;
+  });
+  gLoad(false);
 
   (function(){
     const d = new Date(), w = '日一二三四五六'[d.getDay()];

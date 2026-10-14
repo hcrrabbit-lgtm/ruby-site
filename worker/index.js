@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS community_sources (id INTEGER PRIMARY KEY AUTOINCREME
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_sources_url ON community_sources(url);
 CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
+CREATE TABLE IF NOT EXISTS gratitude_journal (date TEXT PRIMARY KEY, items TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS study_habits (id TEXT PRIMARY KEY, name TEXT NOT NULL, order_no INTEGER NOT NULL, created_at TEXT NOT NULL, child TEXT);
 CREATE TABLE IF NOT EXISTS study_habit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, habit_id TEXT NOT NULL, date TEXT NOT NULL, bonus INTEGER NOT NULL DEFAULT 0, UNIQUE(habit_id, date));
 CREATE TABLE IF NOT EXISTS meal_times (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, meal TEXT NOT NULL, date TEXT NOT NULL, minutes INTEGER NOT NULL, UNIQUE(child, meal, date));
@@ -1004,6 +1005,38 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
   };
 }
 
+// ---- 感恩日記（Ruby 自己的，有登入鎖，不放在 /api/open/）----
+const gratitudeHandlers = {
+  async list(env, url) {
+    const before = url.searchParams.get("before");
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "14", 10) || 14, 1), 100);
+    const stmt = before && /^\d{4}-\d{2}-\d{2}$/.test(before)
+      ? env.DB.prepare("SELECT date, items FROM gratitude_journal WHERE date < ? ORDER BY date DESC LIMIT ?").bind(before, limit + 1)
+      : env.DB.prepare("SELECT date, items FROM gratitude_journal ORDER BY date DESC LIMIT ?").bind(limit + 1);
+    const rows = (await stmt.all()).results;
+    const total = (await env.DB.prepare("SELECT COUNT(*) as c FROM gratitude_journal").first()).c;
+    return json({
+      entries: rows.slice(0, limit).map(r => ({ date: r.date, items: JSON.parse(r.items || "[]") })),
+      hasMore: rows.length > limit,
+      total,
+    });
+  },
+  async save(env, request) {
+    const { date, items } = await request.json();
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "日期格式錯誤" }, { status: 400 });
+    const clean = (Array.isArray(items) ? items : []).map(t => String(t || "").trim().slice(0, 300)).filter(Boolean).slice(0, 10);
+    if (clean.length === 0) {
+      await env.DB.prepare("DELETE FROM gratitude_journal WHERE date = ?").bind(date).run();
+      return json({ ok: true, deleted: true });
+    }
+    await env.DB.prepare(
+      `INSERT INTO gratitude_journal (date, items, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(date) DO UPDATE SET items = excluded.items, updated_at = excluded.updated_at`
+    ).bind(date, JSON.stringify(clean), new Date().toISOString()).run();
+    return json({ ok: true, date, items: clean });
+  },
+};
+
 const healthHabitHandlers = makeHabitHandlers("habits", "habit_logs", "habit");
 const studyHabitHandlers = makeHabitHandlers("study_habits", "study_habit_logs", "shabit", { bonusRescue: true });
 
@@ -1665,6 +1698,8 @@ export default {
       if (path === "/api/habits/log" && request.method === "POST") return await healthHabitHandlers.logToggle(env, request);
       if (path === "/api/habits/month" && request.method === "GET") return await healthHabitHandlers.month(env, url);
       if (path === "/api/habits/rename" && request.method === "POST") return await healthHabitHandlers.rename(env, request);
+      if (path === "/api/gratitude" && request.method === "GET") return await gratitudeHandlers.list(env, url);
+      if (path === "/api/gratitude" && request.method === "POST") return await gratitudeHandlers.save(env, request);
 
       // served from public/open/ and bypassed from Cloudflare Access, so kept under /api/open/
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
