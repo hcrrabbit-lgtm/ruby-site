@@ -968,11 +968,14 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
       return json(map);
     },
     async logToggle(env, request) {
-      const { habitId, date } = await request.json();
+      const { habitId, date, done: want } = await request.json();
       if (!habitId || !date) return json({ error: "缺少 habitId 或 date" }, { status: 400 });
       const existing = await env.DB.prepare(
         `SELECT id FROM ${logsTable} WHERE habit_id = ? AND date = ?`
       ).bind(habitId, date).first();
+      // 有帶 done（true/false）就直接設成那個狀態，連按幾次也不會亂；沒帶就照舊切換
+      if (want === true && existing) return json({ ok: true, done: true });
+      if (want === false && !existing) return json({ ok: true, done: false });
       if (existing) {
         await env.DB.prepare(`DELETE FROM ${logsTable} WHERE id = ?`).bind(existing.id).run();
         return json({ ok: true, done: false });

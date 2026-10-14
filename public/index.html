@@ -965,25 +965,65 @@
     e.currentTarget.textContent = on ? '完成編輯' : '✎ 編輯';
   });
 
-  async function toggleHabit(id){
-    const date = todayStr();
-    const res = await fetch('/api/habits/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ habitId: id, date })
-    });
-    const data = await res.json();
+  // 一按就先在畫面上勾起來，背後再存檔；同一格連按會排隊、只存最後的狀態
+  const habitSync = {};
+  let monthReloadTimer = null;
+  function setHabitLocal(id, done, date){
     const h = habitState.habits.find(x => x.id === id);
-    if (data.done) {
+    if (done) {
       habitState.todayLog[id] = true;
       if (h && h.lastDate !== date) { h.prevDate = h.lastDate; h.lastDate = date; }
     } else {
       delete habitState.todayLog[id];
       if (h && h.lastDate === date) { h.lastDate = h.prevDate || null; h.prevDate = null; }
     }
+  }
+  function toggleHabit(id){
+    const date = todayStr();
+    const want = !habitState.todayLog[id];
+    setHabitLocal(id, want, date);
     renderHabitToday();
-    if (data.done) document.querySelector(`.habit-tile[data-id="${id}"]`)?.classList.add('pop');
-    loadHabitMonth();
+    if (want) document.querySelector(`.habit-tile[data-id="${id}"]`)?.classList.add('pop');
+    const st = habitSync[id] || (habitSync[id] = { saved: !want, busy: false, want });
+    st.want = want;
+    if (!st.busy) syncHabit(id, date);
+  }
+  async function syncHabit(id, date){
+    const st = habitSync[id];
+    st.busy = true;
+    while (st.want !== st.saved) {
+      const target = st.want;
+      try {
+        const res = await fetch('/api/habits/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ habitId: id, date, done: target })
+        });
+        if (!res.ok) throw new Error('save failed');
+        const data = await res.json();
+        st.saved = !!data.done;
+        if (st.saved !== target) throw new Error('mismatch');
+      } catch (e) {
+        st.want = st.saved;
+        setHabitLocal(id, st.saved, date);
+        renderHabitToday();
+        habitToast('網路不穩，剛剛那一格沒存到，請再按一次');
+        break;
+      }
+    }
+    st.busy = false;
+    clearTimeout(monthReloadTimer);
+    monthReloadTimer = setTimeout(loadHabitMonth, 600);
+  }
+  function habitToast(msg){
+    let t = document.getElementById('habitToast');
+    if (!t) {
+      t = document.createElement('div'); t.id = 'habitToast';
+      t.style.cssText = 'position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#3B352D;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:99;box-shadow:0 4px 14px rgba(0,0,0,.2);transition:opacity .3s;max-width:90vw;text-align:center;';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg; t.style.opacity = '1';
+    clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 2800);
   }
 
   async function renameHabit(id){
