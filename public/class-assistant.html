@@ -439,6 +439,51 @@
     .seat-cell.locked .seat-photo{width:54px;height:54px;font-size:22px;}
     .seat-label{font-size:13px;}
   }
+  /* ---------- 神祕客 ---------- */
+  .mystery-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .mystery-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .mystery-title{font-size:16px;font-weight:700;color:var(--ink);}
+  .mystery-sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .mystery-main-btn{
+    font-size:15px;font-weight:700;padding:10px 16px;border-radius:10px;border:none;
+    background:var(--ink);color:#fff;cursor:pointer;
+  }
+  .mystery-main-btn:disabled{opacity:.4;cursor:default;}
+  .mystery-number{
+    margin:14px auto 6px;width:132px;height:132px;border-radius:50%;
+    background:var(--ink);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:48px;font-weight:800;letter-spacing:1px;user-select:none;-webkit-user-select:none;
+  }
+  .mystery-number small{font-size:14px;font-weight:600;letter-spacing:2px;opacity:.75;margin-top:-4px;}
+  .mystery-number.rolling{background:var(--ochre);}
+  .mystery-number.perfect{background:var(--sage);}
+  .mystery-number.missed{background:var(--ink-soft);}
+  .mystery-peek-name{text-align:center;font-size:14px;color:var(--ink-soft);min-height:20px;}
+  .mystery-peek-btn{
+    display:block;margin:4px auto 0;font-size:13px;padding:8px 14px;border-radius:999px;
+    border:1px dashed var(--ink-soft);background:var(--paper);color:var(--ink-soft);cursor:pointer;
+    user-select:none;-webkit-user-select:none;touch-action:none;
+  }
+  .mystery-rules-label{font-size:12px;color:var(--ink-soft);margin:14px 0 6px;text-align:center;}
+  .mystery-rules{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+  .mystery-rule{
+    font-size:14px;font-weight:600;padding:9px 12px;border-radius:10px;cursor:pointer;
+    border:1px solid var(--sage);background:rgba(88,115,97,0.1);color:var(--sage-dark);
+  }
+  .mystery-rule.miss{border-color:var(--clay);background:rgba(180,84,58,0.08);color:var(--clay);text-decoration:line-through;}
+  .mystery-actions{display:flex;gap:8px;margin-top:14px;}
+  .mystery-actions button{flex:1;padding:11px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;}
+  .mystery-btn-primary{background:var(--sage);color:#fff;border:none;}
+  .mystery-btn-plain{background:var(--paper);color:var(--ink-soft);border:1px solid var(--line);}
+  .mystery-result{text-align:center;margin-top:6px;}
+  .mystery-result-name{font-size:20px;font-weight:700;}
+  .mystery-result-msg{font-size:15px;margin-top:6px;line-height:1.5;}
+  .mystery-result-msg.perfect{color:var(--sage-dark);font-weight:700;}
+  .mystery-group-list{font-size:13px;color:var(--ink-soft);margin-top:6px;}
+  .mystery-note{font-size:12px;color:var(--clay);text-align:center;margin-top:8px;}
   .progress-settings{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);}
   .progress-settings input[type=date]{
     font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);
@@ -608,6 +653,7 @@
   </nav>
 
   <section class="panel active" id="panel-seating">
+    <div class="mystery-card" id="mysteryCard"></div>
     <div class="seating-toolbar">
       <span class="count" id="seatingCount"></span>
       <div class="seating-actions">
@@ -1055,6 +1101,231 @@ document.getElementById("seatingClearBtn").addEventListener("click", () => {
   renderSeatingChart();
 });
 
+/* ---------- 神祕客（神祕座位號碼） ----------
+   Teacher draws a secret seat number at the start of class; it stays hidden on screen
+   (press-and-hold to peek). She taps a rule chip whenever that student slips, then
+   reveals at the end. Perfect → the student's seating-chart table gets +1 each.
+   Kept per class per day in this browser only (no student data leaves the device). */
+const MYSTERY_RULES = ["媒材不浪費", "不隨意講話", "準時收拾完畢"];
+let mysteryState = null;   // { studentId, misses:[ruleIndex], revealed, rewarded }
+let mysteryRolling = false;
+
+function mysteryKey(){ return `mystery:${currentClassId}:${selectedDate || todayStr()}`; }
+function loadMysteryState(){
+  mysteryState = null;
+  try{
+    const raw = localStorage.getItem(mysteryKey());
+    if(raw) mysteryState = JSON.parse(raw);
+  }catch(e){}
+  if(mysteryState && !rosterCache.find(s => s.id === mysteryState.studentId)) mysteryState = null;
+}
+function saveMysteryState(){
+  try{
+    if(mysteryState) localStorage.setItem(mysteryKey(), JSON.stringify(mysteryState));
+    else localStorage.removeItem(mysteryKey());
+  }catch(e){}
+}
+
+// Which seating-chart table (1–6) a student sits at, and everyone at that table.
+function mysteryGroupOf(studentId){
+  let position = 0;
+  for(let g = 0; g < SEATING_GROUPS.length; g++){
+    const size = SEATING_GROUPS[g].cols * SEATING_GROUPS[g].rows;
+    const ids = [];
+    let found = false;
+    for(let i = 0; i < size; i++){
+      position++;
+      const sid = seatingData[position];
+      if(sid){ ids.push(sid); if(sid === studentId) found = true; }
+    }
+    if(found) return { number: g + 1, members: ids.map(id => rosterCache.find(s => s.id === id)).filter(Boolean) };
+  }
+  return null;
+}
+
+function mysteryPool(){
+  return rosterCache.filter(st => attendance[st.id] !== "absent");
+}
+
+function drawMystery(){
+  const pool = mysteryPool();
+  if(!pool.length || mysteryRolling) return;
+  const winner = pool[Math.floor(Math.random() * pool.length)];
+  mysteryRolling = true;
+  renderMystery();
+  const numEl = document.getElementById("mysteryNumber");
+  let ticks = 0;
+  const total = 22;
+  const step = () => {
+    ticks++;
+    const shown = pool[Math.floor(Math.random() * pool.length)];
+    if(numEl) numEl.innerHTML = `${shown.seat}<small>號</small>`;
+    playBeep(500 + ticks * 18, 0.03);
+    if(ticks < total){
+      setTimeout(step, 40 + ticks * 6);
+    }else{
+      mysteryRolling = false;
+      mysteryState = { studentId: winner.id, misses: [], revealed: false, rewarded: false };
+      saveMysteryState();
+      playBeep(1046, 0.06);
+      renderMystery();
+    }
+  };
+  step();
+}
+
+function playFanfare(){
+  [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playBeep(f, 0.07), i * 120));
+}
+
+function renderMystery(){
+  const card = document.getElementById("mysteryCard");
+  if(!card) return;
+  const head = (sub, btnHtml) => `
+    <div class="mystery-head">
+      <div>
+        <div class="mystery-title">🕵️ 今日神祕客</div>
+        <div class="mystery-sub">${sub}</div>
+      </div>
+      ${btnHtml || ""}
+    </div>`;
+
+  if(!currentClassId || !rosterCache.length){
+    card.innerHTML = head("選好班級後就能抽籤");
+    return;
+  }
+
+  if(mysteryRolling){
+    card.innerHTML = head("抽籤中…") + `<div class="mystery-number rolling" id="mysteryNumber">？<small>號</small></div>`;
+    return;
+  }
+
+  if(!mysteryState){
+    const n = mysteryPool().length;
+    card.innerHTML = head(`從今天到課的 ${n} 位同學中抽一個號碼（請假的不會抽到）`,
+      `<button type="button" class="mystery-main-btn" id="mysteryDrawBtn"${n ? "" : " disabled"}>🎲 抽出神祕號碼</button>`);
+    const btn = document.getElementById("mysteryDrawBtn");
+    if(btn) btn.addEventListener("click", drawMystery);
+    return;
+  }
+
+  const st = rosterCache.find(s => s.id === mysteryState.studentId);
+  const perfect = mysteryState.misses.length === 0;
+  const group = mysteryGroupOf(st.id);
+
+  if(!mysteryState.revealed){
+    const chips = MYSTERY_RULES.map((r, i) => {
+      const miss = mysteryState.misses.includes(i);
+      return `<button type="button" class="mystery-rule${miss ? " miss" : ""}" data-rule="${i}">${miss ? "✗" : "✓"} ${r}</button>`;
+    }).join("");
+    card.innerHTML = head("號碼已抽好，畫面上不會顯示，同學不知道是誰") + `
+      <div class="mystery-number" id="mysteryNumber">？<small>號</small></div>
+      <div class="mystery-peek-name" id="mysteryPeekName"></div>
+      <button type="button" class="mystery-peek-btn" id="mysteryPeekBtn">👀 按住偷看（放開就藏起來）</button>
+      <div class="mystery-rules-label">觀察重點：預設都有做到，看到沒做到就點一下</div>
+      <div class="mystery-rules">${chips}</div>
+      <div class="mystery-actions">
+        <button type="button" class="mystery-btn-plain" id="mysteryRedrawBtn">重抽</button>
+        <button type="button" class="mystery-btn-primary" id="mysteryRevealBtn">🎉 下課公布結果</button>
+      </div>`;
+
+    const numEl = document.getElementById("mysteryNumber");
+    const nameEl = document.getElementById("mysteryPeekName");
+    const peekBtn = document.getElementById("mysteryPeekBtn");
+    const show = (e) => {
+      e.preventDefault();
+      numEl.innerHTML = `${st.seat}<small>號</small>`;
+      nameEl.textContent = `${st.name}${group ? `・第 ${group.number} 組` : "・尚未排座位"}`;
+    };
+    const hide = () => { numEl.innerHTML = `？<small>號</small>`; nameEl.textContent = ""; };
+    peekBtn.addEventListener("pointerdown", show);
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev => peekBtn.addEventListener(ev, hide));
+    peekBtn.addEventListener("contextmenu", e => e.preventDefault());
+
+    card.querySelectorAll(".mystery-rule").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const i = parseInt(btn.dataset.rule, 10);
+        const idx = mysteryState.misses.indexOf(i);
+        if(idx >= 0) mysteryState.misses.splice(idx, 1); else mysteryState.misses.push(i);
+        saveMysteryState();
+        renderMystery();
+      });
+    });
+    document.getElementById("mysteryRedrawBtn").addEventListener("click", () => {
+      if(!confirm("確定要重新抽一個號碼嗎?")) return;
+      mysteryState = null;
+      saveMysteryState();
+      drawMystery();
+    });
+    document.getElementById("mysteryRevealBtn").addEventListener("click", () => {
+      mysteryState.revealed = true;
+      saveMysteryState();
+      if(perfect) playFanfare();
+      renderMystery();
+    });
+    return;
+  }
+
+  // Revealed
+  let resultHtml;
+  if(perfect){
+    const memberNames = group ? group.members.map(m => `${m.seat} ${escapeHtml(m.name)}`).join("、") : "";
+    const rewardBtn = group
+      ? `<button type="button" class="mystery-btn-primary" id="mysteryRewardBtn"${mysteryState.rewarded ? " disabled" : ""}>${mysteryState.rewarded ? "✓ 已幫全組加分" : `⭐ 第 ${group.number} 組每人 +1 分`}</button>`
+      : "";
+    resultHtml = `
+      <div class="mystery-number perfect">${st.seat}<small>號</small></div>
+      <div class="mystery-result">
+        <div class="mystery-result-name">${escapeHtml(st.name)}${group ? `・第 ${group.number} 組` : ""}</div>
+        <div class="mystery-result-msg perfect">🎉 神祕客表現完美！${group ? `第 ${group.number} 組全組獲得獎勵！` : ""}</div>
+        ${group ? `<div class="mystery-group-list">${memberNames}</div>` : `<div class="mystery-note">這位同學還沒排進座位表，所以找不到同組同學</div>`}
+      </div>
+      <div class="mystery-actions">
+        <button type="button" class="mystery-btn-plain" id="mysteryDoneBtn">結束，下次再抽</button>
+        ${rewardBtn}
+      </div>`;
+  }else{
+    // Not perfect: keep the student anonymous on screen so no one is singled out.
+    const missed = mysteryState.misses.map(i => MYSTERY_RULES[i]).join("、");
+    resultHtml = `
+      <div class="mystery-number missed">？<small>號</small></div>
+      <div class="mystery-result">
+        <div class="mystery-result-msg">神祕客今天差一點點，「${missed}」還可以更好。<br>下次大家繼續加油！</div>
+        <div class="mystery-group-list">（為了保護同學，沒有公布號碼）</div>
+      </div>
+      <div class="mystery-peek-name" id="mysteryPeekName" style="margin-top:8px;"></div>
+      <button type="button" class="mystery-peek-btn" id="mysteryPeekBtn">👀 老師按住看是誰</button>
+      <div class="mystery-actions">
+        <button type="button" class="mystery-btn-plain" id="mysteryDoneBtn">結束，下次再抽</button>
+      </div>`;
+  }
+  card.innerHTML = head(perfect ? "結果公布" : "結果公布（未公開姓名）") + resultHtml;
+
+  const peekBtn = document.getElementById("mysteryPeekBtn");
+  if(peekBtn){
+    const nameEl = document.getElementById("mysteryPeekName");
+    peekBtn.addEventListener("pointerdown", e => { e.preventDefault(); nameEl.textContent = `${st.seat} 號・${st.name}`; });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev => peekBtn.addEventListener(ev, () => { nameEl.textContent = ""; }));
+    peekBtn.addEventListener("contextmenu", e => e.preventDefault());
+  }
+  const rewardBtn = document.getElementById("mysteryRewardBtn");
+  if(rewardBtn && group && !mysteryState.rewarded){
+    rewardBtn.addEventListener("click", () => {
+      group.members.filter(m => attendance[m.id] !== "absent").forEach(m => applyBehaviorDelta(m.id, 1));
+      mysteryState.rewarded = true;
+      saveMysteryState();
+      playFanfare();
+      renderMystery();
+    });
+  }
+  document.getElementById("mysteryDoneBtn").addEventListener("click", () => {
+    if(!mysteryState.rewarded && perfect && group && !confirm("還沒幫全組加分，確定要結束嗎?")) return;
+    mysteryState = null;
+    saveMysteryState();
+    renderMystery();
+  });
+}
+
 let audioCtx = null;
 function playBeep(freq, volume){
   try{
@@ -1356,6 +1627,7 @@ function toggleAttendance(id, state){
   attendance[id] = turningOn ? state : undefined;
   if(attendance[id] === undefined) delete attendance[id];
   renderRoster();
+  if(!mysteryState && !mysteryRolling) renderMystery();
   const st = studentsFor(currentClassId).find(s => s.id === id);
   if(!st) return;
   if(turningOn){
@@ -1789,6 +2061,8 @@ async function loadAttendanceAndBehaviorForDate(){
   }
   renderRoster();
   renderSeatingChart();
+  loadMysteryState();
+  renderMystery();
 }
 
 document.getElementById("dateInput").addEventListener("change", (e) => {
@@ -2658,6 +2932,8 @@ async function loadRoster(){
     loadSeating(),
     loadGroupLeaders()
   ]);
+  loadMysteryState();
+  renderMystery();
 }
 
 async function loadClassNote(){
