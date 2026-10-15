@@ -561,6 +561,12 @@
   table.habit-table th{ color:var(--ink-soft); font-weight:500; }
   table.habit-table td.today-col, table.habit-table th.today-col{ background:var(--c-health-bg); }
   table.habit-table td.mark{ color:var(--c-health); font-weight:700; }
+  table.habit-table td.tap{ cursor:pointer; min-width:28px; height:34px; -webkit-tap-highlight-color:transparent; }
+  table.habit-table td.tap:hover{ background:#EFE8DA; }
+  table.habit-table td.tap.mark{ color:#fff; background:#8A9A7B; border-radius:6px; box-shadow:inset 0 0 0 2px #FBF8F2; }
+  table.habit-table td.flash{ animation:cellFlash .35s ease; }
+  @keyframes cellFlash{ 0%{transform:scale(1)} 45%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  .habit-table-hint{ font-size:12.5px; color:#8C8274; margin:-4px 0 8px; }
   table.habit-table td.total-col, table.habit-table th.total-col{ font-weight:700; color:var(--c-health); }
   .habit-empty{ color:var(--ink-soft); font-size:13.5px; padding:16px; text-align:center; }
 </style>
@@ -808,6 +814,7 @@
         <span class="label" id="habitMonthLabel"></span>
         <button id="habitNextMonth" type="button">›</button>
       </div>
+      <p class="habit-table-hint">忘了勾？點下面表格裡那一天的格子就能補勾，再點一次取消。</p>
       <div class="habit-table-wrap">
         <table class="habit-table" id="habitTable"></table>
       </div>
@@ -1128,7 +1135,8 @@
         const done = doneDates.has(dateStr);
         if (done) count++;
         const isToday = isCurrentMonth && d === todayDate;
-        row += `<td class="${done ? 'mark' : ''} ${isToday ? 'today-col' : ''}">${done ? '✓' : ''}</td>`;
+        const canTap = dateStr <= todayStr();
+        row += `<td class="${done ? 'mark' : ''} ${isToday ? 'today-col' : ''} ${canTap ? 'tap' : ''}"${canTap ? ` data-h="${h.id}" data-d="${dateStr}"` : ''}>${done ? '✓' : ''}</td>`;
       }
       row += `<td class="total-col">${count}/${daysInMonth}</td></tr>`;
       tbody += row;
@@ -1138,6 +1146,48 @@
   }
 
   loadHabits();
+
+  // ---------- 月統計表：點格子補勾以前的日子 ----------
+  let habitListReloadTimer = null;
+  function refreshTileStatus(){
+    clearTimeout(habitListReloadTimer);
+    habitListReloadTimer = setTimeout(async () => {
+      try {
+        const habits = await fetch('/api/habits').then(r => r.json());
+        if (Array.isArray(habits)) { habitState.habits = habits; renderHabitToday(); }
+      } catch (e) {}
+    }, 700);
+  }
+  async function toggleHabitCell(td){
+    const id = td.dataset.h, date = td.dataset.d;
+    if (date === todayStr()) { habitSound(!habitState.todayLog[id]); toggleHabit(id); return; }
+    const want = !td.classList.contains('mark');
+    const setCell = (on) => {
+      td.classList.toggle('mark', on); td.textContent = on ? '✓' : '';
+      const total = td.parentElement.querySelector('.total-col');
+      if (total) { const [c, n] = total.textContent.split('/').map(Number); total.textContent = `${c + (on ? 1 : -1)}/${n}`; }
+    };
+    setCell(want);
+    td.classList.remove('flash'); void td.offsetWidth; td.classList.add('flash');
+    habitSound(want);
+    try {
+      const res = await fetch('/api/habits/log', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ habitId: id, date, done: want })
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      if (!!data.done !== want) throw new Error();
+      refreshTileStatus();
+    } catch (e) {
+      setCell(!want);
+      habitToast('網路不穩，剛剛那一格沒存到，請再按一次');
+    }
+  }
+  document.querySelector('.habit-table-wrap')?.addEventListener('click', (e) => {
+    const td = e.target.closest('td.tap');
+    if (td) toggleHabitCell(td);
+  });
 
   // ---------- 感恩日記 ----------
   const gState = { date: null, entries: [], hasMore: false, total: 0 };
