@@ -509,6 +509,12 @@
     display:flex;align-items:center;justify-content:center;
   }
   .stats-photo-btn.empty{opacity:0.3;cursor:default;}
+  .notes-headshot{
+    width:120px;height:120px;border-radius:50%;margin:0 auto 4px;overflow:hidden;
+    background:var(--paper);border:2px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:52px;color:var(--ink-soft);
+  }
+  .notes-headshot img{width:100%;height:100%;object-fit:cover;margin:0;max-height:none;border-radius:0;}
   .stats-clickable{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
   .attend-detail-list{
     max-height:280px;overflow-y:auto;margin-top:10px;text-align:left;width:100%;
@@ -2303,6 +2309,7 @@ async function openStudentNotes(studentId){
   modal.className = "photo-modal";
   modal.innerHTML = `
     <div class="photo-modal-box">
+      <div class="notes-headshot">${st.photoKey ? `<img src="/api/photo/${st.photoKey}" alt="${st.name}">` : "🧑"}</div>
       <div class="photo-modal-name">${st.seat} 號・${st.name}・個人紀錄</div>
       <div class="student-notes-list" id="studentNotesList">載入中...</div>
       <div class="student-notes-add">
