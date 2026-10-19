@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS habit_streak_bonus (habit_id TEXT NOT NULL, week_date
 CREATE TABLE IF NOT EXISTS bm_levels (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, track TEXT NOT NULL, label TEXT NOT NULL, date TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_contests (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, name TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_vision (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, va_r REAL, va_l REAL, sph_r INTEGER, sph_l INTEGER, cyl_r INTEGER, cyl_l INTEGER, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, date));
+CREATE TABLE IF NOT EXISTS headshot_roster (class_id TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL, taken_at TEXT, PRIMARY KEY(class_id, seat));
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -869,6 +870,54 @@ async function handleCommunitySourcesPost(env, request) {
     "INSERT INTO community_sources (url, note, source_type, created_at) VALUES (?, ?, ?, ?)"
   ).bind(url, note || "", sourceType, new Date().toISOString()).run();
   return json({ ok: true, sourceType });
+}
+
+
+// ---------- 行政工作：新生大頭照名單 ----------
+// 只存「班級／座號／姓名／是否拍過」，照片本身不上傳，只下載到拍照的那台裝置。
+// 路徑刻意放在 /api/admin/（不是 /api/open/），讓它跟網站其他頁面一樣受登入保護。
+async function headshotRosterGet(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT class_id, seat, name, taken_at FROM headshot_roster ORDER BY class_id, seat"
+  ).all();
+  return json(results || []);
+}
+async function headshotRosterPost(env, request) {
+  const body = await request.json();
+  const rows = Array.isArray(body.rows) ? body.rows : [];
+  const clean = [];
+  for (const r of rows) {
+    const cls = String(r.class_id || "").trim();
+    const seat = parseInt(r.seat, 10);
+    const name = String(r.name || "").trim().slice(0, 30);
+    if (!/^\d{3}$/.test(cls) || !(seat >= 1 && seat <= 99) || !name) continue;
+    clean.push({ cls, seat, name });
+  }
+  if (clean.length === 0) return json({ error: "沒有可匯入的資料" }, { status: 400 });
+  const stmts = [];
+  if (body.replace) {
+    const classes = [...new Set(clean.map(r => r.cls))];
+    for (const c of classes) stmts.push(env.DB.prepare("DELETE FROM headshot_roster WHERE class_id = ?").bind(c));
+  }
+  for (const r of clean) {
+    stmts.push(env.DB.prepare(
+      "INSERT INTO headshot_roster (class_id, seat, name) VALUES (?, ?, ?) ON CONFLICT(class_id, seat) DO UPDATE SET name = excluded.name"
+    ).bind(r.cls, r.seat, r.name));
+  }
+  await env.DB.batch(stmts);
+  return json({ ok: true, count: clean.length });
+}
+async function headshotTakenPost(env, request) {
+  const { class_id, seat, taken } = await request.json();
+  await env.DB.prepare("UPDATE headshot_roster SET taken_at = ? WHERE class_id = ? AND seat = ?")
+    .bind(taken ? new Date().toISOString() : null, String(class_id), parseInt(seat, 10)).run();
+  return json({ ok: true });
+}
+async function headshotRosterDelete(env, request) {
+  const { class_id } = await request.json();
+  if (class_id === "__all__") await env.DB.prepare("DELETE FROM headshot_roster").run();
+  else await env.DB.prepare("DELETE FROM headshot_roster WHERE class_id = ?").bind(String(class_id)).run();
+  return json({ ok: true });
 }
 
 async function handleCommunitySourcesDelete(env, request) {
@@ -1739,6 +1788,11 @@ export default {
       if (path === "/api/open/better-me/growth/read-photo" && request.method === "POST") return await bmReadGrowth(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "POST") return await bmGrowthPost(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "DELETE") return await bmDelete(env, request, "bm_growth");
+
+      if (path === "/api/admin/headshots" && request.method === "GET") return await headshotRosterGet(env);
+      if (path === "/api/admin/headshots" && request.method === "POST") return await headshotRosterPost(env, request);
+      if (path === "/api/admin/headshots" && request.method === "DELETE") return await headshotRosterDelete(env, request);
+      if (path === "/api/admin/headshots/taken" && request.method === "POST") return await headshotTakenPost(env, request);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新生大頭照</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --admin:#3F6672; --admin-bg:#E7EFF0; --done:#5F8955; --done-bg:#EBF2E6; --warn:#B96B77;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px;}
+  h1{margin:8px 0 4px;font-size:clamp(24px,5vw,32px);color:var(--admin);}
+  .desc{color:var(--ink-soft);font-size:14px;margin:0 0 16px;line-height:1.6;}
+  button{font-family:inherit;cursor:pointer;}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 14px;font-size:14px;}
+  .btn.primary{background:var(--admin);border-color:var(--admin);color:#fff;}
+  .btn.danger{color:var(--warn);}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .classes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 16px;font-size:15px;font-weight:700;}
+  .chip.active{background:var(--admin);color:#fff;border-color:var(--admin);}
+  .chip small{font-weight:400;opacity:.8;margin-left:4px;}
+  .progress{display:flex;align-items:center;gap:10px;margin:4px 0 14px;font-size:14px;color:var(--ink-soft);flex-wrap:wrap;}
+  .bar{flex:1;min-width:120px;height:8px;background:var(--paper-deep);border-radius:99px;overflow:hidden;}
+  .bar span{display:block;height:100%;background:var(--done);transition:width .3s;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;}
+  .stu{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:10px 8px;text-align:center;box-shadow:var(--shadow);min-height:118px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;}
+  .stu .seat{font-size:22px;font-weight:900;color:var(--admin);font-family:'Noto Serif TC',serif;}
+  .stu .name{font-size:15px;font-weight:500;}
+  .stu .code{font-size:11px;color:var(--ink-soft);letter-spacing:.05em;}
+  .stu .thumb{width:42px;height:56px;border-radius:6px;object-fit:cover;background:var(--paper-deep);}
+  .stu.done{background:var(--done-bg);border-color:#c9dbc0;}
+  .stu.done::after{content:'✓';position:absolute;top:6px;right:9px;color:var(--done);font-weight:900;}
+  .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--ink-soft);line-height:1.8;}
+  .note{background:var(--admin-bg);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink-soft);line-height:1.7;margin-top:22px;}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(30,28,25,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow-y:auto;padding:16px;}
+  .modal.open{display:flex;}
+  .panel{background:var(--paper);border-radius:18px;padding:18px 16px;width:100%;max-width:460px;margin:auto 0;}
+  .panel h2{margin:0 0 6px;font-size:20px;}
+  .panel .sub{color:var(--ink-soft);font-size:13px;margin:0 0 12px;line-height:1.6;}
+  textarea{width:100%;min-height:200px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;font-family:inherit;}
+  .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px;}
+  label.check{font-size:14px;display:flex;gap:6px;align-items:center;margin-top:8px;color:var(--ink-soft);}
+  .crop-box{position:relative;width:100%;max-width:300px;aspect-ratio:3/4;margin:0 auto;border-radius:12px;overflow:hidden;background:#222;touch-action:none;}
+  .crop-box canvas{width:100%;height:100%;display:block;}
+  .crop-guide{position:absolute;inset:0;pointer-events:none;}
+  .crop-guide::before{content:'';position:absolute;left:22%;right:22%;top:12%;height:52%;border:2px dashed rgba(255,255,255,.55);border-radius:50%;}
+  .zoom{display:flex;align-items:center;gap:8px;margin:12px auto 0;max-width:300px;font-size:13px;color:var(--ink-soft);}
+  .zoom input{flex:1;}
+  .who{font-size:18px;font-weight:700;text-align:center;margin:0 0 10px;}
+  .who .code{color:var(--admin);font-family:'Noto Serif TC',serif;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:60;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/#admin">← 回行政工作</a>
+  <h1>📷 新生大頭照</h1>
+  <p class="desc">點學生 → 拍照 → 調整框線 → 存檔。照片會直接存成「班級＋座號」檔名（例如 10102.jpg），<b>只存在這台手機，不會上傳到網站</b>。</p>
+
+  <div class="toolbar">
+    <button class="btn primary" id="btnImport">＋ 匯入名單</button>
+    <button class="btn" id="btnNext">▶ 拍下一位還沒拍的</button>
+    <button class="btn" id="btnZip">⬇ 這班照片打包下載</button>
+    <button class="btn danger" id="btnDelClass">刪除這班名單</button>
+  </div>
+
+  <div class="classes" id="classes"></div>
+  <div class="progress" id="progress"></div>
+  <div id="list"></div>
+
+  <div class="note">
+    🔒 這一頁需要登入才能打開，班級名單（姓名）存在你的私人資料庫；照片本身不上傳，只留在拍照的這台手機（下載資料夾）。<br>
+    💾 每張照片會縮成 600×800 大頭照尺寸，約 100～150 KB；一整個年級拍完也大約只有幾十 MB。<br>
+    📦 「打包下載」只能打包<b>用這台裝置拍的</b>照片。全部交件後，可以按最下面的按鈕清掉手機裡這頁暫存的照片。
+    <div style="margin-top:8px;"><button class="btn danger" id="btnClearLocal">清除這台裝置暫存的照片</button></div>
+  </div>
+</div>
+
+<input type="file" id="camera" accept="image/*" capture="environment" hidden>
+
+<!-- 匯入名單 -->
+<div class="modal" id="importModal">
+  <div class="panel">
+    <h2>匯入新生名單</h2>
+    <p class="sub">一行一位學生，可以直接從 Excel 複製「班級、座號、姓名」三欄貼上。也接受這些寫法：<br>
+      <code>101 1 王小明</code>　<code>101	2	李小華</code>　<code>10103 陳大同</code></p>
+    <textarea id="importText" placeholder="101	1	王小明&#10;101	2	李小華&#10;102	1	陳大同"></textarea>
+    <label class="check"><input type="checkbox" id="importReplace" checked> 覆蓋這些班級原本的名單（重新匯入時建議勾選）</label>
+    <p class="sub" id="importPreview" style="margin-top:8px;"></p>
+    <div class="row">
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="importGo">匯入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 裁切 -->
+<div class="modal" id="cropModal">
+  <div class="panel">
+    <p class="who" id="cropWho"></p>
+    <div class="crop-box" id="cropBox"><canvas id="cropCanvas" width="600" height="800"></canvas><div class="crop-guide"></div></div>
+    <div class="zoom">縮小 <input type="range" id="zoom" min="1" max="3" step="0.01" value="1"> 放大</div>
+    <p class="sub" style="text-align:center;margin-top:8px;">用手指拖動照片，讓臉對準虛線框</p>
+    <div class="row" style="justify-content:space-between;">
+      <button class="btn" data-close>取消</button>
+      <button class="btn" id="cropRetake">重拍</button>
+      <button class="btn primary" id="cropSave">存檔並拍下一位</button>
+    </div>
+    <div class="row" style="margin-top:6px;"><button class="btn" id="cropSaveOnly" style="font-size:13px;">只存檔，不接著拍</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const pad2 = n => String(n).padStart(2, '0');
+const codeOf = s => s.class_id + pad2(s.seat);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let roster = [];          // [{class_id, seat, name, taken_at}]
+let current = null;       // 目前選的班級
+let target = null;        // 正在拍的學生
+const thumbs = {};        // code -> objectURL（這台裝置上的照片）
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
+
+/* ---------- 這台裝置的照片暫存（IndexedDB） ---------- */
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('headshots', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('photos');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+async function idbDo(mode, fn){
+  try { const db = await idb(); return await new Promise((res, rej) => {
+    const tx = db.transaction('photos', mode); const req = fn(tx.objectStore('photos'));
+    tx.oncomplete = () => res(req && req.result); tx.onerror = () => rej(tx.error);
+  }); } catch(e){ return null; }
+}
+const photoPut = (k, blob) => idbDo('readwrite', s => s.put(blob, k));
+const photoGet = k => idbDo('readonly', s => s.get(k));
+const photoKeys = () => idbDo('readonly', s => s.getAllKeys());
+const photoClear = () => idbDo('readwrite', s => s.clear());
+
+async function loadThumbs(){
+  const keys = (await photoKeys()) || [];
+  for (const k of keys){ if (!thumbs[k]) { const b = await photoGet(k); if (b) thumbs[k] = URL.createObjectURL(b); } }
+}
+
+/* ---------- 名單 ---------- */
+async function loadRoster(){
+  try {
+    const r = await fetch('/api/admin/headshots');
+    if (!r.ok) throw new Error();
+    roster = await r.json();
+  } catch(e){ toast('名單讀取失敗，請重新整理'); roster = []; }
+  const classes = [...new Set(roster.map(s => s.class_id))];
+  if (!classes.includes(current)) current = classes[0] || null;
+  render();
+}
+
+function render(){
+  const classes = [...new Set(roster.map(s => s.class_id))];
+  $('#classes').innerHTML = classes.map(c => {
+    const all = roster.filter(s => s.class_id === c), done = all.filter(s => s.taken_at).length;
+    return `<button class="chip ${c===current?'active':''}" data-cls="${c}">${c}班<small>${done}/${all.length}</small></button>`;
+  }).join('');
+  const has = !!current;
+  ['#btnNext','#btnZip','#btnDelClass'].forEach(id => $(id).disabled = !has);
+  if (!has){
+    $('#progress').innerHTML = '';
+    $('#list').innerHTML = `<div class="empty">還沒有名單。<br>按「＋ 匯入名單」，從 Excel 複製一年級新生的「班級、座號、姓名」貼上就可以開始。</div>`;
+    return;
+  }
+  const stus = roster.filter(s => s.class_id === current);
+  const done = stus.filter(s => s.taken_at).length;
+  $('#progress').innerHTML = `<span>${current}班　已拍 <b>${done}</b> / ${stus.length}</span><div class="bar"><span style="width:${stus.length?done/stus.length*100:0}%"></span></div>`;
+  $('#list').innerHTML = `<div class="grid">${stus.map(s => {
+    const code = codeOf(s), th = thumbs[code];
+    return `<button class="stu ${s.taken_at?'done':''}" data-code="${code}">
+      ${th ? `<img class="thumb" src="${th}" alt="">` : ''}
+      <span class="seat">${pad2(s.seat)}</span><span class="name">${esc(s.name)}</span><span class="code">${code}</span>
+    </button>`; }).join('')}</div>`;
+}
+
+$('#classes').addEventListener('click', e => { const b = e.target.closest('[data-cls]'); if (b){ current = b.dataset.cls; render(); } });
+$('#list').addEventListener('click', e => {
+  const b = e.target.closest('[data-code]'); if (!b) return;
+  const s = roster.find(x => codeOf(x) === b.dataset.code);
+  if (s.taken_at && !confirm(`${s.name}（${codeOf(s)}）已經拍過了，要重拍嗎？`)) return;
+  startShoot(s);
+});
+$('#btnNext').onclick = () => {
+  const s = roster.find(x => x.class_id === current && !x.taken_at);
+  if (s) startShoot(s); else toast(`${current}班全部拍完了 🎉`);
+};
+
+/* ---------- 匯入 ---------- */
+function parseRoster(text){
+  const rows = [], bad = [];
+  text.split(/\r?\n/).forEach(line => {
+    const t = line.trim(); if (!t) return;
+    const parts = t.split(/[\t,，、\s]+/).filter(Boolean);
+    let m;
+    if (parts.length >= 3 && /^\d{3}$/.test(parts[0]) && /^\d{1,2}$/.test(parts[1])) rows.push({ class_id: parts[0], seat: +parts[1], name: parts.slice(2).join('') });
+    else if (parts.length >= 2 && (m = parts[0].match(/^(\d{3})(\d{2})$/))) rows.push({ class_id: m[1], seat: +m[2], name: parts.slice(1).join('') });
+    else bad.push(t);
+  });
+  return { rows, bad };
+}
+$('#btnImport').onclick = () => { $('#importText').value=''; $('#importPreview').textContent=''; $('#importModal').classList.add('open'); };
+$('#importText').addEventListener('input', () => {
+  const { rows, bad } = parseRoster($('#importText').value);
+  const classes = [...new Set(rows.map(r => r.class_id))];
+  $('#importPreview').innerHTML = rows.length ? `看得懂 <b>${rows.length}</b> 位（${classes.join('、')}班）${bad.length?`，<span style="color:var(--warn)">有 ${bad.length} 行看不懂：${esc(bad.slice(0,3).join(' / '))}</span>`:''}` : (bad.length ? `<span style="color:var(--warn)">格式看不懂，請確認每行有班級、座號、姓名</span>` : '');
+});
+$('#importGo').onclick = async () => {
+  const { rows } = parseRoster($('#importText').value);
+  if (!rows.length) return toast('沒有可匯入的資料');
+  const r = await fetch('/api/admin/headshots', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rows, replace: $('#importReplace').checked }) });
+  if (!r.ok) return toast('匯入失敗，請再試一次');
+  $('#importModal').classList.remove('open');
+  current = rows[0].class_id;
+  toast(`已匯入 ${rows.length} 位學生`);
+  loadRoster();
+};
+$('#btnDelClass').onclick = async () => {
+  if (!current || !confirm(`確定刪除 ${current}班 的名單？（手機裡已下載的照片不受影響）`)) return;
+  await fetch('/api/admin/headshots', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: current }) });
+  current = null; loadRoster();
+};
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('open'));
+
+/* ---------- 拍照與裁切 ---------- */
+const cam = $('#camera'), canvas = $('#cropCanvas'), ctx = canvas.getContext('2d');
+let img = null, view = { scale:1, base:1, x:0, y:0 };
+
+function startShoot(s){ target = s; cam.value = ''; cam.click(); }
+cam.addEventListener('change', async () => {
+  const f = cam.files[0]; if (!f) return;
+  try { img = await createImageBitmap(f, { imageOrientation:'from-image' }); }
+  catch(e){ img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(f); }); }
+  view.base = Math.max(canvas.width / img.width, canvas.height / img.height);
+  view.scale = 1; $('#zoom').value = 1;
+  view.x = (canvas.width - img.width * view.base) / 2;
+  view.y = (canvas.height - img.height * view.base) / 2;
+  $('#cropWho').innerHTML = `<span class="code">${codeOf(target)}</span>　${esc(target.name)}`;
+  draw(); $('#cropModal').classList.add('open');
+});
+function clamp(){
+  const k = view.base * view.scale, w = img.width * k, h = img.height * k;
+  view.x = Math.min(0, Math.max(canvas.width - w, view.x));
+  view.y = Math.min(0, Math.max(canvas.height - h, view.y));
+}
+function draw(){
+  clamp(); const k = view.base * view.scale;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, view.x, view.y, img.width * k, img.height * k);
+}
+$('#zoom').addEventListener('input', e => {
+  const old = view.base * view.scale; view.scale = +e.target.value; const nk = view.base * view.scale;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  view.x = cx - (cx - view.x) * nk / old; view.y = cy - (cy - view.y) * nk / old; draw();
+});
+let drag = null;
+const box = $('#cropBox');
+box.addEventListener('pointerdown', e => { drag = { x:e.clientX, y:e.clientY }; box.setPointerCapture(e.pointerId); });
+box.addEventListener('pointermove', e => {
+  if (!drag) return; const r = canvas.width / box.clientWidth;
+  view.x += (e.clientX - drag.x) * r; view.y += (e.clientY - drag.y) * r; drag = { x:e.clientX, y:e.clientY }; draw();
+});
+box.addEventListener('pointerup', () => drag = null);
+box.addEventListener('pointercancel', () => drag = null);
+$('#cropRetake').onclick = () => { $('#cropModal').classList.remove('open'); startShoot(target); };
+
+function downloadBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function save(andNext){
+  // 先在按鈕點擊當下拍下畫面並決定下一位，才能立刻打開相機（手機只允許「點擊當下」開相機）
+  const s = target, code = codeOf(s), name = code + '.jpg';
+  const blobP = new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+  s.taken_at = new Date().toISOString();
+  $('#cropModal').classList.remove('open');
+  const next = andNext ? roster.find(x => x.class_id === current && !x.taken_at) : null;
+  if (next) startShoot(next);
+  else if (andNext) toast(`${current}班全部拍完了 🎉`);
+  blobP.then(async blob => {
+    downloadBlob(blob, name);
+    await photoPut(code, blob);
+    if (thumbs[code]) URL.revokeObjectURL(thumbs[code]);
+    thumbs[code] = URL.createObjectURL(blob);
+    try { await fetch('/api/admin/headshots/taken', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: s.class_id, seat: s.seat, taken: true }) }); } catch(e){}
+    if (!next) toast(`已存成 ${name}（${Math.round(blob.size/1024)} KB）`);
+    render();
+  });
+}
+$('#cropSave').onclick = () => save(true);
+$('#cropSaveOnly').onclick = () => save(false);
+
+/* ---------- 打包下載 / 清除 ---------- */
+$('#btnZip').onclick = async () => {
+  const stus = roster.filter(s => s.class_id === current);
+  const zip = new JSZip(); let n = 0;
+  for (const s of stus){ const b = await photoGet(codeOf(s)); if (b){ zip.file(codeOf(s) + '.jpg', b); n++; } }
+  if (!n) return toast('這台裝置上沒有這班的照片');
+  const out = await zip.generateAsync({ type:'blob' });
+  downloadBlob(out, `${current}班大頭照.zip`);
+  const miss = stus.length - n;
+  toast(`已打包 ${n} 張${miss ? `，還有 ${miss} 位沒有照片` : ''}`);
+};
+$('#btnClearLocal').onclick = async () => {
+  if (!confirm('清除這台裝置上暫存的照片？（已下載到手機資料夾的檔案不受影響，名單打勾也會保留）')) return;
+  await photoClear(); Object.values(thumbs).forEach(u => URL.revokeObjectURL(u)); Object.keys(thumbs).forEach(k => delete thumbs[k]);
+  toast('已清除'); render();
+};
+
+loadThumbs().then(loadRoster);
+</script>
+</body>
+</html>
