@@ -450,10 +450,9 @@ function openQuick(){
     quickBlob = b;
     if ($('#qImg').src) URL.revokeObjectURL($('#qImg').src);
     $('#qImg').src = URL.createObjectURL(b);
-    let last = ''; try { last = localStorage.getItem('hsLastCls') || ''; } catch(e){}
-    $('#qCls').value = last || current || ''; $('#qSeat').value = ''; $('#qName').value = '';
+    $('#qCls').value = ''; $('#qSeat').value = ''; $('#qName').value = '';
     qCheck(); $('#quickModal').classList.add('open');
-    setTimeout(() => ($('#qCls').value ? $('#qSeat') : $('#qCls')).focus(), 200);
+    setTimeout(() => $('#qCls').focus(), 200);
   }, 'image/jpeg', 0.85);
 }
 function qFind(){ const c = $('#qCls').value.trim(), n = parseInt($('#qSeat').value, 10); return roster.find(x => x.class_id === c && x.seat === n); }
@@ -474,7 +473,6 @@ $('#qSave').onclick = async () => {
   let st = qFind();
   if (!st) { st = { class_id: c, seat: n, name: name || '（未填姓名）', taken_at: null }; roster.push(st); roster.sort((a, b) => a.class_id.localeCompare(b.class_id) || a.seat - b.seat); }
   else if (name) st.name = name;
-  try { localStorage.setItem('hsLastCls', c); } catch(e){}
   setPendingName(code, name);
   st.taken_at = new Date().toISOString();
   const blob = quickBlob; quickBlob = null;
