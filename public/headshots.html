@@ -74,7 +74,7 @@
 <div class="wrap">
   <a class="back" href="/#admin">← 回行政工作</a>
   <h1>📷 新生大頭照</h1>
-  <p class="desc">點學生 → 拍照 → 調整框線 → 存檔。照片會直接存成「班級＋座號」檔名（例如 10102.jpg），自動存到你的私人雲端，<b>手機拍、電腦下載</b>都可以。</p>
+  <p class="desc">點學生 → 拍照，就自動存好。照片會直接存成「班級＋座號」檔名（例如 10102.jpg），自動存到你的私人雲端，<b>手機拍、電腦下載</b>都可以。</p>
 
   <div class="toolbar">
     <button class="btn primary" id="btnImport">＋ 匯入名單</button>
@@ -348,8 +348,10 @@ cam.addEventListener('change', async () => {
   view.scale = 1; $('#zoom').value = 1;
   view.x = (canvas.width - img.width * view.base) / 2;
   view.y = (canvas.height - img.height * view.base) / 2;
-  $('#cropWho').innerHTML = `<span class="code">${codeOf(target)}</span>　${esc(target.name)}`;
-  draw(); $('#cropModal').classList.add('open');
+  // 快速模式：不再跳出調整畫面，自動裁成 3:4 大頭照（略偏上方，臉通常在照片上半部）後直接存檔，回到名單
+  view.y = Math.min(0, (canvas.height - img.height * view.base) * 0.35);
+  draw();
+  save(false);
 });
 function clamp(){
   const k = view.base * view.scale, w = img.width * k, h = img.height * k;
