@@ -39,7 +39,11 @@
   .stu .seat{font-size:22px;font-weight:900;color:var(--admin);font-family:'Noto Serif TC',serif;}
   .stu .name{font-size:15px;font-weight:500;}
   .stu .code{font-size:11px;color:var(--ink-soft);letter-spacing:.05em;}
-  .stu .thumb{width:42px;height:56px;border-radius:6px;object-fit:cover;background:var(--paper-deep);}
+  .stu .thumb{width:66px;height:88px;border-radius:8px;object-fit:cover;background:var(--paper-deep);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+  .stu .seat-sm{font-size:13px;font-weight:900;color:var(--admin);}
+  .pv-img{display:block;width:100%;max-width:300px;aspect-ratio:3/4;object-fit:cover;margin:0 auto;border-radius:12px;background:var(--paper-deep);}
+  .pv-none{max-width:300px;aspect-ratio:3/4;margin:0 auto;border-radius:12px;background:var(--paper-deep);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--ink-soft);font-size:14px;line-height:1.7;}
+  .pv-nav{display:flex;justify-content:space-between;align-items:center;margin:10px auto 0;max-width:300px;font-size:13px;color:var(--ink-soft);}
   .stu.done{background:var(--done-bg);border-color:#c9dbc0;}
   .stu.done::after{content:'✓';position:absolute;top:6px;right:9px;color:var(--done);font-weight:900;}
   .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--ink-soft);line-height:1.8;}
@@ -105,6 +109,21 @@
       <button class="btn" data-close>取消</button>
       <button class="btn primary" id="importGo">匯入</button>
     </div>
+  </div>
+</div>
+
+<!-- 預覽 -->
+<div class="modal" id="previewModal">
+  <div class="panel">
+    <p class="who" id="pvWho"></p>
+    <div id="pvBody"></div>
+    <div class="pv-nav"><button class="btn" id="pvPrev">‹ 上一張</button><span id="pvCount"></span><button class="btn" id="pvNext">下一張 ›</button></div>
+    <div class="row" style="justify-content:space-between;">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn" id="pvDownload">再下載一次</button>
+      <button class="btn primary" id="pvRetake">重拍</button>
+    </div>
+    <div class="row" style="margin-top:6px;"><button class="btn danger" id="pvUntake" style="font-size:13px;">改回「還沒拍」</button></div>
   </div>
 </div>
 
@@ -195,8 +214,7 @@ function render(){
   $('#list').innerHTML = `<div class="grid">${stus.map(s => {
     const code = codeOf(s), th = thumbs[code];
     return `<button class="stu ${s.taken_at?'done':''}" data-code="${code}">
-      ${th ? `<img class="thumb" src="${th}" alt="">` : ''}
-      <span class="seat">${pad2(s.seat)}</span><span class="name">${esc(s.name)}</span><span class="code">${code}</span>
+      ${th ? `<img class="thumb" src="${th}" alt=""><span class="seat-sm">${pad2(s.seat)}</span>` : `<span class="seat">${pad2(s.seat)}</span>`}<span class="name">${esc(s.name)}</span><span class="code">${code}</span>
     </button>`; }).join('')}</div>`;
 }
 
@@ -204,9 +222,40 @@ $('#classes').addEventListener('click', e => { const b = e.target.closest('[data
 $('#list').addEventListener('click', e => {
   const b = e.target.closest('[data-code]'); if (!b) return;
   const s = roster.find(x => codeOf(x) === b.dataset.code);
-  if (s.taken_at && !confirm(`${s.name}（${codeOf(s)}）已經拍過了，要重拍嗎？`)) return;
-  startShoot(s);
+  if (s.taken_at || thumbs[codeOf(s)]) openPreview(s); else startShoot(s);
 });
+
+/* ---------- 預覽 ---------- */
+let pv = null;
+function openPreview(s){
+  pv = s; const code = codeOf(s), th = thumbs[code];
+  $('#pvWho').innerHTML = `<span class="code">${code}</span>　${esc(s.name)}`;
+  $('#pvBody').innerHTML = th ? `<img class="pv-img" src="${th}" alt="">`
+    : `<div class="pv-none">這位已標記拍過，<br>但照片不在這台裝置上。<br><br>照片存在當初拍照的那支手機（下載資料夾）。</div>`;
+  $('#pvDownload').style.display = th ? '' : 'none';
+  const list = roster.filter(x => x.class_id === current && thumbs[codeOf(x)]);
+  const i = list.indexOf(s);
+  $('#pvCount').textContent = i >= 0 ? `${i + 1} / ${list.length}` : '';
+  $('#previewModal').classList.add('open');
+}
+function pvStep(d){
+  const list = roster.filter(x => x.class_id === current && thumbs[codeOf(x)]);
+  if (!list.length) return;
+  const i = list.indexOf(pv); openPreview(list[(i + d + list.length) % list.length]);
+}
+$('#pvPrev').onclick = () => pvStep(-1);
+$('#pvNext').onclick = () => pvStep(1);
+$('#pvRetake').onclick = () => { $('#previewModal').classList.remove('open'); startShoot(pv); };
+$('#pvDownload').onclick = async () => { const b = await photoGet(codeOf(pv)); if (b) downloadBlob(b, codeOf(pv) + '.jpg'); };
+$('#pvUntake').onclick = async () => {
+  if (!confirm(`把 ${pv.name} 改回「還沒拍」？`)) return;
+  try { await fetch('/api/admin/headshots/taken', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: pv.class_id, seat: pv.seat, taken: false }) }); } catch(e){}
+  pv.taken_at = null; $('#previewModal').classList.remove('open'); render();
+};
+let pvTouch = null;
+$('#pvBody').addEventListener('touchstart', e => pvTouch = e.touches[0].clientX, { passive:true });
+$('#pvBody').addEventListener('touchend', e => { if (pvTouch == null) return; const dx = e.changedTouches[0].clientX - pvTouch; if (Math.abs(dx) > 40) pvStep(dx < 0 ? 1 : -1); pvTouch = null; });
+document.addEventListener('keydown', e => { if (!$('#previewModal').classList.contains('open')) return; if (e.key === 'ArrowLeft') pvStep(-1); if (e.key === 'ArrowRight') pvStep(1); if (e.key === 'Escape') $('#previewModal').classList.remove('open'); });
 $('#btnNext').onclick = () => {
   const s = roster.find(x => x.class_id === current && !x.taken_at);
   if (s) startShoot(s); else toast(`${current}班全部拍完了 🎉`);
@@ -253,6 +302,7 @@ $('#btnDelClass').onclick = async () => {
   await fetch('/api/admin/headshots', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: current }) });
   current = null; loadRoster();
 };
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m && m.id === 'previewModal') m.classList.remove('open'); }));
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('open'));
 
 /* ---------- 拍照與裁切 ---------- */
