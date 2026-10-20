@@ -97,7 +97,7 @@
   <div class="panel">
     <h2>匯入新生名單</h2>
     <p class="sub">一行一位學生，可以直接從 Excel 複製「班級、座號、姓名」三欄貼上。也接受這些寫法：<br>
-      <code>101 1 王小明</code>　<code>101	2	李小華</code>　<code>10103 陳大同</code></p>
+      <code>101 1 王小明</code>　<code>104賴妍欣 19</code>　<code>10103 陳大同</code>（班級、座號、姓名順序不拘）</p>
     <textarea id="importText" placeholder="101	1	王小明&#10;101	2	李小華&#10;102	1	陳大同"></textarea>
     <label class="check"><input type="checkbox" id="importReplace" checked> 覆蓋這些班級原本的名單（重新匯入時建議勾選）</label>
     <p class="sub" id="importPreview" style="margin-top:8px;"></p>
@@ -214,13 +214,20 @@ $('#btnNext').onclick = () => {
 
 /* ---------- 匯入 ---------- */
 function parseRoster(text){
+  // 不管欄位順序都看得懂：「101 1 王小明」「104賴妍欣 19」「王小明 10102」「1 王小明 101」…
   const rows = [], bad = [];
   text.split(/\r?\n/).forEach(line => {
     const t = line.trim(); if (!t) return;
-    const parts = t.split(/[\t,，、\s]+/).filter(Boolean);
-    let m;
-    if (parts.length >= 3 && /^\d{3}$/.test(parts[0]) && /^\d{1,2}$/.test(parts[1])) rows.push({ class_id: parts[0], seat: +parts[1], name: parts.slice(2).join('') });
-    else if (parts.length >= 2 && (m = parts[0].match(/^(\d{3})(\d{2})$/))) rows.push({ class_id: m[1], seat: +m[2], name: parts.slice(1).join('') });
+    if (/班級|座號|姓名/.test(t) && !/\d/.test(t)) return;          // 標題列，跳過
+    const nums = t.match(/\d+/g) || [];
+    const name = t.replace(/\d+/g, ' ').replace(/[\t,，、:：.\-_|]/g, ' ').trim().split(/\s+/).join('');
+    let cls = null, seat = null;
+    const five = nums.find(n => n.length === 5 || n.length === 4);
+    const three = nums.find(n => n.length === 3);
+    const small = nums.find(n => n.length <= 2);
+    if (three && small) { cls = three; seat = +small; }
+    else if (five) { cls = five.slice(0, 3); seat = +five.slice(3); }
+    if (cls && seat >= 1 && seat <= 99 && name) rows.push({ class_id: cls, seat, name });
     else bad.push(t);
   });
   return { rows, bad };
