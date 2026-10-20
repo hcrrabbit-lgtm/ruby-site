@@ -45,6 +45,7 @@
   .pv-none{max-width:300px;aspect-ratio:3/4;margin:0 auto;border-radius:12px;background:var(--paper-deep);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--ink-soft);font-size:14px;line-height:1.7;}
   .pv-nav{display:flex;justify-content:space-between;align-items:center;margin:10px auto 0;max-width:300px;font-size:13px;color:var(--ink-soft);}
   .stu.done{background:var(--done-bg);border-color:#c9dbc0;}
+  .stu .pending{font-size:11px;color:#fff;background:#C4863A;border-radius:99px;padding:1px 7px;}
   .stu.done::after{content:'✓';position:absolute;top:6px;right:9px;color:var(--done);font-weight:900;}
   .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--ink-soft);line-height:1.8;}
   .note{background:var(--admin-bg);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink-soft);line-height:1.7;margin-top:22px;}
@@ -73,7 +74,7 @@
 <div class="wrap">
   <a class="back" href="/#admin">← 回行政工作</a>
   <h1>📷 新生大頭照</h1>
-  <p class="desc">點學生 → 拍照 → 調整框線 → 存檔。照片會直接存成「班級＋座號」檔名（例如 10102.jpg），<b>只存在這台手機，不會上傳到網站</b>。</p>
+  <p class="desc">點學生 → 拍照 → 調整框線 → 存檔。照片會直接存成「班級＋座號」檔名（例如 10102.jpg），自動存到你的私人雲端，<b>手機拍、電腦下載</b>都可以。</p>
 
   <div class="toolbar">
     <button class="btn primary" id="btnImport">＋ 匯入名單</button>
@@ -87,10 +88,11 @@
   <div id="list"></div>
 
   <div class="note">
-    🔒 這一頁需要登入才能打開，班級名單（姓名）存在你的私人資料庫；照片本身不上傳，只留在拍照的這台手機（下載資料夾）。<br>
-    💾 每張照片會縮成 600×800 大頭照尺寸，約 100～150 KB；一整個年級拍完也大約只有幾十 MB。<br>
-    📦 「打包下載」只能打包<b>用這台裝置拍的</b>照片。全部交件後，可以按最下面的按鈕清掉手機裡這頁暫存的照片。
-    <div style="margin-top:8px;"><button class="btn danger" id="btnClearLocal">清除這台裝置暫存的照片</button></div>
+    🔒 這一頁和照片都需要登入才能打開；名單和照片存在你的私人雲端，不是公開的。<br>
+    💾 每張照片會縮成 600×800 大頭照尺寸，約 100～150 KB；一整個年級拍完也大約只有幾十 MB，在免費額度內。<br>
+    📶 學校網路不穩時，照片會先留在手機，標示「待上傳」，網路恢復或下次打開這頁會自動補傳。<br>
+    🧹 照片交出去之後，建議把雲端上的照片刪掉，不要一直留著。
+    <div style="margin-top:8px;"><button class="btn danger" id="btnDelPhotos">刪除這班雲端照片</button></div>
   </div>
 </div>
 
@@ -155,11 +157,13 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>'
 let roster = [];          // [{class_id, seat, name, taken_at}]
 let current = null;       // 目前選的班級
 let target = null;        // 正在拍的學生
-const thumbs = {};        // code -> objectURL（這台裝置上的照片）
+const thumbs = {};        // code -> objectURL（還沒傳上雲端、暫存在這台手機的照片）
+const photoUrl = s => `/api/admin/headshots/photo?class_id=${s.class_id}&seat=${s.seat}&v=${encodeURIComponent(s.taken_at || '')}`;
+const thumbOf = s => thumbs[codeOf(s)] || (s.taken_at ? photoUrl(s) : null);
 
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2400); }
 
-/* ---------- 這台裝置的照片暫存（IndexedDB） ---------- */
+/* ---------- 待上傳暫存（IndexedDB）：上傳成功就刪掉 ---------- */
 function idb(){
   return new Promise((res, rej) => {
     const r = indexedDB.open('headshots', 1);
@@ -176,12 +180,33 @@ async function idbDo(mode, fn){
 const photoPut = (k, blob) => idbDo('readwrite', s => s.put(blob, k));
 const photoGet = k => idbDo('readonly', s => s.get(k));
 const photoKeys = () => idbDo('readonly', s => s.getAllKeys());
-const photoClear = () => idbDo('readwrite', s => s.clear());
+const photoDel = k => idbDo('readwrite', s => s.delete(k));
 
 async function loadThumbs(){
   const keys = (await photoKeys()) || [];
   for (const k of keys){ if (!thumbs[k]) { const b = await photoGet(k); if (b) thumbs[k] = URL.createObjectURL(b); } }
 }
+async function uploadOne(code, blob){
+  const r = await fetch(`/api/admin/headshots/photo?class_id=${code.slice(0,3)}&seat=${+code.slice(3)}`, { method:'PUT', headers:{'Content-Type':'image/jpeg'}, body: blob });
+  if (!r.ok) throw new Error('upload ' + r.status);
+  const { taken_at } = await r.json();
+  const st = roster.find(x => codeOf(x) === code); if (st) st.taken_at = taken_at;
+  await photoDel(code);
+  if (thumbs[code]) { const u = thumbs[code]; delete thumbs[code]; setTimeout(() => URL.revokeObjectURL(u), 5000); }
+}
+let syncing = false;
+async function syncPending(){
+  if (syncing) return; syncing = true;
+  const keys = (await photoKeys()) || []; let ok = 0, fail = 0;
+  for (const k of keys){
+    if (!roster.some(x => codeOf(x) === k)) continue;        // 名單裡已經沒有這位，先不動
+    const b = await photoGet(k); if (!b) continue;
+    try { await uploadOne(k, b); ok++; } catch(e){ fail++; }
+  }
+  syncing = false;
+  if (ok || fail) { render(); if (ok) toast(`已補傳 ${ok} 張照片到雲端${fail ? `，還有 ${fail} 張待上傳` : ''}`); }
+}
+window.addEventListener('online', syncPending);
 
 /* ---------- 名單 ---------- */
 async function loadRoster(){
@@ -212,9 +237,9 @@ function render(){
   const done = stus.filter(s => s.taken_at).length;
   $('#progress').innerHTML = `<span>${current}班　已拍 <b>${done}</b> / ${stus.length}</span><div class="bar"><span style="width:${stus.length?done/stus.length*100:0}%"></span></div>`;
   $('#list').innerHTML = `<div class="grid">${stus.map(s => {
-    const code = codeOf(s), th = thumbs[code];
+    const code = codeOf(s), th = thumbOf(s), wait = !!thumbs[code];
     return `<button class="stu ${s.taken_at?'done':''}" data-code="${code}">
-      ${th ? `<img class="thumb" src="${th}" alt=""><span class="seat-sm">${pad2(s.seat)}</span>` : `<span class="seat">${pad2(s.seat)}</span>`}<span class="name">${esc(s.name)}</span><span class="code">${code}</span>
+      ${th ? `<img class="thumb" src="${th}" alt="" loading="lazy" onerror="this.style.visibility='hidden'"><span class="seat-sm">${pad2(s.seat)}</span>` : `<span class="seat">${pad2(s.seat)}</span>`}<span class="name">${esc(s.name)}</span>${wait ? '<span class="pending">待上傳</span>' : `<span class="code">${code}</span>`}
     </button>`; }).join('')}</div>`;
 }
 
@@ -222,34 +247,39 @@ $('#classes').addEventListener('click', e => { const b = e.target.closest('[data
 $('#list').addEventListener('click', e => {
   const b = e.target.closest('[data-code]'); if (!b) return;
   const s = roster.find(x => codeOf(x) === b.dataset.code);
-  if (s.taken_at || thumbs[codeOf(s)]) openPreview(s); else startShoot(s);
+  if (thumbOf(s)) openPreview(s); else startShoot(s);
 });
 
 /* ---------- 預覽 ---------- */
 let pv = null;
 function openPreview(s){
-  pv = s; const code = codeOf(s), th = thumbs[code];
-  $('#pvWho').innerHTML = `<span class="code">${code}</span>　${esc(s.name)}`;
-  $('#pvBody').innerHTML = th ? `<img class="pv-img" src="${th}" alt="">`
-    : `<div class="pv-none">這位已標記拍過，<br>但照片不在這台裝置上。<br><br>照片存在當初拍照的那支手機（下載資料夾）。</div>`;
+  pv = s; const code = codeOf(s), th = thumbOf(s);
+  $('#pvWho').innerHTML = `<span class="code">${code}</span>　${esc(s.name)}${thumbs[code] ? ' <span style="font-size:12px;color:#C4863A">（待上傳）</span>' : ''}`;
+  const none = `<div class="pv-none">雲端上找不到這張照片。<br><br>可能是在雲端功能加上之前拍的，<br>請用當初拍照的手機打開這頁會自動補傳，或直接重拍。</div>`;
+  $('#pvBody').innerHTML = th ? `<img class="pv-img" src="${th}" alt="">` : none;
+  const im = $('#pvBody img'); if (im) im.onerror = () => { $('#pvBody').innerHTML = none; };
   $('#pvDownload').style.display = th ? '' : 'none';
-  const list = roster.filter(x => x.class_id === current && thumbs[codeOf(x)]);
+  const list = roster.filter(x => x.class_id === current && thumbOf(x));
   const i = list.indexOf(s);
   $('#pvCount').textContent = i >= 0 ? `${i + 1} / ${list.length}` : '';
   $('#previewModal').classList.add('open');
 }
 function pvStep(d){
-  const list = roster.filter(x => x.class_id === current && thumbs[codeOf(x)]);
+  const list = roster.filter(x => x.class_id === current && thumbOf(x));
   if (!list.length) return;
   const i = list.indexOf(pv); openPreview(list[(i + d + list.length) % list.length]);
 }
 $('#pvPrev').onclick = () => pvStep(-1);
 $('#pvNext').onclick = () => pvStep(1);
 $('#pvRetake').onclick = () => { $('#previewModal').classList.remove('open'); startShoot(pv); };
-$('#pvDownload').onclick = async () => { const b = await photoGet(codeOf(pv)); if (b) downloadBlob(b, codeOf(pv) + '.jpg'); };
+$('#pvDownload').onclick = async () => {
+  const b = (await photoGet(codeOf(pv))) || await fetch(photoUrl(pv)).then(r => r.ok ? r.blob() : null).catch(() => null);
+  if (b) downloadBlob(b, codeOf(pv) + '.jpg'); else toast('下載失敗，請再試一次');
+};
 $('#pvUntake').onclick = async () => {
   if (!confirm(`把 ${pv.name} 改回「還沒拍」？`)) return;
   try { await fetch('/api/admin/headshots/taken', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: pv.class_id, seat: pv.seat, taken: false }) }); } catch(e){}
+  await photoDel(codeOf(pv)); delete thumbs[codeOf(pv)];
   pv.taken_at = null; $('#previewModal').classList.remove('open'); render();
 };
 let pvTouch = null;
@@ -298,7 +328,7 @@ $('#importGo').onclick = async () => {
   loadRoster();
 };
 $('#btnDelClass').onclick = async () => {
-  if (!current || !confirm(`確定刪除 ${current}班 的名單？（手機裡已下載的照片不受影響）`)) return;
+  if (!current || !confirm(`確定刪除 ${current}班 的名單？雲端上這班的照片也會一起刪除。`)) return;
   await fetch('/api/admin/headshots', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: current }) });
   current = null; loadRoster();
 };
@@ -361,12 +391,13 @@ function save(andNext){
   if (next) startShoot(next);
   else if (andNext) toast(`${current}班全部拍完了 🎉`);
   blobP.then(async blob => {
-    downloadBlob(blob, name);
+    // 先暫存在手機（網路斷掉也不會遺失），上傳成功後就刪掉暫存
     await photoPut(code, blob);
     if (thumbs[code]) URL.revokeObjectURL(thumbs[code]);
     thumbs[code] = URL.createObjectURL(blob);
-    try { await fetch('/api/admin/headshots/taken', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: s.class_id, seat: s.seat, taken: true }) }); } catch(e){}
-    if (!next) toast(`已存成 ${name}（${Math.round(blob.size/1024)} KB）`);
+    render();
+    try { await uploadOne(code, blob); if (!next) toast(`已存到雲端：${name}（${Math.round(blob.size/1024)} KB）`); }
+    catch(e){ toast(`${name} 暫時傳不上去，先存在手機，等網路恢復會自動補傳`); }
     render();
   });
 }
@@ -377,20 +408,30 @@ $('#cropSaveOnly').onclick = () => save(false);
 $('#btnZip').onclick = async () => {
   const stus = roster.filter(s => s.class_id === current);
   const zip = new JSZip(); let n = 0;
-  for (const s of stus){ const b = await photoGet(codeOf(s)); if (b){ zip.file(codeOf(s) + '.jpg', b); n++; } }
-  if (!n) return toast('這台裝置上沒有這班的照片');
+  const btn = $('#btnZip'); btn.disabled = true;
+  for (const s of stus){
+    if (!thumbOf(s)) continue;
+    btn.textContent = `⬇ 打包中 ${n + 1}…`;
+    const b = (await photoGet(codeOf(s))) || await fetch(photoUrl(s)).then(r => r.ok ? r.blob() : null).catch(() => null);
+    if (b){ zip.file(codeOf(s) + '.jpg', b); n++; }
+  }
+  btn.disabled = false; btn.textContent = '⬇ 這班照片打包下載';
+  if (!n) return toast('這班還沒有照片');
   const out = await zip.generateAsync({ type:'blob' });
   downloadBlob(out, `${current}班大頭照.zip`);
   const miss = stus.length - n;
   toast(`已打包 ${n} 張${miss ? `，還有 ${miss} 位沒有照片` : ''}`);
 };
-$('#btnClearLocal').onclick = async () => {
-  if (!confirm('清除這台裝置上暫存的照片？（已下載到手機資料夾的檔案不受影響，名單打勾也會保留）')) return;
-  await photoClear(); Object.values(thumbs).forEach(u => URL.revokeObjectURL(u)); Object.keys(thumbs).forEach(k => delete thumbs[k]);
-  toast('已清除'); render();
+$('#btnDelPhotos').onclick = async () => {
+  if (!current) return;
+  if (!confirm(`刪除雲端上 ${current}班 的所有大頭照？\n（名單會保留，全部改回「還沒拍」；已下載到電腦的檔案不受影響）`)) return;
+  const r = await fetch('/api/admin/headshots', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ class_id: current, photos_only: true }) });
+  if (!r.ok) return toast('刪除失敗，請再試一次');
+  for (const s of roster.filter(x => x.class_id === current)) { await photoDel(codeOf(s)); delete thumbs[codeOf(s)]; }
+  toast(`已刪除 ${current}班 雲端照片`); loadRoster();
 };
 
-loadThumbs().then(loadRoster);
+loadThumbs().then(loadRoster).then(syncPending);
 </script>
 </body>
 </html>

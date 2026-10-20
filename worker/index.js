@@ -874,7 +874,7 @@ async function handleCommunitySourcesPost(env, request) {
 
 
 // ---------- 行政工作：新生大頭照名單 ----------
-// 只存「班級／座號／姓名／是否拍過」，照片本身不上傳，只下載到拍照的那台裝置。
+// 名單（班級／座號／姓名／是否拍過）存 D1，照片存 R2 的 headshots/。
 // 路徑刻意放在 /api/admin/（不是 /api/open/），讓它跟網站其他頁面一樣受登入保護。
 async function headshotRosterGet(env) {
   const { results } = await env.DB.prepare(
@@ -909,12 +909,55 @@ async function headshotRosterPost(env, request) {
 }
 async function headshotTakenPost(env, request) {
   const { class_id, seat, taken } = await request.json();
+  if (!taken) { const k = headshotKey(class_id, seat); if (k) { try { await env.PHOTOS.delete(k); } catch (e) {} } }
   await env.DB.prepare("UPDATE headshot_roster SET taken_at = ? WHERE class_id = ? AND seat = ?")
     .bind(taken ? new Date().toISOString() : null, String(class_id), parseInt(seat, 10)).run();
   return json({ ok: true });
 }
+// 照片存雲端（R2 的 headshots/ 資料夾，跟其他照片分開），需登入才讀得到
+function headshotKey(cls, seat) {
+  const c = String(cls), n = parseInt(seat, 10);
+  if (!/^\d{3}$/.test(c) || !(n >= 1 && n <= 99)) return null;
+  return `headshots/${c}${String(n).padStart(2, "0")}.jpg`;
+}
+async function headshotPhotoPut(env, request, url) {
+  const key = headshotKey(url.searchParams.get("class_id"), url.searchParams.get("seat"));
+  if (!key) return json({ error: "bad params" }, { status: 400 });
+  const body = await request.arrayBuffer();
+  if (body.byteLength > 3 * 1024 * 1024) return json({ error: "too large" }, { status: 413 });
+  await env.PHOTOS.put(key, body, { httpMetadata: { contentType: "image/jpeg" } });
+  const now = new Date().toISOString();
+  await env.DB.prepare("UPDATE headshot_roster SET taken_at = ? WHERE class_id = ? AND seat = ?")
+    .bind(now, url.searchParams.get("class_id"), parseInt(url.searchParams.get("seat"), 10)).run();
+  return json({ ok: true, taken_at: now });
+}
+async function headshotPhotoGet(env, url) {
+  const key = headshotKey(url.searchParams.get("class_id"), url.searchParams.get("seat"));
+  if (!key) return new Response("bad", { status: 400 });
+  const obj = await env.PHOTOS.get(key);
+  if (!obj) return new Response("not found", { status: 404 });
+  return new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, no-store" } });
+}
+async function headshotPhotoDelete(env, cls) {
+  const prefix = cls === "__all__" ? "headshots/" : `headshots/${cls}`;
+  let cursor;
+  do {
+    const list = await env.PHOTOS.list({ prefix, cursor });
+    const keys = list.objects.map(o => o.key);
+    if (keys.length) await env.PHOTOS.delete(keys);
+    cursor = list.truncated ? list.cursor : undefined;
+  } while (cursor);
+}
+
 async function headshotRosterDelete(env, request) {
-  const { class_id } = await request.json();
+  const { class_id, photos_only } = await request.json();
+  if (!(class_id === "__all__" || /^\d{3}$/.test(String(class_id)))) return json({ error: "bad class" }, { status: 400 });
+  await headshotPhotoDelete(env, String(class_id));
+  if (photos_only) {
+    if (class_id === "__all__") await env.DB.prepare("UPDATE headshot_roster SET taken_at = NULL").run();
+    else await env.DB.prepare("UPDATE headshot_roster SET taken_at = NULL WHERE class_id = ?").bind(String(class_id)).run();
+    return json({ ok: true });
+  }
   if (class_id === "__all__") await env.DB.prepare("DELETE FROM headshot_roster").run();
   else await env.DB.prepare("DELETE FROM headshot_roster WHERE class_id = ?").bind(String(class_id)).run();
   return json({ ok: true });
@@ -1792,6 +1835,8 @@ export default {
       if (path === "/api/admin/headshots" && request.method === "GET") return await headshotRosterGet(env);
       if (path === "/api/admin/headshots" && request.method === "POST") return await headshotRosterPost(env, request);
       if (path === "/api/admin/headshots" && request.method === "DELETE") return await headshotRosterDelete(env, request);
+      if (path === "/api/admin/headshots/photo" && request.method === "PUT") return await headshotPhotoPut(env, request, url);
+      if (path === "/api/admin/headshots/photo" && request.method === "GET") return await headshotPhotoGet(env, url);
       if (path === "/api/admin/headshots/taken" && request.method === "POST") return await headshotTakenPost(env, request);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
