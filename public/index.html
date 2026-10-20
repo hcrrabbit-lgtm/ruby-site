@@ -559,6 +559,8 @@
     min-width:110px;
   }
   table.habit-table th{ color:var(--ink-soft); font-weight:500; }
+  table.habit-table th .wk{ display:block; font-size:11px; font-weight:400; color:#A39886; margin-top:1px; }
+  table.habit-table th.weekend .wk{ color:#B86B6B; }
   table.habit-table td.today-col, table.habit-table th.today-col{ background:var(--c-health-bg); }
   table.habit-table td.mark{ color:var(--c-health); font-weight:700; }
   table.habit-table td.tap{ cursor:pointer; min-width:28px; height:34px; -webkit-tap-highlight-color:transparent; }
@@ -1139,7 +1141,9 @@
     let thead = '<tr><th class="habit-name-col">習慣</th>';
     for (let d = 1; d <= daysInMonth; d++) {
       const isToday = isCurrentMonth && d === todayDate;
-      thead += `<th class="${isToday ? 'today-col' : ''}">${d}</th>`;
+      const wd = new Date(y, mo - 1, d).getDay();
+      const wkCls = (wd === 0 || wd === 6) ? 'weekend' : '';
+      thead += `<th class="${isToday ? 'today-col' : ''} ${wkCls}">${d}<span class="wk">${'日一二三四五六'[wd]}</span></th>`;
     }
     thead += '<th class="total-col">完成</th></tr>';
 
