@@ -45,6 +45,15 @@
   .pv-none{max-width:300px;aspect-ratio:3/4;margin:0 auto;border-radius:12px;background:var(--paper-deep);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;color:var(--ink-soft);font-size:14px;line-height:1.7;}
   .pv-nav{display:flex;justify-content:space-between;align-items:center;margin:10px auto 0;max-width:300px;font-size:13px;color:var(--ink-soft);}
   .stu.done{background:var(--done-bg);border-color:#c9dbc0;}
+  .quick{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#fff;border:1px dashed var(--admin);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;}
+  .quick b{color:var(--admin);}
+  .quick p{margin:2px 0 0;font-size:13px;color:var(--ink-soft);}
+  .qform{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+  .qform label{font-size:13px;color:var(--ink-soft);display:flex;flex-direction:column;gap:4px;}
+  .qform label.full{grid-column:1/-1;}
+  .qform input{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:18px;font-family:inherit;width:100%;}
+  .qhint{font-size:13px;margin:8px 0 0;min-height:1.4em;}
+  .qimg{display:block;width:150px;aspect-ratio:3/4;object-fit:cover;margin:0 auto;border-radius:10px;}
   .stu .pending{font-size:11px;color:#fff;background:#C4863A;border-radius:99px;padding:1px 7px;}
   .stu.done::after{content:'✓';position:absolute;top:6px;right:9px;color:var(--done);font-weight:900;}
   .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--ink-soft);line-height:1.8;}
@@ -83,6 +92,11 @@
     <button class="btn danger" id="btnDelClass">刪除這班名單</button>
   </div>
 
+  <div class="quick">
+    <div><b>📸 臨時拍照建檔</b><p>不用先有名單：先拍照，拍完再輸入班級、座號（姓名可不填）。</p></div>
+    <button class="btn primary" id="btnQuick">先拍照</button>
+  </div>
+
   <div class="classes" id="classes"></div>
   <div class="progress" id="progress"></div>
   <div id="list"></div>
@@ -110,6 +124,25 @@
     <div class="row">
       <button class="btn" data-close>取消</button>
       <button class="btn primary" id="importGo">匯入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 臨時建檔 -->
+<div class="modal" id="quickModal">
+  <div class="panel">
+    <h2 style="text-align:center;">這是哪位學生？</h2>
+    <img class="qimg" id="qImg" alt="">
+    <div class="qform">
+      <label>班級（例如 101）<input id="qCls" inputmode="numeric" maxlength="3" autocomplete="off"></label>
+      <label>座號<input id="qSeat" inputmode="numeric" maxlength="2" autocomplete="off"></label>
+      <label class="full">姓名（可不填）<input id="qName" maxlength="30" autocomplete="off"></label>
+    </div>
+    <p class="qhint" id="qHint"></p>
+    <div class="row" style="justify-content:space-between;">
+      <button class="btn" id="qCancel">取消</button>
+      <button class="btn" id="qRetake">重拍</button>
+      <button class="btn primary" id="qSave">存檔</button>
     </div>
   </div>
 </div>
@@ -186,12 +219,15 @@ async function loadThumbs(){
   const keys = (await photoKeys()) || [];
   for (const k of keys){ if (!thumbs[k]) { const b = await photoGet(k); if (b) thumbs[k] = URL.createObjectURL(b); } }
 }
+function pendingNames(){ try { return JSON.parse(localStorage.getItem('hsPendingNames') || '{}'); } catch(e){ return {}; } }
+function setPendingName(code, name){ try { const m = pendingNames(); if (name) m[code] = name; else delete m[code]; localStorage.setItem('hsPendingNames', JSON.stringify(m)); } catch(e){} }
 async function uploadOne(code, blob){
-  const r = await fetch(`/api/admin/headshots/photo?class_id=${code.slice(0,3)}&seat=${+code.slice(3)}`, { method:'PUT', headers:{'Content-Type':'image/jpeg'}, body: blob });
+  const nm = pendingNames()[code] || '';
+  const r = await fetch(`/api/admin/headshots/photo?class_id=${code.slice(0,3)}&seat=${+code.slice(3)}${nm ? '&name=' + encodeURIComponent(nm) : ''}`, { method:'PUT', headers:{'Content-Type':'image/jpeg'}, body: blob });
   if (!r.ok) throw new Error('upload ' + r.status);
   const { taken_at } = await r.json();
   const st = roster.find(x => codeOf(x) === code); if (st) st.taken_at = taken_at;
-  await photoDel(code);
+  await photoDel(code); setPendingName(code, null);
   if (thumbs[code]) { const u = thumbs[code]; delete thumbs[code]; setTimeout(() => URL.revokeObjectURL(u), 5000); }
 }
 let syncing = false;
@@ -199,7 +235,6 @@ async function syncPending(){
   if (syncing) return; syncing = true;
   const keys = (await photoKeys()) || []; let ok = 0, fail = 0;
   for (const k of keys){
-    if (!roster.some(x => codeOf(x) === k)) continue;        // 名單裡已經沒有這位，先不動
     const b = await photoGet(k); if (!b) continue;
     try { await uploadOne(k, b); ok++; } catch(e){ fail++; }
   }
@@ -348,6 +383,7 @@ cam.addEventListener('change', async () => {
   view.scale = 1; $('#zoom').value = 1;
   view.x = (canvas.width - img.width * view.base) / 2;
   view.y = (canvas.height - img.height * view.base) / 2;
+  if (quickMode) { quickMode = false; view.y = Math.min(0, (canvas.height - img.height * view.base) * 0.35); draw(); openQuick(); return; }
   // 快速模式：不再跳出調整畫面，自動裁成 3:4 大頭照（略偏上方，臉通常在照片上半部）後直接存檔，回到名單
   view.y = Math.min(0, (canvas.height - img.height * view.base) * 0.35);
   draw();
@@ -403,6 +439,56 @@ function save(andNext){
     render();
   });
 }
+/* ---------- 臨時拍照建檔 ---------- */
+let quickMode = false, quickBlob = null;
+function quickShoot(){ quickMode = true; cam.value = ''; cam.click(); }
+$('#btnQuick').onclick = quickShoot;
+$('#qRetake').onclick = () => { $('#quickModal').classList.remove('open'); quickShoot(); };
+$('#qCancel').onclick = () => { $('#quickModal').classList.remove('open'); quickBlob = null; };
+function openQuick(){
+  canvas.toBlob(b => {
+    quickBlob = b;
+    if ($('#qImg').src) URL.revokeObjectURL($('#qImg').src);
+    $('#qImg').src = URL.createObjectURL(b);
+    let last = ''; try { last = localStorage.getItem('hsLastCls') || ''; } catch(e){}
+    $('#qCls').value = last || current || ''; $('#qSeat').value = ''; $('#qName').value = '';
+    qCheck(); $('#quickModal').classList.add('open');
+    setTimeout(() => ($('#qCls').value ? $('#qSeat') : $('#qCls')).focus(), 200);
+  }, 'image/jpeg', 0.85);
+}
+function qFind(){ const c = $('#qCls').value.trim(), n = parseInt($('#qSeat').value, 10); return roster.find(x => x.class_id === c && x.seat === n); }
+function qCheck(){
+  const c = $('#qCls').value.trim(), n = parseInt($('#qSeat').value, 10), h = $('#qHint');
+  if (!/^\d{3}$/.test(c) || !(n >= 1 && n <= 99)) { h.innerHTML = '<span style="color:var(--ink-soft)">請輸入 3 碼班級和座號</span>'; return false; }
+  const st = qFind(), code = c + pad2(n);
+  if (st) h.innerHTML = `存成 <b>${code}.jpg</b>　名單裡是：<b>${esc(st.name)}</b>${st.taken_at ? '<br><span style="color:var(--warn)">這位已經有照片，存檔會換成新的這張</span>' : ''}`;
+  else h.innerHTML = `存成 <b>${code}.jpg</b>　<span style="color:#C4863A">名單裡沒有這位，會自動新增</span>`;
+  if (st && !$('#qName').value) $('#qName').placeholder = st.name; else if (!st) $('#qName').placeholder = '';
+  return true;
+}
+['#qCls','#qSeat','#qName'].forEach(id => $(id).addEventListener('input', qCheck));
+$('#qSeat').addEventListener('keydown', e => { if (e.key === 'Enter') $('#qSave').click(); });
+$('#qSave').onclick = async () => {
+  if (!qCheck() || !quickBlob) return;
+  const c = $('#qCls').value.trim(), n = parseInt($('#qSeat').value, 10), code = c + pad2(n), name = $('#qName').value.trim();
+  let st = qFind();
+  if (!st) { st = { class_id: c, seat: n, name: name || '（未填姓名）', taken_at: null }; roster.push(st); roster.sort((a, b) => a.class_id.localeCompare(b.class_id) || a.seat - b.seat); }
+  else if (name) st.name = name;
+  try { localStorage.setItem('hsLastCls', c); } catch(e){}
+  setPendingName(code, name);
+  st.taken_at = new Date().toISOString();
+  const blob = quickBlob; quickBlob = null;
+  $('#quickModal').classList.remove('open');
+  current = c;
+  await photoPut(code, blob);
+  if (thumbs[code]) URL.revokeObjectURL(thumbs[code]);
+  thumbs[code] = URL.createObjectURL(blob);
+  render();
+  try { await uploadOne(code, blob); toast(`已存到雲端：${code}.jpg`); }
+  catch(e){ toast(`${code}.jpg 暫時傳不上去，先存在手機，等網路恢復會自動補傳`); }
+  render();
+};
+
 $('#cropSave').onclick = () => save(true);
 $('#cropSaveOnly').onclick = () => save(false);
 

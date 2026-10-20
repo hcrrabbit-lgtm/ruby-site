@@ -927,8 +927,12 @@ async function headshotPhotoPut(env, request, url) {
   if (body.byteLength > 3 * 1024 * 1024) return json({ error: "too large" }, { status: 413 });
   await env.PHOTOS.put(key, body, { httpMetadata: { contentType: "image/jpeg" } });
   const now = new Date().toISOString();
-  await env.DB.prepare("UPDATE headshot_roster SET taken_at = ? WHERE class_id = ? AND seat = ?")
-    .bind(now, url.searchParams.get("class_id"), parseInt(url.searchParams.get("seat"), 10)).run();
+  // 臨時建檔：名單裡沒有這位也會自動加入；有填姓名就更新姓名
+  const name = (url.searchParams.get("name") || "").trim().slice(0, 30);
+  await env.DB.prepare(
+    "INSERT INTO headshot_roster (class_id, seat, name, taken_at) VALUES (?, ?, ?, ?) " +
+    "ON CONFLICT(class_id, seat) DO UPDATE SET taken_at = excluded.taken_at" + (name ? ", name = excluded.name" : "")
+  ).bind(url.searchParams.get("class_id"), parseInt(url.searchParams.get("seat"), 10), name || "（未填姓名）", now).run();
   return json({ ok: true, taken_at: now });
 }
 async function headshotPhotoGet(env, url) {
