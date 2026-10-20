@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS bm_levels (id INTEGER PRIMARY KEY AUTOINCREMENT, chil
 CREATE TABLE IF NOT EXISTS bm_contests (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, name TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_vision (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, va_r REAL, va_l REAL, sph_r INTEGER, sph_l INTEGER, cyl_r INTEGER, cyl_l INTEGER, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, date));
 CREATE TABLE IF NOT EXISTS headshot_roster (class_id TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL, taken_at TEXT, PRIMARY KEY(class_id, seat));
+CREATE TABLE IF NOT EXISTS admin_notices (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', order_no INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS admin_notice_files (id INTEGER PRIMARY KEY AUTOINCREMENT, notice_id INTEGER NOT NULL, name TEXT NOT NULL, r2_key TEXT NOT NULL, content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -967,6 +969,163 @@ async function headshotRosterDelete(env, request) {
   return json({ ok: true });
 }
 
+// ---------- 行政工作：常用公告（可一鍵複製文字、下載附件表格） ----------
+// 文字存 D1 的 admin_notices，附件存 R2 的 notices/，都在 /api/admin/ 底下，需登入。
+const NOTICE_DEFAULTS = [
+  ["轉學", "【轉出】要轉到別的學校，家長要準備什麼",
+`家長您好，孩子要轉學到其他學校，請準備以下資料到學校教務處（註冊組）辦理：
+
+1. 家長（或監護人）身分證、印章
+2. 戶口名簿（如已遷戶籍，請帶新的戶口名簿或戶籍謄本）
+3. 新學校的校名（如果已經確定）
+
+辦理流程：
+① 到註冊組填寫轉出申請
+② 歸還圖書館借書、結清代收代辦費用
+③ 學校開立「轉學證明書」
+④ 帶轉學證明書和戶口名簿到新學校報到
+
+孩子的學籍、健康、輔導資料會由學校之間寄送，家長不用自己帶。
+辦理時間：上班日【時間】
+聯絡電話：【學校電話】分機【分機】 註冊組`],
+  ["轉學", "【轉入】從別的學校轉來，家長要準備什麼",
+`家長您好，歡迎孩子轉入炎峰國小！請準備以下資料到教務處（註冊組）辦理：
+
+1. 原學校開立的「轉學證明書」
+2. 戶口名簿正本（學生戶籍需在本校學區）
+3. 家長（或監護人）身分證、印章
+
+辦好後會安排班級，並告知導師、上課時間與需要準備的用品。
+如果戶籍還沒遷入，請先來電詢問。
+辦理時間：上班日【時間】
+聯絡電話：【學校電話】分機【分機】 註冊組`],
+  ["轉學", "轉學常用表格",
+`轉學常用的表格放在下面的附件，點「下載」就可以存檔或列印。
+（例如：轉出申請單、轉入登記表）`],
+  ["開學補助", "開學各類身分補助申請",
+`家長您好，本學期各類補助開始受理申請，符合資格的家庭請在【截止日期】前，把申請表和證明文件交給導師：
+
+符合資格（擇一）：
+・低收入戶、中低收入戶
+・原住民學生
+・身心障礙學生、身心障礙人士子女
+・特殊境遇家庭
+
+需要附上：
+・申請表（請向導師索取，或下載附件）
+・證明文件影本（例如：低收／中低收入戶證明、身心障礙證明）
+・戶口名簿影本
+
+補助項目與金額依本學期教育處公文為準。
+有問題請洽教務處註冊組：【學校電話】分機【分機】`],
+  ["開學補助", "課後照顧班費用減免",
+`家長您好，本學期課後照顧班開始報名。
+低收入戶、中低收入戶、原住民、身心障礙學生、特殊境遇家庭的孩子，可以申請費用減免。
+
+請在【截止日期】前，把報名表和證明文件影本交給導師。
+上課時間：【星期／時間】
+費用：【每期費用】（符合減免資格者依規定減免）`],
+];
+async function noticesSeedIfNeeded(env) {
+  const seeded = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'notices_seeded'").first();
+  if (seeded) return;
+  const now = new Date().toISOString();
+  const stmts = NOTICE_DEFAULTS.map((n, i) => env.DB.prepare(
+    "INSERT INTO admin_notices (category, title, body, order_no, updated_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(n[0], n[1], n[2], i + 1, now));
+  stmts.push(env.DB.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('notices_seeded', '1')"));
+  await env.DB.batch(stmts);
+}
+async function noticesGet(env) {
+  await noticesSeedIfNeeded(env);
+  const notices = (await env.DB.prepare(
+    "SELECT id, category, title, body, order_no, updated_at FROM admin_notices ORDER BY order_no, id"
+  ).all()).results || [];
+  const files = (await env.DB.prepare(
+    "SELECT id, notice_id, name, content_type, size, created_at FROM admin_notice_files ORDER BY id"
+  ).all()).results || [];
+  for (const n of notices) n.files = files.filter(f => f.notice_id === n.id);
+  return json(notices);
+}
+async function noticesPost(env, request) {
+  const b = await request.json();
+  const category = String(b.category || "").trim().slice(0, 20) || "其他";
+  const title = String(b.title || "").trim().slice(0, 100);
+  const body = String(b.body || "").slice(0, 5000);
+  if (!title) return json({ error: "請填標題" }, { status: 400 });
+  const now = new Date().toISOString();
+  if (b.id) {
+    await env.DB.prepare("UPDATE admin_notices SET category = ?, title = ?, body = ?, updated_at = ? WHERE id = ?")
+      .bind(category, title, body, now, parseInt(b.id, 10)).run();
+    return json({ ok: true, id: parseInt(b.id, 10) });
+  }
+  const max = await env.DB.prepare("SELECT COALESCE(MAX(order_no), 0) AS m FROM admin_notices").first();
+  const r = await env.DB.prepare(
+    "INSERT INTO admin_notices (category, title, body, order_no, updated_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(category, title, body, (max ? max.m : 0) + 1, now).run();
+  return json({ ok: true, id: r.meta.last_row_id });
+}
+async function noticesMove(env, request) {
+  const { id, dir } = await request.json();
+  const rows = (await env.DB.prepare("SELECT id, category FROM admin_notices ORDER BY order_no, id").all()).results;
+  const i = rows.findIndex(r => r.id === parseInt(id, 10));
+  if (i < 0) return json({ error: "not found" }, { status: 404 });
+  // 只在同一分類裡上下移動
+  let j = i;
+  do { j += dir < 0 ? -1 : 1; } while (j >= 0 && j < rows.length && rows[j].category !== rows[i].category);
+  if (j < 0 || j >= rows.length) return json({ ok: true });
+  [rows[i], rows[j]] = [rows[j], rows[i]];
+  await env.DB.batch(rows.map((r, k) => env.DB.prepare("UPDATE admin_notices SET order_no = ? WHERE id = ?").bind(k + 1, r.id)));
+  return json({ ok: true });
+}
+async function noticesDelete(env, request) {
+  const { id } = await request.json();
+  const nid = parseInt(id, 10);
+  const files = (await env.DB.prepare("SELECT r2_key FROM admin_notice_files WHERE notice_id = ?").bind(nid).all()).results || [];
+  if (files.length) { try { await env.PHOTOS.delete(files.map(f => f.r2_key)); } catch (e) {} }
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM admin_notice_files WHERE notice_id = ?").bind(nid),
+    env.DB.prepare("DELETE FROM admin_notices WHERE id = ?").bind(nid),
+  ]);
+  return json({ ok: true });
+}
+async function noticeFilePut(env, request, url) {
+  const nid = parseInt(url.searchParams.get("notice_id"), 10);
+  const name = String(url.searchParams.get("name") || "").replace(/[\\/\r\n"]/g, "_").trim().slice(0, 120);
+  if (!(nid > 0) || !name) return json({ error: "bad params" }, { status: 400 });
+  const exists = await env.DB.prepare("SELECT id FROM admin_notices WHERE id = ?").bind(nid).first();
+  if (!exists) return json({ error: "公告不存在" }, { status: 404 });
+  const body = await request.arrayBuffer();
+  if (body.byteLength > 20 * 1024 * 1024) return json({ error: "檔案太大（上限 20MB）" }, { status: 413 });
+  const ct = (request.headers.get("Content-Type") || "application/octet-stream").slice(0, 100);
+  const key = `notices/${nid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await env.PHOTOS.put(key, body, { httpMetadata: { contentType: ct } });
+  await env.DB.prepare(
+    "INSERT INTO admin_notice_files (notice_id, name, r2_key, content_type, size, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(nid, name, key, ct, body.byteLength, new Date().toISOString()).run();
+  return json({ ok: true });
+}
+async function noticeFileGet(env, url) {
+  const f = await env.DB.prepare("SELECT name, r2_key, content_type FROM admin_notice_files WHERE id = ?")
+    .bind(parseInt(url.searchParams.get("id"), 10)).first();
+  if (!f) return new Response("not found", { status: 404 });
+  const obj = await env.PHOTOS.get(f.r2_key);
+  if (!obj) return new Response("not found", { status: 404 });
+  const disp = url.searchParams.get("inline") ? "inline" : "attachment";
+  return new Response(obj.body, { headers: {
+    "Content-Type": f.content_type || "application/octet-stream",
+    "Content-Disposition": `${disp}; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+    "Cache-Control": "private, no-store",
+  } });
+}
+async function noticeFileDelete(env, request) {
+  const { id } = await request.json();
+  const f = await env.DB.prepare("SELECT r2_key FROM admin_notice_files WHERE id = ?").bind(parseInt(id, 10)).first();
+  if (f) { try { await env.PHOTOS.delete(f.r2_key); } catch (e) {} }
+  await env.DB.prepare("DELETE FROM admin_notice_files WHERE id = ?").bind(parseInt(id, 10)).run();
+  return json({ ok: true });
+}
+
 async function handleCommunitySourcesDelete(env, request) {
   const { id } = await request.json();
   await env.DB.prepare("DELETE FROM community_sources WHERE id = ?").bind(id).run();
@@ -1842,6 +2001,14 @@ export default {
       if (path === "/api/admin/headshots/photo" && request.method === "PUT") return await headshotPhotoPut(env, request, url);
       if (path === "/api/admin/headshots/photo" && request.method === "GET") return await headshotPhotoGet(env, url);
       if (path === "/api/admin/headshots/taken" && request.method === "POST") return await headshotTakenPost(env, request);
+
+      if (path === "/api/admin/notices" && request.method === "GET") return await noticesGet(env);
+      if (path === "/api/admin/notices" && request.method === "POST") return await noticesPost(env, request);
+      if (path === "/api/admin/notices" && request.method === "DELETE") return await noticesDelete(env, request);
+      if (path === "/api/admin/notices/move" && request.method === "POST") return await noticesMove(env, request);
+      if (path === "/api/admin/notices/file" && request.method === "PUT") return await noticeFilePut(env, request, url);
+      if (path === "/api/admin/notices/file" && request.method === "GET") return await noticeFileGet(env, url);
+      if (path === "/api/admin/notices/file" && request.method === "DELETE") return await noticeFileDelete(env, request);
 
       if (path === "/api/community-sources" && request.method === "GET") return await handleCommunitySourcesGet(env);
       if (path === "/api/community-sources" && request.method === "POST") return await handleCommunitySourcesPost(env, request);

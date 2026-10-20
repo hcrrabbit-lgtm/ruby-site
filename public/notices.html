@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>常用公告</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --admin:#3F6672; --admin-bg:#E7EFF0; --done:#5F8955; --warn:#B96B77; --blank:#C4863A; --blank-bg:#FBF0DE;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 16px 80px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px;}
+  h1{margin:8px 0 4px;font-size:clamp(24px,5vw,32px);color:var(--admin);}
+  .desc{color:var(--ink-soft);font-size:14px;margin:0 0 16px;line-height:1.7;}
+  .desc mark{background:var(--blank-bg);color:var(--blank);padding:0 4px;border-radius:4px;}
+  button{font-family:inherit;cursor:pointer;}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:8px 13px;font-size:14px;white-space:nowrap;}
+  .btn.primary{background:var(--admin);border-color:var(--admin);color:#fff;}
+  .btn.danger{color:var(--warn);}
+  .btn.small{padding:5px 10px;font-size:13px;}
+  .btn.copied{background:var(--done);border-color:var(--done);color:#fff;}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+  .toolbar input{flex:1;min-width:160px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:15px;font-family:inherit;background:#fff;}
+  .cats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 15px;font-size:14px;font-weight:700;color:var(--ink);}
+  .chip.active{background:var(--admin);color:#fff;border-color:var(--admin);}
+  .chip small{font-weight:400;opacity:.75;margin-left:3px;}
+  .group-title{font-size:18px;color:var(--admin);margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
+  .group-title::after{content:'';flex:1;height:1px;background:var(--line);}
+  .notice{background:#fff;border:1px solid var(--line);border-left:5px solid var(--admin);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;}
+  .n-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .n-head h3{margin:2px 0 0;font-size:17px;line-height:1.5;flex:1;min-width:200px;}
+  .n-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .n-body{white-space:pre-wrap;font-size:15px;line-height:1.8;margin:10px 0 0;color:var(--ink);max-height:150px;overflow:hidden;position:relative;}
+  .n-body.open{max-height:none;}
+  .n-body:not(.open)::after{content:'';position:absolute;left:0;right:0;bottom:0;height:44px;background:linear-gradient(transparent,#fff);}
+  .n-body .blank{background:var(--blank-bg);color:var(--blank);font-weight:700;border-radius:4px;padding:0 3px;}
+  .more{background:none;border:none;color:var(--admin);font-size:13px;padding:4px 0;}
+  .files{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+  .file{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--paper);border-radius:10px;padding:8px 10px;}
+  .file .ico{font-size:20px;}
+  .file .thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--paper-deep);cursor:zoom-in;}
+  .file .fname{flex:1;min-width:120px;font-size:14px;word-break:break-all;}
+  .file .fname small{display:block;color:var(--ink-soft);font-size:12px;}
+  .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;text-align:center;color:var(--ink-soft);line-height:1.8;}
+  .edit-only{display:none !important;}
+  body.editing .edit-only{display:inline-flex !important;}
+  body.editing .notice{border-left-color:var(--blank);}
+  /* modal */
+  .modal{position:fixed;inset:0;background:rgba(30,28,25,.6);display:none;align-items:flex-start;justify-content:center;z-index:50;overflow-y:auto;padding:16px;}
+  .modal.open{display:flex;}
+  .panel{background:var(--paper);border-radius:18px;padding:18px 16px;width:100%;max-width:560px;margin:auto 0;}
+  .panel h2{margin:0 0 10px;font-size:20px;}
+  .panel label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-soft);margin-bottom:10px;}
+  .panel input,.panel textarea{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;font-family:inherit;width:100%;background:#fff;}
+  .panel textarea{min-height:260px;line-height:1.7;}
+  .panel .hint{font-size:12px;color:var(--ink-soft);margin:-4px 0 10px;line-height:1.6;}
+  .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px;}
+  .viewer img{display:block;max-width:100%;max-height:75vh;margin:0 auto;border-radius:10px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:60;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+  input[type=file]{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/#admin">← 回行政工作</a>
+  <h1>📋 常用公告</h1>
+  <p class="desc">家長常問的事、開學要發的公告都放這裡。按「📋 複製」就能直接貼到 LINE 或聯絡簿；附件表格按「下載」存檔或列印。<br>
+    文字裡的 <mark>【日期】</mark> 這類橘色字，是貼出去前要記得改的地方。</p>
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="🔍 搜尋，例如：轉學、午餐、課後照顧">
+    <button class="btn primary" id="btnAdd">＋ 新增公告</button>
+    <button class="btn" id="btnEdit">✏️ 編輯模式</button>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div id="list"><div class="empty">載入中…</div></div>
+</div>
+
+<!-- 編輯公告 -->
+<div class="modal" id="mEdit">
+  <div class="panel">
+    <h2 id="mTitle">新增公告</h2>
+    <label>分類
+      <input id="fCat" list="catList" placeholder="例如：轉學、開學補助、其他">
+      <datalist id="catList"></datalist>
+    </label>
+    <label>標題
+      <input id="fTitle" placeholder="例如：轉出要準備什麼">
+    </label>
+    <label>內容（按「複製」時會整段複製這裡的文字）
+      <textarea id="fBody" placeholder="家長您好，……"></textarea>
+    </label>
+    <p class="hint">要每次修改的地方用【】括起來，例如【截止日期】，就會顯示成橘色提醒。</p>
+    <div class="row">
+      <button class="btn danger" id="fDelete" style="margin-right:auto;">刪除這則</button>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="fSave">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 看大圖 -->
+<div class="modal viewer" id="mView">
+  <div class="panel">
+    <img id="vImg" alt="">
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" data-close>關閉</button>
+      <button class="btn" id="vCopy">📋 複製圖片</button>
+      <a class="btn primary" id="vDl" style="text-decoration:none;">⬇ 下載</a>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="filePick" multiple>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/admin/notices';
+let notices = [];
+let activeCat = '全部';
+let editingId = null;
+let uploadTarget = null;
+let viewing = null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+function isImage(f){ return /^image\//.test(f.content_type || '') || /\.(png|jpe?g|gif|webp)$/i.test(f.name); }
+function fileIcon(f){
+  const n=f.name.toLowerCase();
+  if (/\.pdf$/.test(n)) return '📕';
+  if (/\.(docx?|odt)$/.test(n)) return '📘';
+  if (/\.(xlsx?|ods|csv)$/.test(n)) return '📗';
+  return '📎';
+}
+function fmtSize(b){ if(!b) return ''; return b<1024*1024 ? Math.max(1,Math.round(b/1024))+' KB' : (b/1024/1024).toFixed(1)+' MB'; }
+const fileUrl = (f, inline) => `${API}/file?id=${f.id}${inline?'&inline=1':''}`;
+
+async function load(){
+  try{
+    const r = await fetch(API, {credentials:'same-origin'});
+    if(!r.ok) throw new Error(r.status);
+    notices = await r.json();
+    render();
+  }catch(e){
+    $('#list').innerHTML = '<div class="empty">讀取失敗，請重新整理頁面再試一次。</div>';
+  }
+}
+
+function categories(){
+  const seen = [];
+  notices.forEach(n => { if(!seen.includes(n.category)) seen.push(n.category); });
+  return seen;
+}
+
+function render(){
+  const cats = categories();
+  if (activeCat !== '全部' && !cats.includes(activeCat)) activeCat = '全部';
+  $('#cats').innerHTML = ['全部', ...cats].map(c => {
+    const count = c==='全部' ? notices.length : notices.filter(n=>n.category===c).length;
+    return `<button class="chip ${c===activeCat?'active':''}" data-cat="${esc(c)}">${esc(c)}<small>${count}</small></button>`;
+  }).join('');
+  $('#catList').innerHTML = cats.map(c=>`<option value="${esc(c)}">`).join('');
+
+  const q = $('#q').value.trim();
+  const shown = notices.filter(n =>
+    (activeCat==='全部' || n.category===activeCat) &&
+    (!q || (n.title+n.body+n.category+n.files.map(f=>f.name).join('')).includes(q))
+  );
+  if (!shown.length){
+    $('#list').innerHTML = `<div class="empty">${notices.length ? '找不到符合的公告。' : '還沒有公告，按「＋ 新增公告」開始。'}</div>`;
+    return;
+  }
+  const groups = activeCat==='全部' ? cats : [activeCat];
+  let html = '';
+  for (const g of groups){
+    const items = shown.filter(n=>n.category===g);
+    if (!items.length) continue;
+    if (activeCat==='全部') html += `<h2 class="group-title">${esc(g)}</h2>`;
+    html += items.map(noticeHtml).join('');
+  }
+  $('#list').innerHTML = html;
+  document.querySelectorAll('.n-body').forEach(el => {
+    if (el.scrollHeight <= el.clientHeight + 4){ el.classList.add('open'); const m = el.nextElementSibling; if (m && m.classList.contains('more')) m.remove(); }
+  });
+}
+
+function noticeHtml(n){
+  const body = esc(n.body).replace(/【[^】\n]{0,20}】/g, m => `<span class="blank">${m}</span>`);
+  const files = n.files.map(f => `
+    <div class="file">
+      ${isImage(f) ? `<img class="thumb" src="${fileUrl(f,true)}" alt="" data-view="${f.id}">` : `<span class="ico">${fileIcon(f)}</span>`}
+      <div class="fname">${esc(f.name)}<small>${fmtSize(f.size)}</small></div>
+      ${isImage(f) ? `<button class="btn small" data-copyimg="${f.id}">📋 複製圖片</button>` : ''}
+      <a class="btn small primary" href="${fileUrl(f)}" style="text-decoration:none;">⬇ 下載</a>
+      <button class="btn small danger edit-only" data-delfile="${f.id}">刪除</button>
+    </div>`).join('');
+  return `
+  <div class="notice" data-id="${n.id}">
+    <div class="n-head">
+      <h3>${esc(n.title)}</h3>
+      <div class="n-actions">
+        ${n.body.trim() ? `<button class="btn primary" data-copy="${n.id}">📋 複製</button>` : ''}
+        <button class="btn small edit-only" data-up="${n.id}" title="往上移">↑</button>
+        <button class="btn small edit-only" data-down="${n.id}" title="往下移">↓</button>
+        <button class="btn small edit-only" data-attach="${n.id}">＋ 附件</button>
+        <button class="btn small edit-only" data-edit="${n.id}">✏️ 修改</button>
+      </div>
+    </div>
+    ${n.body.trim() ? `<div class="n-body">${body}</div><button class="more" data-more>展開全文 ▾</button>` : ''}
+    ${n.files.length ? `<div class="files">${files}</div>` : ''}
+  </div>`;
+}
+
+async function copyText(text, btn){
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  const blanks = (text.match(/【[^】\n]{0,20}】/g) || []);
+  toast(blanks.length ? `已複製！記得改 ${[...new Set(blanks)].slice(0,3).join('、')}` : '已複製，可以直接貼上');
+  if (btn){ const old=btn.textContent; btn.textContent='✓ 已複製'; btn.classList.add('copied'); setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied');},1600); }
+}
+
+// 複製圖片：一律轉成 PNG（剪貼簿只接受 PNG），Safari 需要把 Promise 直接交給 ClipboardItem
+function toPngBlob(url){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('png')), 'image/png');
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+async function copyImage(f, btn){
+  try{
+    if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('unsupported');
+    await navigator.clipboard.write([new ClipboardItem({'image/png': toPngBlob(fileUrl(f,true))})]);
+    toast('圖片已複製，可以直接貼到 LINE');
+    if (btn){ const old=btn.textContent; btn.textContent='✓ 已複製'; btn.classList.add('copied'); setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied');},1600); }
+  }catch(e){
+    toast('這個瀏覽器不能直接複製圖片，請改按「下載」或長按圖片儲存');
+  }
+}
+
+const findNotice = id => notices.find(n => n.id === +id);
+const findFile = id => { for (const n of notices) { const f = n.files.find(f => f.id === +id); if (f) return f; } };
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('button, img[data-view], [data-close]');
+  if (!t) return;
+  if (t.matches('[data-close]')) { t.closest('.modal').classList.remove('open'); return; }
+  if (t.dataset.cat !== undefined) { activeCat = t.dataset.cat; render(); return; }
+  if (t.dataset.copy) { const n = findNotice(t.dataset.copy); copyText(n.body.trim(), t); return; }
+  if (t.dataset.more !== undefined) { const b = t.previousElementSibling; b.classList.toggle('open'); t.textContent = b.classList.contains('open') ? '收合 ▴' : '展開全文 ▾'; return; }
+  if (t.dataset.copyimg) { copyImage(findFile(t.dataset.copyimg), t); return; }
+  if (t.dataset.view) { openViewer(findFile(t.dataset.view)); return; }
+  if (t.dataset.edit) { openEditor(findNotice(t.dataset.edit)); return; }
+  if (t.dataset.attach) { uploadTarget = +t.dataset.attach; $('#filePick').click(); return; }
+  if (t.dataset.up || t.dataset.down) {
+    await fetch(API + '/move', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: +(t.dataset.up || t.dataset.down), dir: t.dataset.up ? -1 : 1})});
+    load(); return;
+  }
+  if (t.dataset.delfile) {
+    const f = findFile(t.dataset.delfile);
+    if (!confirm(`確定刪除附件「${f.name}」？`)) return;
+    await fetch(API + '/file', {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: f.id})});
+    toast('附件已刪除'); load(); return;
+  }
+});
+
+$('#q').addEventListener('input', render);
+$('#btnEdit').addEventListener('click', () => {
+  document.body.classList.toggle('editing');
+  $('#btnEdit').textContent = document.body.classList.contains('editing') ? '✓ 完成編輯' : '✏️ 編輯模式';
+});
+$('#btnAdd').addEventListener('click', () => openEditor(null));
+
+function openEditor(n){
+  editingId = n ? n.id : null;
+  $('#mTitle').textContent = n ? '修改公告' : '新增公告';
+  $('#fCat').value = n ? n.category : (activeCat !== '全部' ? activeCat : '');
+  $('#fTitle').value = n ? n.title : '';
+  $('#fBody').value = n ? n.body : '';
+  $('#fDelete').style.display = n ? '' : 'none';
+  $('#mEdit').classList.add('open');
+  setTimeout(() => (n ? $('#fBody') : $('#fCat')).focus(), 50);
+}
+$('#fSave').addEventListener('click', async () => {
+  const payload = { id: editingId, category: $('#fCat').value.trim() || '其他', title: $('#fTitle').value.trim(), body: $('#fBody').value };
+  if (!payload.title) { toast('請填標題'); return; }
+  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  if (!r.ok) { toast('儲存失敗，請再試一次'); return; }
+  const isNew = !editingId;
+  $('#mEdit').classList.remove('open');
+  activeCat = payload.category;
+  toast(isNew ? '已新增。要放表格的話，按「編輯模式」→「＋ 附件」' : '已儲存');
+  load();
+});
+$('#fDelete').addEventListener('click', async () => {
+  const n = findNotice(editingId);
+  if (!confirm(`確定刪除「${n.title}」？${n.files.length ? '（附件也會一起刪除）' : ''}`)) return;
+  await fetch(API, {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id: editingId})});
+  $('#mEdit').classList.remove('open');
+  toast('已刪除'); load();
+});
+
+$('#filePick').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length || !uploadTarget) return;
+  for (const f of files){
+    if (f.size > 20*1024*1024) { toast(`「${f.name}」超過 20MB，請先壓縮`); continue; }
+    toast(`上傳中：${f.name}`);
+    const r = await fetch(`${API}/file?notice_id=${uploadTarget}&name=${encodeURIComponent(f.name)}`, {
+      method:'PUT', headers:{'Content-Type': f.type || 'application/octet-stream'}, body: f
+    });
+    if (!r.ok) { toast(`「${f.name}」上傳失敗`); continue; }
+  }
+  toast('附件已上傳'); load();
+});
+
+function openViewer(f){
+  viewing = f;
+  $('#vImg').src = fileUrl(f, true);
+  $('#vDl').href = fileUrl(f);
+  $('#mView').classList.add('open');
+}
+$('#vCopy').addEventListener('click', e => copyImage(viewing, e.currentTarget));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
+
+load();
+</script>
+</body>
+</html>
