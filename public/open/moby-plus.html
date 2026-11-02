@@ -42,6 +42,11 @@
   .note{font-size:12.5px;color:var(--ink-soft);background:var(--paper-deep);border-radius:10px;padding:10px 12px;margin-top:14px;}
   .empty{color:var(--ink-soft);text-align:center;padding:30px 10px;}
   details summary{cursor:pointer;font-weight:700;font-size:14px;}
+  .shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+  .shots img{width:100%;aspect-ratio:4/3;object-fit:cover;object-position:top left;border:1px solid var(--line);border-radius:8px;cursor:zoom-in;background:var(--paper);}
+  .viewer{position:fixed;inset:0;background:rgba(30,27,24,.88);display:none;align-items:center;justify-content:center;padding:16px;z-index:10;cursor:zoom-out;}
+  .viewer.on{display:flex;}
+  .viewer img{max-width:100%;max-height:100%;border-radius:8px;}
 </style>
 </head>
 <body>
@@ -53,7 +58,9 @@
   <div id="history"></div>
   <div id="main"></div>
 </div>
+<div class="viewer" id="viewer" onclick="this.classList.remove('on')"><img id="viewerImg" alt=""></div>
 <script>
+function showImg(src){ document.getElementById("viewerImg").src = src; document.getElementById("viewer").classList.add("on"); }
 const KIDS = ["Cathy","Rina"];
 let data = [], kid = "Cathy";
 try { const k = localStorage.getItem("mobyKid"); if (KIDS.includes(k)) kid = k; } catch(e){}
@@ -86,6 +93,7 @@ function recordCard(r, open){
     ${a.concerns ? `<h3>🔍 需要注意的地方</h3><ul>${li(a.concerns)}</ul>` : ""}
     ${a.suggestions ? `<h3>🎯 接下來怎麼練</h3><ul>${li(a.suggestions)}</ul>` : ""}
     ${rows ? `<h3>各篇細項</h3><div class="scroll"><table class="tbl"><tr><th>文章</th><th>準確度</th><th>每分鐘字數</th><th>表情</th><th>錯誤</th><th>讀錯的字（舉例）</th></tr>${rows}</table></div>` : ""}
+    ${(r.screenshots||[]).length ? `<h3>📷 原始截圖（點一下放大）</h3><div class="shots">${r.screenshots.map(u => `<img src="${esc(u)}" loading="lazy" alt="Moby+ 截圖" onclick="showImg(this.src)">`).join("")}</div>` : ""}
     ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ""}`;
   return open
     ? `<div class="card"><h2>最新一次評量</h2>${body}</div>`

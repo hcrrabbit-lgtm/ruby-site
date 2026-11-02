@@ -1,5 +1,5 @@
 {
-  "說明": "Moby+ 英文朗讀成績紀錄。Ruby 每次丟截圖，Claude 讀出數據後新增一筆到 records（最新放最前面）。只記名字不記姓氏。",
+  "說明": "Moby+ 英文朗讀成績紀錄。Ruby 每次丟截圖，Claude 讀出數據後新增一筆到 records（最新放最前面）。只記名字不記姓氏。 截圖放在 open/moby/，檔名 孩子-日期-序號.jpg，總表截圖上的姓氏要先遮掉。",
   "records": [
     {
       "kid": "Rina",
@@ -8,11 +8,50 @@
       "platformGrade": "3rd",
       "level": "mO+ 4th",
       "status": "Proficient",
-      "summary": { "wcpm": 108, "accuracy": 98, "accuracyLabel": "Independent", "comprehension": "6.5 / 8", "expression": "4 / 4" },
+      "summary": {
+        "wcpm": 108,
+        "accuracy": 98,
+        "accuracyLabel": "Independent",
+        "comprehension": "6.5 / 8",
+        "expression": "4 / 4"
+      },
       "passages": [
-        { "name": "A New Home", "accuracy": 100, "wcpm": 133, "expression": "4/4", "errors": 0, "misread": 0, "omitted": 0, "unread": 0, "selfCorrect": "Often", "samples": "全對" },
-        { "name": "Who's on the Moon", "accuracy": 96, "wcpm": 132, "expression": "4/4", "errors": 3, "misread": 2, "omitted": 1, "unread": 0, "selfCorrect": "Often", "samples": "a、picking、漏讀 goddess" },
-        { "name": "Summer Camp", "accuracy": 99, "wcpm": 117, "expression": "4/4", "errors": 1, "misread": 1, "omitted": 0, "unread": 0, "selfCorrect": "Often", "samples": "they" }
+        {
+          "name": "A New Home",
+          "accuracy": 100,
+          "wcpm": 133,
+          "expression": "4/4",
+          "errors": 0,
+          "misread": 0,
+          "omitted": 0,
+          "unread": 0,
+          "selfCorrect": "Often",
+          "samples": "全對"
+        },
+        {
+          "name": "Who's on the Moon",
+          "accuracy": 96,
+          "wcpm": 132,
+          "expression": "4/4",
+          "errors": 3,
+          "misread": 2,
+          "omitted": 1,
+          "unread": 0,
+          "selfCorrect": "Often",
+          "samples": "a、picking、漏讀 goddess"
+        },
+        {
+          "name": "Summer Camp",
+          "accuracy": 99,
+          "wcpm": 117,
+          "expression": "4/4",
+          "errors": 1,
+          "misread": 1,
+          "omitted": 0,
+          "unread": 0,
+          "selfCorrect": "Often",
+          "samples": "they"
+        }
       ],
       "analysis": {
         "conclusion": "Rina 的朗讀非常穩：又準、又順、有表情，而且會自己發現讀錯並改正。閱讀程度已經超過年級。下一步的重點從「把字讀對」轉到「把意思讀懂、說出來」。",
@@ -34,7 +73,13 @@
           "朗讀已經很好，維持現在的練習量就可以，不需要特別加強速度。"
         ],
         "notes": "這次評量用的是 2nd Grade（二年級）的文章，平台上 Rina 是 3rd grade。總表上的每分鐘字數 108 和單篇的 117～133 不一樣，是平台的計算方式不同，以總表為準。這次沒有截到重述(Retell)和兩題問答的內容，所以看不出理解是哪一題扣分；下次若一起截圖，可以找出是哪一種題型比較需要加強。"
-      }
+      },
+      "screenshots": [
+        "moby/rina-2026-10-28-1.jpg",
+        "moby/rina-2026-10-28-2.jpg",
+        "moby/rina-2026-10-28-3.jpg",
+        "moby/rina-2026-10-28-4.jpg"
+      ]
     },
     {
       "kid": "Cathy",
@@ -43,11 +88,50 @@
       "platformGrade": "7th",
       "level": "mS 5th",
       "status": "Struggling",
-      "summary": { "wcpm": 137, "accuracy": 95, "accuracyLabel": "Instructional", "comprehension": "7.5 / 8", "expression": "3 / 4" },
+      "summary": {
+        "wcpm": 137,
+        "accuracy": 95,
+        "accuracyLabel": "Instructional",
+        "comprehension": "7.5 / 8",
+        "expression": "3 / 4"
+      },
       "passages": [
-        { "name": "Forgotten Lines", "accuracy": 97, "wcpm": 137, "expression": "3/4", "errors": 5, "misread": 4, "omitted": 1, "unread": 0, "selfCorrect": "Rarely", "samples": "softly、confidently、mind" },
-        { "name": "A Memorable Hike", "accuracy": 95, "wcpm": 132, "expression": "4/4", "errors": 7, "misread": 5, "omitted": 2, "unread": 0, "selfCorrect": "Rarely", "samples": "that、a、Liam's（兩次）、漏讀 a" },
-        { "name": "Something Precious", "accuracy": 93, "wcpm": 123, "expression": "3/4", "errors": 10, "misread": 8, "omitted": 2, "unread": 0, "selfCorrect": "Rarely", "samples": "sat on、didn't、looked up、漏讀 a 和 lunch" }
+        {
+          "name": "Forgotten Lines",
+          "accuracy": 97,
+          "wcpm": 137,
+          "expression": "3/4",
+          "errors": 5,
+          "misread": 4,
+          "omitted": 1,
+          "unread": 0,
+          "selfCorrect": "Rarely",
+          "samples": "softly、confidently、mind"
+        },
+        {
+          "name": "A Memorable Hike",
+          "accuracy": 95,
+          "wcpm": 132,
+          "expression": "4/4",
+          "errors": 7,
+          "misread": 5,
+          "omitted": 2,
+          "unread": 0,
+          "selfCorrect": "Rarely",
+          "samples": "that、a、Liam's（兩次）、漏讀 a"
+        },
+        {
+          "name": "Something Precious",
+          "accuracy": 93,
+          "wcpm": 123,
+          "expression": "3/4",
+          "errors": 10,
+          "misread": 8,
+          "omitted": 2,
+          "unread": 0,
+          "selfCorrect": "Rarely",
+          "samples": "sat on、didn't、looked up、漏讀 a 和 lunch"
+        }
       ],
       "analysis": {
         "conclusion": "Cathy 讀得懂、也讀得夠快，被標為 Struggling 主要卡在「準確度」：會把認識的小字讀錯，而且很少自己發現、自己改正。這是習慣問題，不是程度問題，好調整。",
@@ -68,7 +152,13 @@
           "練耐力：偶爾連續讀三篇短文，習慣讀到第三篇還能保持專注。"
         ],
         "notes": "平台把 Cathy 放在 7th grade（美國年級），等級 mS 對應約 5 年級程度。這次截圖只看得到每篇的前半段，以及朗讀部分；重述(Retell)和問答細節沒有截到，之後若有截圖可以補上，分析會更完整。"
-      }
+      },
+      "screenshots": [
+        "moby/cathy-2026-10-29-1.jpg",
+        "moby/cathy-2026-10-29-2.jpg",
+        "moby/cathy-2026-10-29-3.jpg",
+        "moby/cathy-2026-10-29-4.jpg"
+      ]
     }
   ]
 }
