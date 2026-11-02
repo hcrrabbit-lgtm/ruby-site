@@ -1987,6 +1987,7 @@ export default {
       if (path === "/api/gratitude" && request.method === "POST") return await gratitudeHandlers.save(env, request);
 
       // served from public/open/ and bypassed from Cloudflare Access, so kept under /api/open/
+      if (path === "/api/open/yt-avatar" && request.method === "GET") return await handleYtAvatar(url);
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
       if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
       if (path === "/api/open/study-habits" && request.method === "DELETE") return await studyHabitHandlers.del(env, request);
@@ -2051,3 +2052,33 @@ export default {
     }
   }
 };
+
+
+// ---- 影片區：抓 YouTube 頻道大頭照（公開頁面用，放 /api/open/）----
+// c = "@handle" 或 "channel/UC..."；成功就轉址到頻道大頭照，失敗回 404（頁面會自動藏起圖片）
+async function handleYtAvatar(url) {
+  const c = url.searchParams.get("c") || "";
+  if (!/^(@[\w.-]{3,40}|channel\/UC[\w-]{22})$/.test(c)) return new Response("bad channel", { status: 400 });
+  const cache = caches.default;
+  const key = new Request("https://yt-avatar.cache/" + encodeURIComponent(c));
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  try {
+    const r = await fetch("https://www.youtube.com/" + c, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+        "Cookie": "CONSENT=YES+1; SOCS=CAI",
+      },
+    });
+    const html = await r.text();
+    const m = html.match(/<meta property="og:image" content="([^"]+)"/);
+    if (!m || !/^https:\/\/yt3\.(ggpht|googleusercontent)\.com\//.test(m[1])) return new Response("not found", { status: 404 });
+    const img = m[1].replace(/=s\d+[^"]*$/, "=s240-c-k-c0x00ffffff-no-rj");
+    const res = new Response(null, { status: 302, headers: { Location: img, "Cache-Control": "public, max-age=86400" } });
+    await cache.put(key, res.clone());
+    return res;
+  } catch (e) {
+    return new Response("error", { status: 404 });
+  }
+}

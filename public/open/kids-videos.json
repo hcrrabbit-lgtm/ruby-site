@@ -1,5 +1,5 @@
 {
-  "_說明": "影片區的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。thumb 放一支影片網址，就用那支影片的截圖當卡片封面。",
+  "_說明": "影片區的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。channel 填頻道（@名稱 或 channel/UC…），卡片就會顯示頻道大頭照。",
   "videos": [
     {
       "title": "Goat Girl",
@@ -7,7 +7,7 @@
       "who": "rina",
       "note": "給不知道看什麼卡通的高年級女孩。13 歲、被山羊養大的女孩 Gigi 從山林搬進小鎮，一路發生好笑又混亂的適應故事。",
       "link": "https://www.youtube.com/@GoatGirl_official",
-      "thumb": "https://www.youtube.com/watch?v=GsO-mcCY94s"
+      "channel": "@GoatGirl_official"
     },
     {
       "title": "It's AumSum Time",
@@ -15,7 +15,7 @@
       "who": "rina",
       "note": "用活潑的動畫小短劇和問答，把科學觀念和生活中的現象講得簡單好懂。",
       "link": "https://www.youtube.com/@AumSum",
-      "thumb": "https://www.youtube.com/watch?v=I2u9MVfWEAE"
+      "channel": "@AumSum"
     },
     {
       "title": "下課花路米",
@@ -36,7 +36,8 @@
       "cat": "畫畫",
       "who": "rina",
       "note": "一步一步跟著畫，英文講解但看手就學得會，可以邊看邊畫。",
-      "link": "https://www.youtube.com/results?search_query=Art+for+Kids+Hub"
+      "link": "https://www.youtube.com/channel/UC5XMF3Inoi8R9nSI8ChOsdQ",
+      "channel": "channel/UC5XMF3Inoi8R9nSI8ChOsdQ"
     },
     {
       "title": "圍棋入門教學",
@@ -50,14 +51,16 @@
       "cat": "科學",
       "who": "cathy",
       "note": "台灣的科學知識頻道，用生活例子講科學新知。",
-      "link": "https://www.youtube.com/results?search_query=%E6%B3%9B%E7%A7%91%E5%AD%B8+PanSci"
+      "link": "https://www.youtube.com/@panscitw",
+      "channel": "@panscitw"
     },
     {
       "title": "TED-Ed",
       "cat": "英文＋知識",
       "who": "cathy",
       "note": "5 分鐘左右的動畫小課，很多有中文字幕，練英文聽力也學知識。",
-      "link": "https://www.youtube.com/@TEDEd"
+      "link": "https://www.youtube.com/@TEDEd",
+      "channel": "@TEDEd"
     }
   ]
 }
