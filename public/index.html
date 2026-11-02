@@ -877,6 +877,11 @@
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> goTo(btn.dataset.target));
   });
+  // 從子頁面「回學習規劃」等連結回來時（index.html#study），直接打開對應分頁
+  (function(){
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (id && document.querySelector(`.tab-btn[data-target="${CSS.escape(id)}"]`)) goTo(id);
+  })();
 
 
   fetch('/api/usage').then(r => r.ok ? r.json() : null).then(data => {
