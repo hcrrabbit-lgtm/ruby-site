@@ -2,6 +2,41 @@
   "說明": "Moby+ 英文朗讀成績紀錄。Ruby 每次丟截圖，Claude 讀出數據後新增一筆到 records（最新放最前面）。只記名字不記姓氏。",
   "records": [
     {
+      "kid": "Rina",
+      "date": "2026-10-28",
+      "title": "Benchmark 2nd Grade Term 1（第一次定期評量）",
+      "platformGrade": "3rd",
+      "level": "mO+ 4th",
+      "status": "Proficient",
+      "summary": { "wcpm": 108, "accuracy": 98, "accuracyLabel": "Independent", "comprehension": "6.5 / 8", "expression": "4 / 4" },
+      "passages": [
+        { "name": "A New Home", "accuracy": 100, "wcpm": 133, "expression": "4/4", "errors": 0, "misread": 0, "omitted": 0, "unread": 0, "selfCorrect": "Often", "samples": "全對" },
+        { "name": "Who's on the Moon", "accuracy": 96, "wcpm": 132, "expression": "4/4", "errors": 3, "misread": 2, "omitted": 1, "unread": 0, "selfCorrect": "Often", "samples": "a、picking、漏讀 goddess" },
+        { "name": "Summer Camp", "accuracy": 99, "wcpm": 117, "expression": "4/4", "errors": 1, "misread": 1, "omitted": 0, "unread": 0, "selfCorrect": "Often", "samples": "they" }
+      ],
+      "analysis": {
+        "conclusion": "Rina 的朗讀非常穩：又準、又順、有表情，而且會自己發現讀錯並改正。閱讀程度已經超過年級。下一步的重點從「把字讀對」轉到「把意思讀懂、說出來」。",
+        "strengths": [
+          "準確度 98%，屬於「可以自己獨立閱讀」的程度；第一篇全對，三篇總共只錯 4 個字。",
+          "三篇朗讀表情都是滿分 4 / 4，讀起來有語氣、有停頓，不是一個字一個字念。",
+          "三篇的自我修正都是「常常」(Often)：讀錯會自己回頭改，這是很好的閱讀習慣。",
+          "閱讀等級 mO+ 對應約 4 年級程度，超前目前年級。"
+        ],
+        "concerns": [
+          "閱讀理解 6.5 / 8 是這次相對最弱的一項：字都讀得出來，但文章意思的掌握還有進步空間。",
+          "Who's on the Moon 裡跳過了 goddess（女神）：遇到不認識的字會略過，這是正常的單字量問題，不是習慣問題。",
+          "第三篇速度稍微慢下來（132 → 117），但準確度仍有 99%，屬於正常範圍，不用擔心。"
+        ],
+        "suggestions": [
+          "讀完說一說：每讀完一篇，用中文或英文說說「發生了什麼事、主角為什麼這樣做」。這是提升理解分數最直接的方法。",
+          "多問「為什麼」：陪讀時問一兩個「為什麼」或「你猜接下來會怎樣」的問題，不只是問故事裡有什麼。",
+          "遇到生字先停下來：像 goddess 這種不認識的字，可以先圈起來，讀完再一起查，慢慢累積單字量。",
+          "朗讀已經很好，維持現在的練習量就可以，不需要特別加強速度。"
+        ],
+        "notes": "這次評量用的是 2nd Grade（二年級）的文章，平台上 Rina 是 3rd grade。總表上的每分鐘字數 108 和單篇的 117～133 不一樣，是平台的計算方式不同，以總表為準。這次沒有截到重述(Retell)和兩題問答的內容，所以看不出理解是哪一題扣分；下次若一起截圖，可以找出是哪一種題型比較需要加強。"
+      }
+    },
+    {
       "kid": "Cathy",
       "date": "2026-10-29",
       "title": "Benchmark 7th Grade Term 1（第一次定期評量）",
