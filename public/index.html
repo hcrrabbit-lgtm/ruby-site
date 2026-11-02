@@ -25,6 +25,8 @@
     --c-health-bg:#F6E9EA;
     --c-tool:#6E568A;     /* AI指令工具：紫 */
     --c-tool-bg:#EFE8F3;
+    --c-video:#3D8B83;    /* 影片區：湖水綠 */
+    --c-video-bg:#E4F1EF;
 
     --radius:14px;
     --shadow:0 2px 10px rgba(46,42,37,0.08);
@@ -111,6 +113,7 @@
   .tab-btn[data-color="art"].active{ background:var(--paper); color:var(--c-art); box-shadow:0 -3px 0 var(--c-art) inset; }
   .tab-btn[data-color="admin"].active{ background:var(--paper); color:var(--c-admin); box-shadow:0 -3px 0 var(--c-admin) inset; }
   .tab-btn[data-color="study"].active{ background:var(--paper); color:var(--c-study); box-shadow:0 -3px 0 var(--c-study) inset; }
+  .tab-btn[data-color="video"].active{ background:var(--paper); color:var(--c-video); box-shadow:0 -3px 0 var(--c-video) inset; }
   .tab-btn[data-color="health"].active{ background:var(--paper); color:var(--c-health); box-shadow:0 -3px 0 var(--c-health) inset; }
 
   main{
@@ -161,6 +164,7 @@
   .card.admin::before{ background:var(--c-admin); }
   .card.study::before{ background:var(--c-study); }
   .card.health::before{ background:var(--c-health); }
+  .card.video::before{ background:var(--c-video); }
 
   .card .num{
     font-family:'Noto Serif TC',serif;
@@ -176,6 +180,7 @@
   .card.admin h3{ color:var(--c-admin); }
   .card.study h3{ color:var(--c-study); }
   .card.health h3{ color:var(--c-health); }
+  .card.video h3{ color:var(--c-video); }
   .card p{
     font-size:13.5px;
     color:var(--ink-soft);
@@ -590,6 +595,7 @@
   <button class="tab-btn" data-color="admin" data-target="admin">行政工作</button>
   <button class="tab-btn" data-color="study" data-target="study">學習規劃</button>
   <button class="tab-btn" data-color="health" data-target="health">健康家庭</button>
+  <button class="tab-btn" data-color="video" data-target="video">影片區</button>
 </nav>
 
 <main>
@@ -644,6 +650,11 @@
           <a href="headshots.html" style="color:var(--c-admin);font-weight:700;">新生大頭照</a>
           —— 依名單拍一年級新生大頭照，檔名自動為班級座號（10102.jpg）；名單存 D1，照片存私人雲端 R2（需登入）。
           <span class="meta">建立：2026年10月</span>
+        </li>
+        <li>
+          <a href="open/kids-videos.html" style="color:var(--c-video);font-weight:700;">影片區</a>
+          —— 適合孩子看的影片集中區，可依 Rina／Cathy 篩選，貼了網址的影片直接在頁面播放（不用登入）。
+          <span class="meta">建立：2026年11月</span>
         </li>
       </ul>
     </div>
@@ -841,6 +852,24 @@
     </div>
   </section>
 
+  <!-- 七、影片區 -->
+  <section id="video">
+    <h2>🎬 影片區</h2>
+    <p class="section-desc">適合孩子看的影片集中在這裡。孩子用的頁面不用登入，可以加到他們手機或平板的主畫面。</p>
+
+    <div class="card video" style="cursor:pointer;margin-bottom:22px;" onclick="window.location.href='open/kids-videos.html'">
+      <div class="num">工具</div>
+      <h3>孩子的影片區 →</h3>
+      <p>可以切換 Rina／Cathy／全部；貼了影片網址的會直接在頁面上播放，不會跳去 YouTube 首頁亂逛。</p>
+    </div>
+
+    <div class="log-box">
+      <h3>🗂️ 目前收錄</h3>
+      <ul id="videoList"><li>載入中…</li></ul>
+      <p class="section-desc" style="margin-top:10px;">想新增或拿掉影片：把 YouTube 連結貼給 Claude，說是給誰看的就好。</p>
+    </div>
+  </section>
+
 </main>
 
 <footer>
@@ -861,6 +890,14 @@
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> goTo(btn.dataset.target));
   });
+
+  fetch('open/kids-videos.json', {cache:'no-store'}).then(r => r.json()).then(d => {
+    const el = document.getElementById('videoList'); if(!el) return;
+    const who = {rina:'Rina', cathy:'Cathy', both:'兩個一起'};
+    const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const v = d.videos || [];
+    el.innerHTML = v.length ? v.map(x => `<li><b>${esc(x.title)}</b>（${esc(x.cat)}・${esc(who[x.who]||x.who)}）</li>`).join('') : '<li>還沒有影片</li>';
+  }).catch(()=>{});
 
   fetch('/api/usage').then(r => r.ok ? r.json() : null).then(data => {
     const el = document.getElementById('usageWidget');

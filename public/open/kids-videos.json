@@ -1,0 +1,47 @@
+{
+  "_說明": "影片區的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。",
+  "videos": [
+    {
+      "title": "下課花路米",
+      "cat": "知識探索",
+      "who": "rina",
+      "note": "公視兒童知識節目，帶小朋友到台灣各地找答案。",
+      "link": "https://www.youtube.com/results?search_query=%E5%85%AC%E8%A6%96+%E4%B8%8B%E8%AA%B2%E8%8A%B1%E8%B7%AF%E7%B1%B3"
+    },
+    {
+      "title": "小黑啤玩臺灣（臺灣吧）",
+      "cat": "認識台灣",
+      "who": "rina",
+      "note": "動畫帶著走遍台灣各縣市的歷史和文化，短短一集剛好。",
+      "link": "https://www.youtube.com/results?search_query=%E5%B0%8F%E9%BB%91%E5%95%A4%E7%8E%A9%E8%87%BA%E7%81%A3"
+    },
+    {
+      "title": "Art for Kids Hub",
+      "cat": "畫畫",
+      "who": "rina",
+      "note": "一步一步跟著畫，英文講解但看手就學得會，可以邊看邊畫。",
+      "link": "https://www.youtube.com/results?search_query=Art+for+Kids+Hub"
+    },
+    {
+      "title": "圍棋入門教學",
+      "cat": "圍棋",
+      "who": "both",
+      "note": "搜尋兒童圍棋教學影片，挑講解清楚的跟著練。",
+      "link": "https://www.youtube.com/results?search_query=%E5%85%92%E7%AB%A5+%E5%9C%8D%E6%A3%8B+%E6%95%99%E5%AD%B8"
+    },
+    {
+      "title": "泛科學 PanSci",
+      "cat": "科學",
+      "who": "cathy",
+      "note": "台灣的科學知識頻道，用生活例子講科學新知。",
+      "link": "https://www.youtube.com/results?search_query=%E6%B3%9B%E7%A7%91%E5%AD%B8+PanSci"
+    },
+    {
+      "title": "TED-Ed",
+      "cat": "英文＋知識",
+      "who": "cathy",
+      "note": "5 分鐘左右的動畫小課，很多有中文字幕，練英文聽力也學知識。",
+      "link": "https://www.youtube.com/results?search_query=TED-Ed"
+    }
+  ]
+}

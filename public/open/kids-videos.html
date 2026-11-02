@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影片區</title>
+<meta name="theme-color" content="#3D8B83">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --c-video:#3D8B83; --c-video-bg:#E4F1EF;
+    --rina:#C4863A; --rina-bg:#FBF0DE;
+    --cathy:#6E568A; --cathy-bg:#EFE8F3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 16px 60px;}
+  h1{font-size:30px;margin:0 0 6px;}
+  h1 span{color:var(--c-video);}
+  .sub{color:var(--ink-soft);margin:0 0 20px;font-size:15px;}
+
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;}
+  .filters button{
+    font:inherit;font-size:15px;padding:9px 18px;border-radius:999px;cursor:pointer;
+    border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);
+  }
+  .filters button.on{background:var(--c-video);border-color:var(--c-video);color:#fff;font-weight:700;}
+
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media (max-width:600px){ .grid{grid-template-columns:1fr;} }
+  .v{
+    background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    box-shadow:0 2px 10px rgba(46,42,37,.07);display:flex;flex-direction:column;
+  }
+  .v .player{aspect-ratio:16/9;background:#000;}
+  .v .player iframe{width:100%;height:100%;border:0;display:block;}
+  .v .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;}
+  .tag{font-size:12px;padding:2px 9px;border-radius:999px;background:var(--c-video-bg);color:var(--c-video);font-weight:500;}
+  .tag.rina{background:var(--rina-bg);color:var(--rina);}
+  .tag.cathy{background:var(--cathy-bg);color:var(--cathy);}
+  .v h3{margin:2px 0 0;font-size:19px;}
+  .v p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.6;flex:1;}
+  .v a.go{
+    align-self:flex-start;margin-top:8px;text-decoration:none;font-weight:700;font-size:14.5px;
+    color:#fff;background:var(--c-video);padding:8px 16px;border-radius:10px;
+  }
+  .v a.go:hover{filter:brightness(1.07);}
+  .empty{color:var(--ink-soft);text-align:center;padding:40px 0;}
+  .rule{
+    margin-top:28px;padding:14px 18px;border-radius:12px;background:var(--paper-deep);
+    color:var(--ink-soft);font-size:14px;line-height:1.7;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎬 <span>影片區</span></h1>
+  <p class="sub">媽媽挑過的影片都在這裡，選一個來看吧！</p>
+
+  <div class="filters" id="whoFilter">
+    <button data-who="all" class="on">全部</button>
+    <button data-who="rina">Rina</button>
+    <button data-who="cathy">Cathy</button>
+  </div>
+
+  <div class="grid" id="list"></div>
+
+  <div class="rule">📺 看影片的小約定：看完一部先休息一下眼睛；YouTube 旁邊跳出來的其他影片，先問過媽媽再點喔。</div>
+</div>
+
+<script>
+  const WHO = { rina:'Rina', cathy:'Cathy', both:'一起看' };
+  let videos = [], who = 'all';
+
+  function ytId(url){
+    if(!url) return '';
+    const m = String(url).match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/);
+    return m ? m[1] : '';
+  }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function render(){
+    const list = document.getElementById('list');
+    const shown = videos.filter(v => who==='all' || v.who===who || v.who==='both');
+    if(!shown.length){ list.innerHTML = '<p class="empty">這裡還沒有影片喔。</p>'; return; }
+    list.innerHTML = shown.map(v => {
+      const id = ytId(v.youtube);
+      const player = id
+        ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" title="${esc(v.title)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
+        : '';
+      const btn = !id && v.link ? `<a class="go" href="${esc(v.link)}" target="_blank" rel="noopener">去看看 →</a>` : '';
+      const whoTag = v.who ? `<span class="tag ${v.who==='both'?'':esc(v.who)}">${esc(WHO[v.who]||v.who)}</span>` : '';
+      return `<div class="v">${player}<div class="body">
+        <div class="tags"><span class="tag">${esc(v.cat)}</span>${whoTag}</div>
+        <h3>${esc(v.title)}</h3><p>${esc(v.note)}</p>${btn}</div></div>`;
+    }).join('');
+  }
+
+  document.getElementById('whoFilter').addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    who = b.dataset.who;
+    document.querySelectorAll('#whoFilter button').forEach(x => x.classList.toggle('on', x===b));
+    render();
+  });
+
+  fetch('kids-videos.json', {cache:'no-store'}).then(r => r.json()).then(d => {
+    videos = d.videos || []; render();
+  }).catch(() => {
+    document.getElementById('list').innerHTML = '<p class="empty">影片清單暫時載不出來，等一下再試試。</p>';
+  });
+</script>
+</body>
+</html>
