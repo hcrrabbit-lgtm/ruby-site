@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moby+ 閱讀紀錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --study:#5F8955; --study-bg:#EBF2E6; --warn:#B8683E; --warn-bg:#F8EBE2;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.7;}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 60px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:13px;}
+  h1{font-family:'Noto Serif TC',serif;font-size:26px;margin:14px 0 4px;color:var(--study);}
+  .sub{color:var(--ink-soft);font-size:13px;margin-bottom:18px;}
+  .kids{display:flex;gap:8px;margin-bottom:18px;}
+  .kids button{font:inherit;font-size:14px;font-weight:700;padding:6px 18px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;}
+  .kids button.on{background:var(--study);border-color:var(--study);color:#fff;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .card h2{font-size:16px;margin:0 0 10px;}
+  .meta{font-size:12.5px;color:var(--ink-soft);margin-bottom:12px;}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:6px;margin-right:6px;background:var(--study-bg);color:var(--study);}
+  .tag.warn{background:var(--warn-bg);color:var(--warn);}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;}
+  .tile{background:var(--paper);border-radius:10px;padding:10px 12px;}
+  .tile b{display:block;font-size:20px;}
+  .tile span{font-size:12px;color:var(--ink-soft);}
+  .conclusion{background:var(--study-bg);border-left:5px solid var(--study);border-radius:10px;padding:12px 14px;font-weight:500;}
+  h3{font-size:14.5px;margin:16px 0 6px;}
+  ul{margin:0;padding-left:20px;font-size:14px;}
+  li{margin-bottom:5px;}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  .tbl th,.tbl td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top;}
+  .tbl th{color:var(--ink-soft);font-weight:500;font-size:12px;}
+  .scroll{overflow-x:auto;}
+  .note{font-size:12.5px;color:var(--ink-soft);background:var(--paper-deep);border-radius:10px;padding:10px 12px;margin-top:14px;}
+  .empty{color:var(--ink-soft);text-align:center;padding:30px 10px;}
+  details summary{cursor:pointer;font-weight:700;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html">← 回學習規劃</a>
+  <h1>📖 Moby+ 閱讀紀錄</h1>
+  <div class="sub">英文朗讀定期評量的成績、分析與練習建議</div>
+  <div class="kids" id="kids"></div>
+  <div id="history"></div>
+  <div id="main"></div>
+</div>
+<script>
+const KIDS = ["Cathy","Rina"];
+let data = [], kid = "Cathy";
+try { const k = localStorage.getItem("mobyKid"); if (KIDS.includes(k)) kid = k; } catch(e){}
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const li = arr => (arr||[]).map(x => `<li>${esc(x)}</li>`).join("");
+
+function renderKids(){
+  document.getElementById("kids").innerHTML = KIDS.map(k =>
+    `<button class="${k===kid?"on":""}" data-k="${k}">${k}</button>`).join("");
+  document.querySelectorAll("#kids button").forEach(b => b.onclick = () => {
+    kid = b.dataset.k; try{localStorage.setItem("mobyKid",kid);}catch(e){} render();
+  });
+}
+
+function recordCard(r, open){
+  const s = r.summary || {}, a = r.analysis || {};
+  const statusWarn = /struggl/i.test(r.status||"");
+  const rows = (r.passages||[]).map(p => `<tr><td>${esc(p.name)}</td><td>${p.accuracy}%</td><td>${p.wcpm}</td><td>${esc(p.expression)}</td><td>${p.errors}（讀錯 ${p.misread}、漏讀 ${p.omitted}）</td><td>${esc(p.samples)}</td></tr>`).join("");
+  const body = `
+    <div class="meta">${esc(r.date)}｜${esc(r.title)}<br>
+      <span class="tag">等級 ${esc(r.level)}</span><span class="tag ${statusWarn?"warn":""}">${esc(r.status)}</span><span class="tag">平台年級 ${esc(r.platformGrade)}</span></div>
+    <div class="tiles">
+      <div class="tile"><b>${s.wcpm ?? "—"}</b><span>每分鐘正確字數</span></div>
+      <div class="tile"><b>${s.accuracy ?? "—"}%</b><span>準確度（${esc(s.accuracyLabel)}）</span></div>
+      <div class="tile"><b>${esc(s.comprehension)}</b><span>閱讀理解</span></div>
+      <div class="tile"><b>${esc(s.expression)}</b><span>朗讀表情</span></div>
+    </div>
+    ${a.conclusion ? `<h3>結論</h3><div class="conclusion">${esc(a.conclusion)}</div>` : ""}
+    ${a.strengths ? `<h3>👍 做得好的地方</h3><ul>${li(a.strengths)}</ul>` : ""}
+    ${a.concerns ? `<h3>🔍 需要注意的地方</h3><ul>${li(a.concerns)}</ul>` : ""}
+    ${a.suggestions ? `<h3>🎯 接下來怎麼練</h3><ul>${li(a.suggestions)}</ul>` : ""}
+    ${rows ? `<h3>各篇細項</h3><div class="scroll"><table class="tbl"><tr><th>文章</th><th>準確度</th><th>每分鐘字數</th><th>表情</th><th>錯誤</th><th>讀錯的字（舉例）</th></tr>${rows}</table></div>` : ""}
+    ${a.notes ? `<div class="note">${esc(a.notes)}</div>` : ""}`;
+  return open
+    ? `<div class="card"><h2>最新一次評量</h2>${body}</div>`
+    : `<div class="card"><details><summary>${esc(r.date)}｜${esc(r.title)}</summary><div style="margin-top:10px">${body}</div></details></div>`;
+}
+
+function renderHistory(list){
+  const el = document.getElementById("history");
+  if (list.length < 2) { el.innerHTML = ""; return; }
+  const rows = list.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.level)}</td><td>${r.summary?.wcpm ?? "—"}</td><td>${r.summary?.accuracy ?? "—"}%</td><td>${esc(r.summary?.comprehension)}</td><td>${esc(r.summary?.expression)}</td></tr>`).join("");
+  el.innerHTML = `<div class="card"><h2>歷次紀錄一覽</h2><div class="scroll"><table class="tbl"><tr><th>日期</th><th>等級</th><th>每分鐘字數</th><th>準確度</th><th>理解</th><th>表情</th></tr>${rows}</table></div></div>`;
+}
+
+function render(){
+  renderKids();
+  const list = data.filter(r => r.kid === kid).sort((a,b) => b.date.localeCompare(a.date));
+  renderHistory(list);
+  document.getElementById("main").innerHTML = list.length
+    ? list.map((r,i) => recordCard(r, i===0)).join("")
+    : `<div class="card empty">${kid} 還沒有紀錄，下次評量完成後再補上。</div>`;
+}
+
+fetch("moby-plus.json", {cache:"no-store"}).then(r => r.json()).then(j => { data = j.records || []; render(); })
+  .catch(() => { document.getElementById("main").innerHTML = `<div class="card empty">紀錄暫時讀不到，請稍後再試。</div>`; });
+</script>
+</body>
+</html>

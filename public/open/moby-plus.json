@@ -1,0 +1,39 @@
+{
+  "說明": "Moby+ 英文朗讀成績紀錄。Ruby 每次丟截圖，Claude 讀出數據後新增一筆到 records（最新放最前面）。只記名字不記姓氏。",
+  "records": [
+    {
+      "kid": "Cathy",
+      "date": "2026-10-29",
+      "title": "Benchmark 7th Grade Term 1（第一次定期評量）",
+      "platformGrade": "7th",
+      "level": "mS 5th",
+      "status": "Struggling",
+      "summary": { "wcpm": 137, "accuracy": 95, "accuracyLabel": "Instructional", "comprehension": "7.5 / 8", "expression": "3 / 4" },
+      "passages": [
+        { "name": "Forgotten Lines", "accuracy": 97, "wcpm": 137, "expression": "3/4", "errors": 5, "misread": 4, "omitted": 1, "unread": 0, "selfCorrect": "Rarely", "samples": "softly、confidently、mind" },
+        { "name": "A Memorable Hike", "accuracy": 95, "wcpm": 132, "expression": "4/4", "errors": 7, "misread": 5, "omitted": 2, "unread": 0, "selfCorrect": "Rarely", "samples": "that、a、Liam's（兩次）、漏讀 a" },
+        { "name": "Something Precious", "accuracy": 93, "wcpm": 123, "expression": "3/4", "errors": 10, "misread": 8, "omitted": 2, "unread": 0, "selfCorrect": "Rarely", "samples": "sat on、didn't、looked up、漏讀 a 和 lunch" }
+      ],
+      "analysis": {
+        "conclusion": "Cathy 讀得懂、也讀得夠快，被標為 Struggling 主要卡在「準確度」：會把認識的小字讀錯，而且很少自己發現、自己改正。這是習慣問題，不是程度問題，好調整。",
+        "strengths": [
+          "理解力很好：閱讀理解 7.5 / 8，幾乎全對，代表文章意思都有抓到。",
+          "速度足夠：每分鐘正確讀出約 137 字，對英文非母語的國中生來說是不錯的速度，不需要再追求更快。",
+          "表達有起伏：朗讀表情 3～4 分（滿分 4），第二篇拿到滿分。"
+        ],
+        "concerns": [
+          "準確度一篇比一篇低：97% → 95% → 93%，速度也從 137 掉到 123，錯誤從 5 個增加到 10 個。可能是讀到後面累了、專注力下降，也可能是第三篇比較難。",
+          "錯的大多是簡單字：a、that、didn't、sat on、looked up、所有格 Liam's。這些字她一定認識，表示是「眼睛跑太快、用猜的」，不是單字量不夠。",
+          "三篇的自我修正都是「很少」(Rarely)：讀錯了沒有回頭，這是最需要改的地方。"
+        ],
+        "suggestions": [
+          "先求準再求快：每天朗讀 5～10 分鐘，目標是準確度 97% 以上，速度維持現在就好，寧可稍微慢一點。",
+          "聽自己的錄音：Moby+ 每篇都有錄音（播放鍵），一邊聽一邊看紅字，找出自己讀錯的地方。這是培養「自己抓錯」最快的方法，建議先從第三篇 Something Precious 開始聽。",
+          "注意小字和字尾：朗讀時用手指或筆尖跟著字走，特別留意 a / the、-'s、-n't 和兩個字一組的片語（look up、sit on）。",
+          "練耐力：偶爾連續讀三篇短文，習慣讀到第三篇還能保持專注。"
+        ],
+        "notes": "平台把 Cathy 放在 7th grade（美國年級），等級 mS 對應約 5 年級程度。這次截圖只看得到每篇的前半段，以及朗讀部分；重述(Retell)和問答細節沒有截到，之後若有截圖可以補上，分析會更完整。"
+      }
+    }
+  ]
+}
