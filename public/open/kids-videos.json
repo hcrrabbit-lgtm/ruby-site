@@ -2,6 +2,20 @@
   "_說明": "影片區的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。",
   "videos": [
     {
+      "title": "Goat Girl",
+      "cat": "卡通",
+      "who": "rina",
+      "note": "給不知道看什麼卡通的高年級女孩。13 歲、被山羊養大的女孩 Gigi 從山林搬進小鎮，一路發生好笑又混亂的適應故事。",
+      "youtube": "https://www.youtube.com/watch?v=GsO-mcCY94s"
+    },
+    {
+      "title": "It's AumSum Time",
+      "cat": "科學",
+      "who": "rina",
+      "note": "用活潑的動畫小短劇和問答，把科學觀念和生活中的現象講得簡單好懂。",
+      "link": "https://www.youtube.com/@AumSum"
+    },
+    {
       "title": "下課花路米",
       "cat": "知識探索",
       "who": "rina",
