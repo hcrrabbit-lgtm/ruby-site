@@ -37,6 +37,14 @@
     box-shadow:0 2px 10px rgba(46,42,37,.07);display:flex;flex-direction:column;
   }
   .v .player{aspect-ratio:16/9;background:#000;}
+  a.thumb{display:block;position:relative;aspect-ratio:16/9;background:var(--c-video-bg);overflow:hidden;}
+  a.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s;}
+  a.thumb:hover img{transform:scale(1.03);}
+  a.thumb .play{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:58px;height:58px;border-radius:50%;background:rgba(46,42,37,.62);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;
+  }
   .v .player iframe{width:100%;height:100%;border:0;display:block;}
   .v .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1;}
   .tags{display:flex;gap:6px;flex-wrap:wrap;}
@@ -93,9 +101,13 @@
       const player = id
         ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" title="${esc(v.title)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
         : '';
+      const tid = ytId(v.thumb);
+      const thumb = !id && tid && v.link
+        ? `<a class="thumb" href="${esc(v.link)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${tid}/hqdefault.jpg" alt="${esc(v.title)}" loading="lazy" onerror="this.parentNode.remove()"><span class="play">▶</span></a>`
+        : '';
       const btn = !id && v.link ? `<a class="go" href="${esc(v.link)}" target="_blank" rel="noopener">去看看 →</a>` : '';
       const whoTag = v.who ? `<span class="tag ${v.who==='both'?'':esc(v.who)}">${esc(WHO[v.who]||v.who)}</span>` : '';
-      return `<div class="v">${player}<div class="body">
+      return `<div class="v">${player}${thumb}<div class="body">
         <div class="tags"><span class="tag">${esc(v.cat)}</span>${whoTag}</div>
         <h3>${esc(v.title)}</h3><p>${esc(v.note)}</p>${btn}</div></div>`;
     }).join('');
