@@ -61,7 +61,7 @@
 <div class="viewer" id="viewer" onclick="this.classList.remove('on')"><img id="viewerImg" alt=""></div>
 <script>
 function showImg(src){ document.getElementById("viewerImg").src = src; document.getElementById("viewer").classList.add("on"); }
-const KIDS = ["Cathy","Rina"];
+const KIDS = ["Cathy","Rina","Lilian"];
 let data = [], kid = "Cathy";
 try { const k = localStorage.getItem("mobyKid"); if (KIDS.includes(k)) kid = k; } catch(e){}
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));

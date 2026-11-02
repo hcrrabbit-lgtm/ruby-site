@@ -159,6 +159,85 @@
         "moby/cathy-2026-10-29-3.jpg",
         "moby/cathy-2026-10-29-4.jpg"
       ]
+    },
+    {
+      "kid": "Lilian",
+      "date": "2026-10-26",
+      "title": "Benchmark 1st Grade Term 1（第一次定期評量）",
+      "platformGrade": "3rd",
+      "level": "mK 2nd",
+      "status": "Progressing",
+      "summary": {
+        "wcpm": 79,
+        "accuracy": 91,
+        "accuracyLabel": "Frustrated",
+        "comprehension": "8 / 8",
+        "expression": "3 / 4"
+      },
+      "passages": [
+        {
+          "name": "Lost Duck",
+          "accuracy": 84,
+          "wcpm": 108,
+          "expression": "3/4",
+          "errors": 7,
+          "misread": 5,
+          "omitted": 1,
+          "unread": 1,
+          "selfCorrect": "Rarely",
+          "samples": "a（3 次）、This（2 次）、漏讀 is、最後一個字 here 沒讀"
+        },
+        {
+          "name": "Beth's New Bike",
+          "accuracy": 100,
+          "wcpm": 158,
+          "expression": "4/4",
+          "errors": 0,
+          "misread": 0,
+          "omitted": 0,
+          "unread": 0,
+          "selfCorrect": "Rarely",
+          "samples": "全對"
+        },
+        {
+          "name": "Race Day for Rat",
+          "accuracy": 89,
+          "wcpm": 57,
+          "expression": "2/4",
+          "errors": 5,
+          "misread": 4,
+          "omitted": 0,
+          "unread": 1,
+          "selfCorrect": "Rarely",
+          "samples": "第一個字 Today 沒讀、give the nuts to"
+        }
+      ],
+      "analysis": {
+        "conclusion": "Lilian 讀得懂，理解拿滿分；要加強的是「讀得準」，錯誤大多出在 a、this、is 這類最基本的小字。另外有一部分扣分可能是錄音開始或結束的時間點造成的，實際程度可能比 Frustrated 這個標籤好。",
+        "strengths": [
+          "閱讀理解 8 / 8 全對，故事內容都有掌握。",
+          "Beth's New Bike 全對、每分鐘 158 字、表情滿分，熟悉的文章讀得又快又好。"
+        ],
+        "concerns": [
+          "錯誤集中在基本字：第一篇 a 錯 3 次、This 錯 2 次、漏讀 is，表示這些字還沒有做到一看就會讀。",
+          "三篇差異很大：準確度 84% / 100% / 89%，速度 108 / 158 / 57。",
+          "第一篇最後一個字 here、第三篇第一個字 Today 被標成沒讀，剛好在開頭和結尾，可能是錄音太晚開始或太早結束；第三篇速度特別慢也可能跟開頭停頓有關。建議聽一下錄音確認。",
+          "三篇的自我修正都是「很少」(Rarely)，讀錯不太會回頭改。"
+        ],
+        "suggestions": [
+          "練基本字：a、the、this、is、to 這類字每天花幾分鐘快速認讀，目標是看到就能讀，不用想。",
+          "同一篇短文讀三次：第一次慢慢讀準，第二、三次再讀順。",
+          "讀完問自己「讀起來通不通順」，養成讀錯回頭檢查的習慣。",
+          "先點播放鍵聽 Lost Duck 和 Race Day for Rat 的錄音，確認開頭、結尾的扣分是不是操作問題。"
+        ],
+        "notes": "平台年級 3rd、評量名稱 1st Grade、閱讀等級 mK 約 2 年級。平台是用美國孩子的年級比較，在台灣把英文當外語學習，看自己每次有沒有進步比較有意義。這次沒有截到重述(Retell)和問答的內容。"
+      },
+      "screenshots": [
+        "moby/lilian-2026-10-26-1.jpg",
+        "moby/lilian-2026-10-26-2.jpg",
+        "moby/lilian-2026-10-26-3.jpg",
+        "moby/lilian-2026-10-26-4.jpg"
+      ]
     }
   ]
 }
