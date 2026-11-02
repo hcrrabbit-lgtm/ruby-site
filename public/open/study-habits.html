@@ -550,6 +550,23 @@
   .photo-status{ font-size:12.5px; color:var(--child-c, var(--study)); font-weight:700; }
   .photo-status.err{ color:#B5524A; }
 
+  .g-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .g-tile{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; cursor:pointer; text-align:left; font:inherit; color:var(--ink); }
+  .g-tile.wide{ grid-column:1 / -1; display:flex; justify-content:space-between; gap:10px; }
+  .g-tile.on{ border:2px solid var(--child-c, var(--study)); padding:9px 11px; background:var(--child-bg, #fff); }
+  .g-tile .t-lbl{ font-size:12px; color:var(--ink-soft); }
+  .g-tile .t-val{ font-size:20px; font-weight:700; color:var(--child-c, var(--study)); line-height:1.25; }
+  .g-tile .t-sub{ font-size:11.5px; color:var(--ink-soft); }
+  .g-tile.child-cathy{ --child-c:#4C8C5A; --child-bg:#F3F9F3; }
+  .g-tile.child-rina{ --child-c:#3B7EA8; --child-bg:#F1F7FB; }
+  .sub-bar{ display:flex; justify-content:flex-end; align-items:center; gap:8px; margin:0 0 10px; flex-wrap:wrap; }
+  .sub-bar .rec-btn{ background:#fff; border-color:var(--line); color:var(--ink); }
+  .sub-bar .rec-btn.on{ background:#FFF3D6; border-color:#E3C77A; color:#8A6A1F; }
+  .sub-panel:not(.adding) .rec-form{ display:none; }
+  .sub-panel:not(.adding) .form-card{ display:none; }
+  .sub-panel .growth-now, .sub-panel .eye-now{ display:none; }
+  .sub-panel:not(.show-all) .growth-table tbody tr:nth-child(n+2){ display:none; }
+  .show-more{ border:0; background:none; color:var(--child-c, var(--study)); font:inherit; font-size:13px; cursor:pointer; padding:8px 0 0; }
   .growth-now{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
   .growth-now .rec-now{ margin:0; flex-direction:column; align-items:flex-start; gap:2px; }
   .growth-now .sub{ margin:0; text-align:left; }
@@ -594,7 +611,6 @@
     <button type="button" class="view-btn" data-view="habits">🌱 習慣</button>
     <button type="button" class="view-btn" data-view="milestones">🏅 里程碑</button>
     <button type="button" class="view-btn" data-view="growth">📏 成長</button>
-    <button type="button" class="view-btn" data-view="vision">👀 視力</button>
   </div>
 
   <div class="view" id="viewHabits">
@@ -619,9 +635,12 @@
 
   <div class="view" id="viewMilestones" hidden></div>
 
-  <div class="view" id="viewGrowth" hidden></div>
-
-  <div class="view" id="viewVision" hidden></div>
+  <div class="view" id="viewGrowth" hidden>
+    <div id="growthTiles"></div>
+    <div class="sub-panel" id="subBody"></div>
+    <div class="sub-panel" id="viewVision"></div>
+    <div class="sub-panel" id="subCycle"></div>
+  </div>
 </div>
 
 <script>
@@ -1472,10 +1491,17 @@
 <script>
   // ---- 里程碑（I English／野狐圍棋／比賽）與成長紀錄 ----
   const REC_API = '/api/open/better-me';
-  const VIEWS = { habits: 'viewHabits', milestones: 'viewMilestones', growth: 'viewGrowth', vision: 'viewVision' };
+  const VIEWS = { habits: 'viewHabits', milestones: 'viewMilestones', growth: 'viewGrowth' };
+  // 成長分頁裡的三塊：身高體重／視力／花期小記，一次只打開一塊，記住上次看哪塊
+  const SUBS = { body: 'subBody', vision: 'viewVision', cycle: 'subCycle' };
+  let growthSub = 'body';
+  try { growthSub = localStorage.getItem('betterMeGrowthSub') || 'body'; } catch (e) {}
+  let subAdding = false, subShowAll = false;
   let activeView = 'habits';
   try { activeView = localStorage.getItem('betterMeView') || 'habits'; } catch (e) {}
+  if (activeView === 'vision') { activeView = 'growth'; growthSub = 'vision'; }
   if (!VIEWS[activeView]) activeView = 'habits';
+  if (!SUBS[growthSub]) growthSub = 'body';
   let recData = null;
   let recLoadSeq = 0;
 
@@ -1489,11 +1515,21 @@
   }
   document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 
-  window.reloadRecordViews = function(){ recEditMode = false; renderNotices(); if (activeView !== 'habits') loadRecords(); };
+  window.reloadRecordViews = function(){ recEditMode = false; renderNotices(); if (activeView !== 'habits') loadRecords(); else loadVisionDue(); };
 
   // ---------- 公布欄 ----------
   // 內容放在 notices.json，由 Claude 依 Ruby 的交代直接修改；過了日期自動不顯示
   let noticeData = null;
+  const visionDue = {}; // child -> { last, next }
+  function noteVisionFor(child, rows){ visionDue[child] = nextVisionDate(rows); renderNotices(); }
+  async function loadVisionDue(){
+    const child = activeChild;
+    if (child !== 'Cathy' && child !== 'Rina') { renderNotices(); return; }
+    try {
+      const d = await fetch(REC_API + '/records?child=' + encodeURIComponent(child)).then(r => r.json());
+      noteVisionFor(child, d.vision);
+    } catch (e) {}
+  }
   async function loadNotices(){
     try {
       const r = await fetch('notices.json', { cache: 'no-store' });
@@ -1505,13 +1541,17 @@
     const box = document.getElementById('noticeBoard');
     if (!box || !noticeData) return;
     const today = todayStr();
+    const vd = visionDue[activeChild];
+    const auto = vd ? [{ text: `👀 建議到診所檢查視力（上次 ${shortDate(vd.last)}，一個月一次）`, date: vd.next, auto: true }] : [];
     const list = noticeData
       .filter(n => n && n.text && (!n.who || n.who === 'all' || n.who === activeChild))
       .filter(n => !n.date || (n.end || n.date) >= today)
+      .concat(auto)
       .sort((a, b) => (a.date || '9999') < (b.date || '9999') ? -1 : 1);
     const badge = n => {
       if (!n.date) return `<span class="notice-badge pin">📢</span>`;
       const d = daysBetween(today, n.date);
+      if (d < 0 && n.auto) return `<span class="notice-badge soon">已過 ${-d} 天</span>`;
       if (d < 0) return `<span class="notice-badge today">進行中</span>`;
       if (d === 0) return `<span class="notice-badge today">就是今天！</span>`;
       return `<span class="notice-badge ${d <= 7 ? 'soon' : ''}">還有 ${d} 天</span>`;
@@ -1530,6 +1570,7 @@
     </div>`;
   }
   loadNotices();
+  loadVisionDue();
 
   // 平常不顯示刪除鈕，按「✏️ 編輯」才出現每筆的修改／刪除，避免誤按
   let recEditMode = false;
@@ -1550,17 +1591,18 @@
     if (!recData) return;
     if (activeView === 'milestones') renderMilestones();
     if (activeView === 'growth') renderGrowth();
-    if (activeView === 'vision') renderVision();
   }
   function bindEditToggle(box){
     box.querySelectorAll('.rec-edit-toggle').forEach(t =>
-      t.addEventListener('click', () => { recEditMode = !recEditMode; rerenderRecords(); }));
+      t.addEventListener('click', () => { recEditMode = !recEditMode; if (recEditMode) subShowAll = true; rerenderRecords(); }));
   }
   // 把一筆舊紀錄帶進表單，按鈕改成「更新這筆」
   function startEditing(form, id, fill){
     fill();
     form.dataset.editId = id;
     form.classList.add('editing');
+    const panel = form.closest('.sub-panel');
+    if (panel) { panel.classList.add('adding'); subAdding = true; }
     const btn = form.querySelector('button[type=submit]');
     btn.textContent = '💾 更新這筆';
     if (!form.querySelector('.rec-cancel')) {
@@ -1578,7 +1620,11 @@
     const child = activeChild;
     const box = document.getElementById(VIEWS[activeView]);
     if (child !== 'Cathy' && child !== 'Rina') {
-      box.innerHTML = `<p class="rec-empty">里程碑和成長紀錄只有 Cathy 和 Rina 有喔。</p>`;
+      const msg = `<p class="rec-empty">里程碑和成長紀錄只有 Cathy 和 Rina 有喔。</p>`;
+      if (activeView === 'growth') {
+        document.getElementById('growthTiles').innerHTML = msg;
+        Object.values(SUBS).forEach(id => { document.getElementById(id).innerHTML = ''; });
+      } else box.innerHTML = msg;
       return;
     }
     let data;
@@ -1590,9 +1636,10 @@
     }
     if (seq !== recLoadSeq) return;
     recData = data;
+    subAdding = false;
+    noteVisionFor(child, data.vision);
     if (activeView === 'milestones') renderMilestones();
     if (activeView === 'growth') renderGrowth();
-    if (activeView === 'vision') renderVision();
   }
 
   async function recSend(path, method, body){
@@ -1854,8 +1901,8 @@
       <span class="sub">${diff}</span></div>`;
   }
 
-  function renderGrowth(){
-    const box = document.getElementById('viewGrowth');
+  function renderBody(){
+    const box = document.getElementById('subBody');
     const rows = recData.growth;
     const color = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A';
     const table = rows.length
@@ -1866,8 +1913,8 @@
             <td>${rowActs('growth', r.id)}</td></tr>`).join('')}
         </tbody></table>`
       : `<p class="rec-empty">還沒有紀錄，量完身高體重記下來吧！</p>`;
-    box.innerHTML = `${editToolbarHtml()}<div class="rec-card ${childCls()}">
-        <h2 class="rec-title">📏 身高體重</h2>
+    box.innerHTML = `${subToolbarHtml(rows.length)}<div class="rec-card form-card ${childCls()}">
+        <h2 class="rec-title">📏 記錄身高體重</h2>
         <div class="growth-now">${growthNowHtml(rows, 'heightCm', '身高', 'cm')}${growthNowHtml(rows, 'weightKg', '體重', 'kg')}</div>
         <form novalidate class="rec-form" id="growthForm" style="margin-top:0;border-top:0;padding-top:0">
           <div class="photo-row">
@@ -1890,9 +1937,7 @@
       <div class="rec-card ${childCls()}">
         <h2 class="rec-title">🗂 歷次紀錄</h2>
         ${table}
-      </div>
-      ${cycleCardHtml()}`;
-    bindCycle(box);
+      </div>`;
 
     document.getElementById('growthForm').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1923,6 +1968,118 @@
       await recSend('/growth', 'DELETE', { id: Number(b.dataset.delGrowth) }).catch(err => alert(err.message));
       loadRecords();
     }));
+  }
+
+  // ---------- 成長分頁：上方小卡＋一次打開一塊 ----------
+  function subToolbarHtml(hasRows){
+    return `<div class="sub-bar">
+      ${recEditMode ? '<span class="rec-toolbar-hint">按 ✏️ 修改、✕ 刪除</span>' : ''}
+      <button type="button" class="rec-btn sub-add ${subAdding ? 'on' : ''}">${subAdding ? '收起' : '＋ 記一筆'}</button>
+      ${hasRows ? `<button type="button" class="rec-btn rec-edit-toggle ${recEditMode ? 'on' : ''}">${recEditMode ? '✔ 完成編輯' : '✏️ 編輯'}</button>` : ''}
+    </div>`;
+  }
+  function addMonths(ds, n){
+    const [y, m, d] = ds.split('-').map(Number);
+    const last = new Date(y, m - 1 + n + 1, 0).getDate();
+    const t = new Date(y, m - 1 + n, Math.min(d, last));
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+  // 視力建議一個月檢查一次：以最近一次紀錄往後推一個月
+  const VISION_EVERY_MONTHS = 1;
+  function nextVisionDate(rows){
+    const last = (rows || []).map(r => r.date).sort().pop();
+    return last ? { last, next: addMonths(last, VISION_EVERY_MONTHS) } : null;
+  }
+  function shortDate(ds){ const [, m, d] = ds.split('-').map(Number); return `${m}/${d}`; }
+  function dueText(ds){
+    const d = daysBetween(todayStr(), ds);
+    return d > 0 ? `還有 ${d} 天` : d === 0 ? '就是今天' : `已過 ${-d} 天`;
+  }
+
+  function growthTilesHtml(){
+    const cls = childCls();
+    const g = recData.growth || [];
+    const lastOf = key => { const h = g.filter(r => r[key] != null); return [h[h.length - 1], h[h.length - 2]]; };
+    const bodyHalf = (key, label, unit) => {
+      const [a, b] = lastOf(key);
+      const diff = a && b ? Math.round((a[key] - b[key]) * 10) / 10 : null;
+      return `<div><div class="t-lbl">${label}</div><div class="t-val">${a ? a[key] + ' ' + unit : '—'}</div>
+        <div class="t-sub">${diff != null ? `比上次 ${diff > 0 ? '+' : ''}${diff}` : (a ? fmtDate(a.date) : '還沒有紀錄')}</div></div>`;
+    };
+    const v = (recData.vision || []).filter(r => r.vaR != null || r.vaL != null);
+    const lv = v[v.length - 1];
+    const vn = nextVisionDate(recData.vision);
+    const va = x => x == null ? '—' : vaText(x);
+    const c = (recData.cycle || []).slice().sort((a, b) => a.start < b.start ? -1 : 1);
+    const { avg } = cycleStats(c);
+    const lc = c[c.length - 1];
+    let cVal = '—', cSub = '還沒有紀錄';
+    if (lc) {
+      const day = daysBetween(lc.start, todayStr()) + 1;
+      if (!lc.end && day <= 10) { cVal = `第 ${day} 天`; cSub = '進行中'; }
+      else if (avg) { const nx = addDays(lc.start, avg); cVal = dueText(nx); cSub = `下次約 ${shortDate(nx)}`; }
+      else { cVal = shortDate(lc.start); cSub = '上次開始・記滿兩次會預估'; }
+    }
+    const tile = (k, inner, wide) => `<button type="button" class="g-tile ${cls} ${wide ? 'wide' : ''} ${growthSub === k ? 'on' : ''}" data-sub="${k}">${inner}</button>`;
+    return `<div class="g-tiles">
+      ${tile('body', bodyHalf('heightCm', '📏 身高', 'cm') + `<div style="text-align:right">${bodyHalf('weightKg', '體重', 'kg')}</div>`, true)}
+      ${tile('vision', `<div class="t-lbl">👀 視力（右／左）</div><div class="t-val">${lv ? va(lv.vaR) + ' / ' + va(lv.vaL) : '—'}</div>
+        <div class="t-sub">${vn ? `下次檢查 ${shortDate(vn.next)}・${dueText(vn.next)}` : '還沒有紀錄'}</div>`)}
+      ${tile('cycle', `<div class="t-lbl">🌸 花期小記</div><div class="t-val">${cVal}</div><div class="t-sub">${cSub}</div>`)}
+    </div>`;
+  }
+
+  function renderCycle(){
+    const box = document.getElementById('subCycle');
+    box.innerHTML = `${subToolbarHtml((recData.cycle || []).length)}${cycleCardHtml()}`;
+    bindEditToggle(box);
+    bindCycle(box);
+  }
+
+  function renderGrowth(){
+    if (!recData) return;
+    const tiles = document.getElementById('growthTiles');
+    tiles.innerHTML = growthTilesHtml();
+    tiles.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => {
+      if (growthSub === b.dataset.sub) return;
+      growthSub = b.dataset.sub;
+      try { localStorage.setItem('betterMeGrowthSub', growthSub); } catch (e) {}
+      subAdding = false; subShowAll = false; recEditMode = false;
+      renderGrowth();
+    }));
+    Object.entries(SUBS).forEach(([k, id]) => {
+      const el = document.getElementById(id);
+      el.hidden = k !== growthSub;
+      if (k !== growthSub) el.innerHTML = '';
+    });
+    if (growthSub === 'body') renderBody();
+    if (growthSub === 'vision') renderVision();
+    if (growthSub === 'cycle') renderCycle();
+    const panel = document.getElementById(SUBS[growthSub]);
+    panel.classList.toggle('adding', subAdding);
+    panel.classList.toggle('show-all', subShowAll || recEditMode);
+    const addBtn = panel.querySelector('.sub-add');
+    if (addBtn) addBtn.addEventListener('click', () => {
+      subAdding = !subAdding;
+      panel.classList.toggle('adding', subAdding);
+      addBtn.classList.toggle('on', subAdding);
+      addBtn.textContent = subAdding ? '收起' : '＋ 記一筆';
+    });
+    panel.querySelectorAll('.growth-table').forEach(t => {
+      const n = t.querySelectorAll('tbody tr').length;
+      if (n < 2 || recEditMode) return;
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 'show-more';
+      const label = () => subShowAll ? '收起紀錄' : `看全部紀錄（${n} 筆）`;
+      more.textContent = label();
+      more.addEventListener('click', () => {
+        subShowAll = !subShowAll;
+        panel.classList.toggle('show-all', subShowAll);
+        panel.querySelectorAll('.show-more').forEach(m => { m.textContent = subShowAll ? '收起紀錄' : `看全部紀錄（${m.dataset.n} 筆）`; });
+      });
+      more.dataset.n = n;
+      t.after(more);
+    });
   }
 
   // ---------- 花期小記（經期紀錄） ----------
@@ -1970,13 +2127,10 @@
       : '';
     const open = last && !last.end && daysBetween(last.start, today) <= 9;
     return `<div class="rec-card ${childCls()}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <h2 class="rec-title" style="margin-bottom:0">🌸 花期小記</h2>
-        ${rows.length ? `<button type="button" class="rec-btn rec-edit-toggle ${recEditMode ? 'on' : ''}">${recEditMode ? '✔ 完成編輯' : '✏️ 修改／刪除'}</button>` : ''}
-      </div>
-      ${recEditMode && rows.length ? '<p class="rec-toolbar-hint" style="margin:6px 0 0">在下面的紀錄按 ✏️ 修改、✕ 刪除</p>' : ''}
+      <h2 class="rec-title">🌸 花期小記</h2>
       ${nowHtml}
-      ${open ? `<button type="button" class="rec-btn" id="cycleEndBtn" data-id="${last.id}" style="margin:8px 0">🌿 今天結束了</button>` : ''}
+      ${open ? `<button type="button" class="rec-btn solid" id="cycleEndBtn" data-id="${last.id}" style="margin:8px 0">🌿 今天結束了</button>`
+             : `<button type="button" class="rec-btn solid" id="cycleStartBtn" style="margin:8px 0">🌸 今天開始了</button>`}
       <form novalidate class="rec-form" id="cycleForm">
         <label>開始日<input type="date" id="cStart" value="${todayStr()}" max="${todayStr()}"></label>
         <label>結束日<input type="date" id="cEnd" max="${todayStr()}"></label>
@@ -2001,6 +2155,13 @@
           flow: document.getElementById('cFlow').value, note: document.getElementById('cNote').value.trim(), id: editIdOf(f) });
         playChime();
       } catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+    const startBtn = document.getElementById('cycleStartBtn');
+    if (startBtn) startBtn.addEventListener('click', async () => {
+      if (!confirm('記下今天開始了嗎？')) return;
+      try { await recSend('/cycle', 'POST', { child: activeChild, start: todayStr() }); playChime(); }
+      catch (err) { alert(err.message); return; }
       loadRecords();
     });
     const endBtn = document.getElementById('cycleEndBtn');
@@ -2114,8 +2275,8 @@
         </tbody></table>`
       : `<p class="rec-empty">還沒有視力紀錄。</p>`;
     const hasSph = rows.some(r => r.sphR != null || r.sphL != null);
-    box.innerHTML = `${editToolbarHtml()}<div class="rec-card ${childCls()}">
-        <h2 class="rec-title">👀 視力檢查</h2>
+    box.innerHTML = `${subToolbarHtml(rows.length)}<div class="rec-card form-card ${childCls()}">
+        <h2 class="rec-title">👀 記錄視力檢查</h2>
         <div class="eye-now">${eyeNowCard(rows, 'R', '右眼')}${eyeNowCard(rows, 'L', '左眼')}</div>
         <form novalidate class="rec-form" id="visionForm" style="margin-top:0;border-top:0;padding-top:0">
           <div class="photo-row">
