@@ -1890,7 +1890,9 @@
       <div class="rec-card ${childCls()}">
         <h2 class="rec-title">🗂 歷次紀錄</h2>
         ${table}
-      </div>`;
+      </div>
+      ${cycleCardHtml()}`;
+    bindCycle(box);
 
     document.getElementById('growthForm').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1919,6 +1921,105 @@
     box.querySelectorAll('[data-del-growth]').forEach(b => b.addEventListener('click', async () => {
       if (!confirm('確定要刪除這筆紀錄嗎？')) return;
       await recSend('/growth', 'DELETE', { id: Number(b.dataset.delGrowth) }).catch(err => alert(err.message));
+      loadRecords();
+    }));
+  }
+
+  // ---------- 花期小記（經期紀錄） ----------
+  function addDays(ds, n){
+    const [y, m, d] = ds.split('-').map(Number);
+    const t = new Date(y, m - 1, d + n);
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  }
+  function cycleStats(rows){
+    const gaps = [];
+    for (let i = 1; i < rows.length; i++) gaps.push(daysBetween(rows[i - 1].start, rows[i].start));
+    const usable = gaps.filter(g => g >= 15 && g <= 60).slice(-6);
+    const avg = usable.length ? Math.round(usable.reduce((a, b) => a + b, 0) / usable.length) : null;
+    const lens = rows.filter(r => r.end).map(r => daysBetween(r.start, r.end) + 1).slice(-6);
+    const avgLen = lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : null;
+    return { gaps, avg, avgLen };
+  }
+  function cycleCardHtml(){
+    const rows = (recData.cycle || []).slice().sort((a, b) => a.start < b.start ? -1 : 1);
+    const today = todayStr();
+    const { gaps, avg, avgLen } = cycleStats(rows);
+    const last = rows[rows.length - 1];
+    let nowHtml = `<p class="rec-empty">還沒有紀錄。花期來的那天記一下，之後就能幫你預估下一次 🌸</p>`;
+    if (last) {
+      const inProgress = !last.end && daysBetween(last.start, today) <= 9;
+      const nextHtml = avg
+        ? (() => { const next = addDays(last.start, avg), d = daysBetween(today, next);
+            return `<div class="rec-now"><span class="lbl">下次大約</span><span class="val">${fmtDate(next).slice(5)}</span>
+              <span class="sub">${d > 0 ? `還有 ${d} 天` : d === 0 ? '可能就是今天' : `已過預估 ${-d} 天`}</span></div>`; })()
+        : `<div class="rec-now"><span class="lbl">下次大約</span><span class="val">—</span><span class="sub">記滿兩次就會預估</span></div>`;
+      nowHtml = `<div class="growth-now">
+        <div class="rec-now"><span class="lbl">${inProgress ? '這次進行中' : '上次開始'}</span>
+          <span class="val">${inProgress ? `第 ${daysBetween(last.start, today) + 1} 天` : fmtDate(last.start).slice(5)}</span>
+          <span class="sub">${avg ? `平均 ${avg} 天一次` : ''}${avgLen ? `${avg ? '・' : ''}每次約 ${avgLen} 天` : ''}</span></div>
+        ${nextHtml}</div>`;
+    }
+    const list = rows.length
+      ? `<table class="growth-table vision-table"><thead><tr><th>開始</th><th>天數</th><th>間隔</th><th></th></tr></thead><tbody>
+          ${rows.map((r, i) => ({ r, gap: i ? gaps[i - 1] : null })).reverse().map(({ r, gap }) => `<tr>
+            <td>${fmtDate(r.start)}${r.flow ? `<span class="note">量：${escapeHtml(r.flow)}</span>` : ''}${r.note ? `<span class="note">${escapeHtml(r.note)}</span>` : ''}</td>
+            <td>${r.end ? (daysBetween(r.start, r.end) + 1) + ' 天' : '—'}</td>
+            <td>${gap != null ? gap + ' 天' : '—'}</td>
+            <td>${rowActs('cycle', r.id)}</td></tr>`).join('')}
+        </tbody></table>`
+      : '';
+    const open = last && !last.end && daysBetween(last.start, today) <= 9;
+    return `<div class="rec-card ${childCls()}">
+      <h2 class="rec-title">🌸 花期小記</h2>
+      ${nowHtml}
+      ${open ? `<button type="button" class="rec-btn" id="cycleEndBtn" data-id="${last.id}" style="margin:8px 0">🌿 今天結束了</button>` : ''}
+      <form novalidate class="rec-form" id="cycleForm">
+        <label>開始日<input type="date" id="cStart" value="${todayStr()}" max="${todayStr()}"></label>
+        <label>結束日<input type="date" id="cEnd" max="${todayStr()}"></label>
+        <label>量<select id="cFlow"><option value="">—</option><option>少</option><option>中</option><option>多</option></select></label>
+        <label class="grow">備註<input type="text" maxlength="80" id="cNote" placeholder="例如：肚子有點痛"></label>
+        <button class="rec-btn solid" type="submit">＋ 記下來</button>
+      </form>
+      ${list}
+    </div>`;
+  }
+  function bindCycle(box){
+    const f = document.getElementById('cycleForm');
+    if (!f) return;
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const start = document.getElementById('cStart').value;
+      const end = document.getElementById('cEnd').value;
+      if (!start) { alert('請填開始日'); return; }
+      if (end && end < start) { alert('結束日不能早於開始日'); return; }
+      try {
+        await recSend('/cycle', 'POST', { child: activeChild, start, end,
+          flow: document.getElementById('cFlow').value, note: document.getElementById('cNote').value.trim(), id: editIdOf(f) });
+        playChime();
+      } catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+    const endBtn = document.getElementById('cycleEndBtn');
+    if (endBtn) endBtn.addEventListener('click', async () => {
+      const r = recData.cycle.find(x => x.id === Number(endBtn.dataset.id));
+      if (!r) return;
+      try { await recSend('/cycle', 'POST', { child: activeChild, start: r.start, end: todayStr(), flow: r.flow, note: r.note, id: r.id }); playChime(); }
+      catch (err) { alert(err.message); return; }
+      loadRecords();
+    });
+    box.querySelectorAll('[data-edit-cycle]').forEach(b => b.addEventListener('click', () => {
+      const r = recData.cycle.find(x => x.id === Number(b.dataset.editCycle));
+      if (!r) return;
+      startEditing(f, r.id, () => {
+        document.getElementById('cStart').value = r.start;
+        document.getElementById('cEnd').value = r.end || '';
+        document.getElementById('cFlow').value = r.flow || '';
+        document.getElementById('cNote').value = r.note || '';
+      });
+    }));
+    box.querySelectorAll('[data-del-cycle]').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+      await recSend('/cycle', 'DELETE', { id: Number(b.dataset.delCycle) }).catch(err => alert(err.message));
       loadRecords();
     }));
   }

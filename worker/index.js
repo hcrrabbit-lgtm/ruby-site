@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS headshot_roster (class_id TEXT NOT NULL, seat INTEGER
 CREATE TABLE IF NOT EXISTS admin_notices (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', order_no INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS admin_notice_files (id INTEGER PRIMARY KEY AUTOINCREMENT, notice_id INTEGER NOT NULL, name TEXT NOT NULL, r2_key TEXT NOT NULL, content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
+CREATE TABLE IF NOT EXISTS bm_cycle (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, flow TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, start_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
 
@@ -1604,16 +1605,17 @@ async function bmRunUpdate(stmt) {
 async function bmRecordsGet(env, url) {
   const child = url.searchParams.get("child");
   if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
-  const [levels, contests, growth, vision] = await Promise.all([
+  const [levels, contests, growth, vision, cycle] = await Promise.all([
     env.DB.prepare("SELECT id, track, label, date FROM bm_levels WHERE child = ? ORDER BY date, id").bind(child).all(),
     env.DB.prepare("SELECT id, date, name, division, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
     env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all(),
     env.DB.prepare(
       `SELECT id, date, va_r as vaR, va_l as vaL, sph_r as sphR, sph_l as sphL, cyl_r as cylR, cyl_l as cylL, note
        FROM bm_vision WHERE child = ? ORDER BY date`
-    ).bind(child).all()
+    ).bind(child).all(),
+    env.DB.prepare("SELECT id, start_date as start, end_date as end, flow, note FROM bm_cycle WHERE child = ? ORDER BY start_date").bind(child).all()
   ]);
-  return json({ levels: levels.results, contests: contests.results, growth: growth.results, vision: vision.results });
+  return json({ levels: levels.results, contests: contests.results, growth: growth.results, vision: vision.results, cycle: cycle.results });
 }
 
 async function bmLevelPost(env, request) {
@@ -1706,6 +1708,31 @@ async function bmVisionPost(env, request) {
        cyl_r = COALESCE(excluded.cyl_r, bm_vision.cyl_r), cyl_l = COALESCE(excluded.cyl_l, bm_vision.cyl_l),
        note = CASE WHEN excluded.note != '' THEN excluded.note ELSE bm_vision.note END`
   ).bind(b.child, b.date, f.vaR.v, f.vaL.v, f.sphR.v, f.sphL.v, f.cylR.v, f.cylL.v, bmClean(b.note, 80), new Date().toISOString()).run();
+  return json({ ok: true });
+}
+
+// 花期小記（經期）：開始日必填；結束日、量、備註可空
+const BM_FLOWS = new Set(["", "少", "中", "多"]);
+async function bmCyclePost(env, request) {
+  const b = await request.json();
+  const end = b.end ? String(b.end) : null;
+  const flow = BM_FLOWS.has(b.flow || "") ? (b.flow || "") : "";
+  if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.start || "") || (end && (!BM_DATE_RE.test(end) || end < b.start))) {
+    return json({ error: "日期不完整，或結束日早於開始日" }, { status: 400 });
+  }
+  const note = bmClean(b.note, 80);
+  const editId = bmEditId(b);
+  if (editId !== null) {
+    return bmRunUpdate(env.DB.prepare("UPDATE bm_cycle SET start_date = ?, end_date = ?, flow = ?, note = ? WHERE id = ? AND child = ?")
+      .bind(b.start, end, flow, note, editId, b.child));
+  }
+  await env.DB.prepare(
+    `INSERT INTO bm_cycle (child, start_date, end_date, flow, note, created_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(child, start_date) DO UPDATE SET
+       end_date = COALESCE(excluded.end_date, bm_cycle.end_date),
+       flow = CASE WHEN excluded.flow != '' THEN excluded.flow ELSE bm_cycle.flow END,
+       note = CASE WHEN excluded.note != '' THEN excluded.note ELSE bm_cycle.note END`
+  ).bind(b.child, b.start, end, flow, note, new Date().toISOString()).run();
   return json({ ok: true });
 }
 
@@ -1993,6 +2020,8 @@ export default {
       if (path === "/api/open/better-me/vision/read-photo" && request.method === "POST") return await bmReadVision(env, request);
       if (path === "/api/open/better-me/growth/read-photo" && request.method === "POST") return await bmReadGrowth(env, request);
       if (path === "/api/open/better-me/growth" && request.method === "POST") return await bmGrowthPost(env, request);
+      if (path === "/api/open/better-me/cycle" && request.method === "POST") return await bmCyclePost(env, request);
+      if (path === "/api/open/better-me/cycle" && request.method === "DELETE") return await bmDelete(env, request, "bm_cycle");
       if (path === "/api/open/better-me/growth" && request.method === "DELETE") return await bmDelete(env, request, "bm_growth");
 
       if (path === "/api/admin/headshots" && request.method === "GET") return await headshotRosterGet(env);
