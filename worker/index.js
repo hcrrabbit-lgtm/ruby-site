@@ -257,6 +257,22 @@ async function ensureSchema(env) {
     // best-effort; she can still add habits by hand on the page
   }
   try {
+    // 一次性：Better Me 幫 Rina 新增「讀寫網」打勾項目（已有同名就跳過；跑過一次就不再跑，之後刪掉不會被加回來）
+    const done = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'rina_duxiewang_seed_v1'").first();
+    if (!done) {
+      const dup = await env.DB.prepare("SELECT id FROM study_habits WHERE child = 'Rina' AND name = '讀寫網'").first();
+      if (!dup) {
+        const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(order_no), 0) as m FROM study_habits").first();
+        await env.DB.prepare(
+          "INSERT INTO study_habits (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, 'Rina')"
+        ).bind("shabit_" + Date.now(), "讀寫網", ((maxRow && maxRow.m) || 0) + 1, new Date().toISOString()).run();
+      }
+      await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('rina_duxiewang_seed_v1', '1')").run();
+    }
+  } catch (e) {
+    // best-effort; can still be added by hand on the Better Me page
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
