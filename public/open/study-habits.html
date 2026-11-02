@@ -1553,8 +1553,8 @@
     if (activeView === 'vision') renderVision();
   }
   function bindEditToggle(box){
-    const t = box.querySelector('.rec-edit-toggle');
-    if (t) t.addEventListener('click', () => { recEditMode = !recEditMode; rerenderRecords(); });
+    box.querySelectorAll('.rec-edit-toggle').forEach(t =>
+      t.addEventListener('click', () => { recEditMode = !recEditMode; rerenderRecords(); }));
   }
   // 把一筆舊紀錄帶進表單，按鈕改成「更新這筆」
   function startEditing(form, id, fill){
@@ -1970,7 +1970,11 @@
       : '';
     const open = last && !last.end && daysBetween(last.start, today) <= 9;
     return `<div class="rec-card ${childCls()}">
-      <h2 class="rec-title">🌸 花期小記</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <h2 class="rec-title" style="margin-bottom:0">🌸 花期小記</h2>
+        ${rows.length ? `<button type="button" class="rec-btn rec-edit-toggle ${recEditMode ? 'on' : ''}">${recEditMode ? '✔ 完成編輯' : '✏️ 修改／刪除'}</button>` : ''}
+      </div>
+      ${recEditMode && rows.length ? '<p class="rec-toolbar-hint" style="margin:6px 0 0">在下面的紀錄按 ✏️ 修改、✕ 刪除</p>' : ''}
       ${nowHtml}
       ${open ? `<button type="button" class="rec-btn" id="cycleEndBtn" data-id="${last.id}" style="margin:8px 0">🌿 今天結束了</button>` : ''}
       <form novalidate class="rec-form" id="cycleForm">
