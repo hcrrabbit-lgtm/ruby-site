@@ -78,6 +78,53 @@
       "note": "Smash Boom Best 是 Brains On Universe 為兒童和家庭打造的有趣又聰明的辯論節目。每集都會把兩個很酷的東西拼在一起，讓你自己決定哪個最好：皮卡丘對瑪利歐、棒棒糖對爆米花、火烈鳥對墨西哥鈍口螈、美人魚對大腳怪、貓對狗、蜘蛛人對蝙蝠俠、冰箱對馬桶、Minecraft 對樂高。",
       "link": "https://www.youtube.com/@BrainsOnShow",
       "channel": "@BrainsOnShow"
+    },
+    {
+      "title": "SciShow Kids",
+      "cat": "科學",
+      "who": "rina",
+      "note": "給小朋友的科學頻道，主持人和機器鼠 Squeaks 一起做小實驗、回答「為什麼」，英文說得慢又清楚。",
+      "link": "https://www.youtube.com/@SciShowKids",
+      "channel": "@SciShowKids"
+    },
+    {
+      "title": "Dr. Binocs",
+      "cat": "科學",
+      "who": "rina",
+      "note": "戴著望遠鏡眼鏡的 Dr. Binocs 用卡通把身體、天氣、太空等科學知識講得簡單好懂，每集幾分鐘。",
+      "link": "https://www.youtube.com/@PeekabooKidz",
+      "channel": "@PeekabooKidz"
+    },
+    {
+      "title": "SciShow",
+      "cat": "科學",
+      "who": "cathy",
+      "note": "SciShow Kids 的大哥哥版，深入一點的科學新知和有趣問題，適合國中生練英文聽力。",
+      "link": "https://www.youtube.com/@SciShow",
+      "channel": "@SciShow"
+    },
+    {
+      "title": "Kurzgesagt",
+      "cat": "科學",
+      "who": "cathy",
+      "note": "畫面超漂亮的動畫科普，講宇宙、生物、人體和大問題，很多影片有中文字幕。",
+      "link": "https://www.youtube.com/@kurzgesagt",
+      "channel": "@kurzgesagt"
+    },
+    {
+      "title": "Amoeba Sisters",
+      "cat": "生物",
+      "who": "cathy",
+      "note": "兩姐妹用可愛的手繪動畫講細胞、遺傳、生態等生物課重點，很適合國中生物複習。",
+      "link": "https://www.youtube.com/@AmoebaSisters",
+      "channel": "@AmoebaSisters"
+    },
+    {
+      "title": "Tumble：Science Podcast for Kids",
+      "cat": "英文＋科學（Podcast）",
+      "who": "both",
+      "note": "這是一個專門為孩子設計的科學 Podcast，透過故事化的方式把科學知識講得生動有趣。",
+      "link": "https://www.sciencepodcastforkids.com/"
     }
   ]
 }
