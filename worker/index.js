@@ -2070,7 +2070,7 @@ export default {
 };
 
 
-// ---- 影片區：抓 YouTube 頻道大頭照（公開頁面用，放 /api/open/）----
+// ---- 放映室：抓 YouTube 頻道大頭照（公開頁面用，放 /api/open/）----
 // c = "@handle" 或 "channel/UC..."；成功就轉址到頻道大頭照，失敗回 404（頁面會自動藏起圖片）
 async function handleYtAvatar(url) {
   const c = url.searchParams.get("c") || "";

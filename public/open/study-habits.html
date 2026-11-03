@@ -612,7 +612,7 @@
 <div class="wrap">
   <div class="title-row">
     <h1>✅ Better Me</h1>
-    <a class="video-link" id="videoLink" href="kids-videos.html">🎬 去看影片 →</a>
+    <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
   </div>
 
   <div class="child-tabs" id="childTabs"></div>
@@ -864,7 +864,7 @@
     activeChild = urlChild;
     try { localStorage.setItem('studyHabitActiveChild', activeChild); } catch (e) {}
   }
-  // 「去看影片」按鈕：帶著目前選的孩子過去，影片頁會自動篩選
+  // 「放映室」按鈕：帶著目前選的孩子過去，影片頁會自動篩選
   document.getElementById('videoLink')?.addEventListener('click', (e) => {
     const w = String(activeChild || '').toLowerCase();
     if (w === 'cathy' || w === 'rina') { e.preventDefault(); location.href = 'kids-videos.html?who=' + w; }

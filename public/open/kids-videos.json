@@ -1,5 +1,5 @@
 {
-  "_說明": "影片區的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。channel 填頻道（@名稱 或 channel/UC…），卡片就會顯示頻道大頭照。",
+  "_說明": "放映室的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。channel 填頻道（@名稱 或 channel/UC…），卡片就會顯示頻道大頭照。",
   "videos": [
     {
       "title": "Goat Girl",
