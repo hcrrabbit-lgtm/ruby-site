@@ -1149,12 +1149,75 @@ function mysteryGroupOf(studentId){
   return null;
 }
 
-function mysteryPool(){
-  return rosterCache.filter(st => attendance[st.id] !== "absent");
+// History of past draws for this class (from the database, shared across devices).
+let mysteryHistory = [];   // [{ date, studentId }] oldest first
+
+async function loadMysteryHistory(){
+  mysteryHistory = [];
+  if(!currentClassId) return;
+  const classId = currentClassId;
+  try{ mysteryHistory = await apiGet(`/api/mystery/history?classId=${encodeURIComponent(classId)}`); }catch(e){ return; }
+  // One-time: copy draws that were only saved on this device before history moved to the database.
+  try{
+    const prefix = `mystery:${classId}:`;
+    const known = new Set(mysteryHistory.map(h => h.date));
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k || !k.startsWith(prefix)) continue;
+      const date = k.slice(prefix.length);
+      if(known.has(date)) continue;
+      const st = JSON.parse(localStorage.getItem(k) || "null");
+      if(!st || !st.studentId) continue;
+      mysteryHistory.push({ date, studentId: st.studentId });
+      apiPost("/api/mystery/draw", { classId, date, studentId: st.studentId }).catch(()=>{});
+    }
+    mysteryHistory.sort((a, b) => a.date.localeCompare(b.date));
+  }catch(e){}
 }
 
-function drawMystery(){
-  const pool = mysteryPool();
+// How many times each student has been drawn before today (today's own draw doesn't count,
+// so 重抽 doesn't skip ahead).
+function mysteryCounts(){
+  const today = selectedDate || todayStr();
+  const counts = {};
+  mysteryHistory.forEach(h => { if(h.date !== today) counts[h.studentId] = (counts[h.studentId] || 0) + 1; });
+  return counts;
+}
+
+// Take turns: only students drawn the fewest times so far are eligible, so nobody
+// repeats until everyone present has had a turn. Absent students are skipped.
+function mysteryPool(){
+  const present = rosterCache.filter(st => attendance[st.id] !== "absent");
+  if(!present.length) return [];
+  const counts = mysteryCounts();
+  const min = Math.min(...present.map(st => counts[st.id] || 0));
+  let pool = present.filter(st => (counts[st.id] || 0) === min);
+  // At the start of a new round, avoid repeating whoever was drawn last time.
+  const today = selectedDate || todayStr();
+  const prev = mysteryHistory.filter(h => h.date !== today).pop();
+  if(prev && pool.length > 1) pool = pool.filter(st => st.id !== prev.studentId);
+  return pool;
+}
+
+function mysteryRoundInfo(){
+  const present = rosterCache.filter(st => attendance[st.id] !== "absent");
+  const counts = mysteryCounts();
+  const min = present.length ? Math.min(...present.map(st => counts[st.id] || 0)) : 0;
+  const done = present.filter(st => (counts[st.id] || 0) > min).length;
+  return { round: min + 1, done, total: present.length };
+}
+
+function recordMysteryDraw(studentId){
+  const classId = currentClassId;
+  const date = selectedDate || todayStr();
+  mysteryHistory = mysteryHistory.filter(h => h.date !== date);
+  if(studentId) mysteryHistory.push({ date, studentId });
+  apiPost("/api/mystery/draw", { classId, date, studentId: studentId || null }).catch(()=>{});
+}
+
+function drawMystery(excludeId){
+  let pool = mysteryPool();
+  if(excludeId && pool.length > 1) pool = pool.filter(st => st.id !== excludeId);
   if(!pool.length || mysteryRolling) return;
   const winner = pool[Math.floor(Math.random() * pool.length)];
   mysteryRolling = true;
@@ -1173,6 +1236,7 @@ function drawMystery(){
       mysteryRolling = false;
       mysteryState = { studentId: winner.id, misses: [], revealed: false, rewarded: false };
       saveMysteryState();
+      recordMysteryDraw(winner.id);
       playBeep(1046, 0.06);
       renderMystery();
     }
@@ -1208,10 +1272,14 @@ function renderMystery(){
 
   if(!mysteryState){
     const n = mysteryPool().length;
-    card.innerHTML = head(`從今天到課的 ${n} 位同學中抽一個號碼（請假的不會抽到）`,
+    const info = mysteryRoundInfo();
+    const sub = info.done > 0 || info.round > 1
+      ? `第 ${info.round} 輪：已有 ${info.done} 人當過，這次從還沒當過的 ${n} 位中抽（請假的不會抽到）`
+      : `從今天到課的 ${n} 位同學中抽一個號碼，大家輪流、不重複（請假的不會抽到）`;
+    card.innerHTML = head(sub,
       `<button type="button" class="mystery-main-btn" id="mysteryDrawBtn"${n ? "" : " disabled"}>🎲 抽出神祕號碼</button>`);
     const btn = document.getElementById("mysteryDrawBtn");
-    if(btn) btn.addEventListener("click", drawMystery);
+    if(btn) btn.addEventListener("click", () => drawMystery());
     return;
   }
 
@@ -1259,9 +1327,10 @@ function renderMystery(){
     });
     document.getElementById("mysteryRedrawBtn").addEventListener("click", () => {
       if(!confirm("確定要重新抽一個號碼嗎?")) return;
+      const prevId = mysteryState.studentId;
       mysteryState = null;
       saveMysteryState();
-      drawMystery();
+      drawMystery(prevId);
     });
     document.getElementById("mysteryRevealBtn").addEventListener("click", () => {
       mysteryState.revealed = true;
@@ -2937,7 +3006,8 @@ async function loadRoster(){
     loadAssignments().then(() => loadSubmissionsForCurrentAssignment()),
     loadClassNote(),
     loadSeating(),
-    loadGroupLeaders()
+    loadGroupLeaders(),
+    loadMysteryHistory()
   ]);
   loadMysteryState();
   renderMystery();

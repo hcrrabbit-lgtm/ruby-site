@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS bm_contests (id INTEGER PRIMARY KEY AUTOINCREMENT, ch
 CREATE TABLE IF NOT EXISTS bm_vision (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, va_r REAL, va_l REAL, sph_r INTEGER, sph_l INTEGER, cyl_r INTEGER, cyl_l INTEGER, note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, date));
 CREATE TABLE IF NOT EXISTS headshot_roster (class_id TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL, taken_at TEXT, PRIMARY KEY(class_id, seat));
 CREATE TABLE IF NOT EXISTS admin_notices (id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '', order_no INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS mystery_draws (class_id TEXT NOT NULL, date TEXT NOT NULL, student_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(class_id, date));
 CREATE TABLE IF NOT EXISTS admin_notice_files (id INTEGER PRIMARY KEY AUTOINCREMENT, notice_id INTEGER NOT NULL, name TEXT NOT NULL, r2_key TEXT NOT NULL, content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
 CREATE TABLE IF NOT EXISTS bm_cycle (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, flow TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, start_date));
@@ -735,6 +736,30 @@ async function handleNoteUpdate(env, request) {
 
 const PROGRESS_WEEKS = 21;
 
+// 神祕客抽籤紀錄：每班每天一筆，用來讓同一班輪流抽、不重複
+async function handleMysteryHistoryGet(env, url) {
+  const classId = url.searchParams.get("classId");
+  if (!classId) return json({ error: "缺少 classId" }, { status: 400 });
+  const rows = (await env.DB.prepare(
+    "SELECT date, student_id as studentId FROM mystery_draws WHERE class_id = ? ORDER BY date"
+  ).bind(classId).all()).results;
+  return json(rows);
+}
+
+async function handleMysteryDrawPost(env, request) {
+  const { classId, date, studentId } = await request.json();
+  if (!classId || !date) return json({ error: "缺少 classId 或 date" }, { status: 400 });
+  if (!studentId) {
+    await env.DB.prepare("DELETE FROM mystery_draws WHERE class_id = ? AND date = ?").bind(classId, date).run();
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO mystery_draws (class_id, date, student_id, created_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(class_id, date) DO UPDATE SET student_id = excluded.student_id, created_at = excluded.created_at`
+    ).bind(classId, date, studentId, new Date().toISOString()).run();
+  }
+  return json({ ok: true });
+}
+
 async function handleSemesterStartGet(env) {
   const row = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'semester_start'").first();
   return json({ date: (row && row.value) || null });
@@ -853,6 +878,7 @@ async function handleResetTestData(env, request) {
   await env.DB.prepare("UPDATE students SET photo_key = NULL").run();
   await env.DB.prepare("DELETE FROM behavior_events").run();
   await env.DB.prepare("DELETE FROM attendance").run();
+  await env.DB.prepare("DELETE FROM mystery_draws").run();
 
   return json({
     ok: true,
@@ -1980,6 +2006,8 @@ export default {
       if (path === "/api/submissions/score" && request.method === "POST") return await handleScoreUpdate(env, request);
       if (path === "/api/submissions/note" && request.method === "POST") return await handleNoteUpdate(env, request);
       if (path === "/api/admin/reset-test-data" && request.method === "POST") return await handleResetTestData(env, request);
+      if (path === "/api/mystery/history" && request.method === "GET") return await handleMysteryHistoryGet(env, url);
+      if (path === "/api/mystery/draw" && request.method === "POST") return await handleMysteryDrawPost(env, request);
       if (path === "/api/settings/semester-start" && request.method === "GET") return await handleSemesterStartGet(env);
       if (path === "/api/settings/semester-start" && request.method === "POST") return await handleSemesterStartPost(env, request);
       if (path === "/api/class-progress/overview" && request.method === "GET") return await handleClassProgressOverview(env);
