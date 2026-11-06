@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字音字形小挑戰</title>
+<meta name="theme-color" content="#C4863A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --rina:#C4863A; --rina-bg:#FBF0DE;
+    --ok:#5F8955; --ok-bg:#EBF2E6; --bad:#B85C4B; --bad-bg:#F8E6E1;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:640px;margin:0 auto;padding:22px 16px 60px;}
+  a.back{display:inline-block;margin-bottom:8px;font-size:14px;color:var(--ink-soft);text-decoration:none;}
+  h1{font-family:'Noto Serif TC',serif;font-size:28px;margin:4px 0 4px;}
+  h1 span{color:var(--rina);}
+  .sub{color:var(--ink-soft);font-size:15px;margin:0 0 20px;}
+  .hidden{display:none !important;}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .mode{
+    font:inherit;text-align:left;cursor:pointer;background:#fff;border:1.5px solid var(--line);
+    border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(46,42,37,.06);
+  }
+  .mode:active{transform:scale(.98);}
+  .mode .ic{font-size:28px;}
+  .mode b{display:block;font-size:18px;margin:6px 0 2px;}
+  .mode small{color:var(--ink-soft);font-size:13px;}
+  .mode.wrongbook{border-color:var(--rina);background:var(--rina-bg);}
+  .stats{margin-top:18px;background:#fff;border:1px dashed var(--line);border-radius:14px;padding:12px 16px;font-size:14px;color:var(--ink-soft);line-height:1.8;}
+
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .bar .prog{flex:1;height:10px;background:var(--paper-deep);border-radius:99px;overflow:hidden;}
+  .bar .prog i{display:block;height:100%;background:var(--rina);width:0;transition:width .3s;}
+  .bar .cnt{font-size:14px;color:var(--ink-soft);min-width:52px;text-align:right;}
+  .quit{font:inherit;font-size:13px;background:none;border:none;color:var(--ink-soft);cursor:pointer;padding:4px;}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:26px 20px;box-shadow:0 4px 16px rgba(46,42,37,.07);text-align:center;}
+  .qtype{display:inline-block;font-size:13px;font-weight:700;color:var(--rina);background:var(--rina-bg);padding:3px 12px;border-radius:99px;}
+  .prompt{font-size:30px;font-weight:700;line-height:1.7;margin:18px 0 8px;letter-spacing:2px;}
+  .prompt .blank{display:inline-block;min-width:1.5em;border-bottom:3px solid var(--rina);color:var(--rina);}
+  .prompt .zy{font-size:20px;color:var(--rina);vertical-align:middle;margin:0 2px;}
+  .prompt .hl{color:var(--rina);background:var(--rina-bg);border-radius:8px;padding:0 4px;}
+  .hint{font-size:15px;color:var(--ink-soft);margin-bottom:18px;}
+  .opts{display:grid;gap:12px;}
+  .opts.three{grid-template-columns:repeat(3,1fr);}
+  .opts.one{grid-template-columns:1fr;}
+  .opt{
+    font:inherit;font-size:30px;font-weight:700;padding:16px 8px;border-radius:16px;cursor:pointer;
+    background:var(--paper);border:2px solid var(--line);color:var(--ink);
+  }
+  .opts.one .opt{font-size:26px;letter-spacing:4px;}
+  .opt.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
+  .opt.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);}
+  .opt:disabled{cursor:default;}
+  .feedback{margin-top:18px;font-size:17px;line-height:1.7;min-height:30px;}
+  .feedback.ok{color:var(--ok);} .feedback.bad{color:var(--bad);}
+  .next{font:inherit;font-size:18px;font-weight:700;margin-top:14px;padding:12px 36px;border-radius:99px;border:none;background:var(--rina);color:#fff;cursor:pointer;}
+
+  .result{text-align:center;}
+  .result .big{font-size:64px;margin:6px 0;}
+  .result .score{font-size:40px;font-weight:900;color:var(--rina);}
+  .result p{font-size:17px;color:var(--ink-soft);}
+  .result .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;}
+  .ghost{font:inherit;font-size:16px;padding:11px 24px;border-radius:99px;border:1.5px solid var(--rina);background:#fff;color:var(--rina);cursor:pointer;font-weight:700;}
+  .note{margin-top:22px;font-size:13px;color:var(--ink-soft);line-height:1.8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html#study">← 回學習規劃</a>
+  <h1>✏️ 字音字形<span>小挑戰</span></h1>
+  <p class="sub">Rina 加油！每一關 10 題，答錯的字會收進錯題本。</p>
+
+  <!-- 首頁 -->
+  <div id="home">
+    <div class="modes">
+      <button class="mode" data-mode="A"><div class="ic">🔤</div><b>看注音選字</b><small>同音字，選對的國字</small></button>
+      <button class="mode" data-mode="B"><div class="ic">🔍</div><b>找出寫對的</b><small>長得很像的字</small></button>
+      <button class="mode" data-mode="C"><div class="ic">🗣️</div><b>看字選注音</b><small>一個字有兩種唸法</small></button>
+      <button class="mode" data-mode="MIX"><div class="ic">🎲</div><b>綜合挑戰</b><small>三種題目混在一起</small></button>
+      <button class="mode wrongbook" data-mode="WRONG" style="grid-column:1/-1;"><div class="ic">📒</div><b>錯題本 <span id="wrongCount">0</span> 題</b><small>把答錯過的再練一次，連續答對 2 次就畢業</small></button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="note">題目目前是小三常見的易錯字。之後會換成 Rina 國語課本的生字。</div>
+  </div>
+
+  <!-- 作答 -->
+  <div id="quiz" class="hidden">
+    <div class="bar"><button class="quit" id="quit">✕ 離開</button><div class="prog"><i id="progBar"></i></div><div class="cnt" id="cnt"></div></div>
+    <div class="card">
+      <span class="qtype" id="qtype"></span>
+      <div class="prompt" id="prompt"></div>
+      <div class="hint" id="hint"></div>
+      <div class="opts" id="opts"></div>
+      <div class="feedback" id="feedback"></div>
+      <button class="next hidden" id="next">下一題 →</button>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div id="result" class="hidden">
+    <div class="card result">
+      <div class="big" id="rEmoji"></div>
+      <div class="score" id="rScore"></div>
+      <p id="rMsg"></p>
+      <div class="btns">
+        <button class="next" id="again">再玩一次</button>
+        <button class="ghost" id="toHome">回選單</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 題庫 =====
+// A 看注音選字：[句子(＿是空格), 注音, 正確字, 其他選項]
+const BANK_A = [
+  ["我們一起去公＿玩。","ㄩㄢˊ","園","圓員"],
+  ["這顆球是＿形的。","ㄩㄢˊ","圓","園員"],
+  ["他是一位店＿。","ㄩㄢˊ","員","園圓"],
+  ["媽媽在廚房＿飯。","ㄗㄨㄛˋ","做","作坐"],
+  ["請你＿下來休息。","ㄗㄨㄛˋ","坐","做作"],
+  ["今天的回家功課是寫＿文。","ㄗㄨㄛˋ","作","做坐"],
+  ["小狗在＿角睡覺。","ㄑㄧㄤˊ","牆","強薔"],
+  ["他的身體很＿壯。","ㄑㄧㄤˊ","強","牆薔"],
+  ["祝你身體＿康。","ㄐㄧㄢˋ","健","建件"],
+  ["這＿衣服很漂亮。","ㄐㄧㄢˋ","件","健建"],
+  ["工人正在＿造房子。","ㄐㄧㄢˋ","建","健件"],
+  ["天空中有一＿白雲。","ㄉㄨㄛˇ","朵","躲剁"],
+  ["小貓＿在桌子底下。","ㄉㄨㄛˇ","躲","朵剁"],
+  ["我們這一＿贏了比賽。","ㄉㄨㄟˋ","隊","對兌"],
+  ["你說得很＿！","ㄉㄨㄟˋ","對","隊兌"],
+  ["下雨了，記得帶雨＿。","ㄙㄢˇ","傘","散參"],
+  ["吃完飯去公園＿步。","ㄙㄢˋ","散","傘參"],
+  ["今天的天＿很好。","ㄑㄧˋ","氣","汽器"],
+  ["爸爸開＿車上班。","ㄑㄧˋ","汽","氣器"],
+  ["哥哥會彈很多種樂＿。","ㄑㄧˋ","器","氣汽"],
+  ["我＿要去動物園。","ㄒㄧㄤˇ","想","響享"],
+  ["電話鈴聲＿了。","ㄒㄧㄤˇ","響","想享"],
+  ["好吃的東西要和大家分＿。","ㄒㄧㄤˇ","享","想響"],
+  ["小鳥在樹上＿。","ㄐㄧㄠˋ","叫","較教"],
+  ["這兩個比＿起來，哪個大？","ㄐㄧㄠˋ","較","叫教"],
+  ["他把房間打＿乾淨。","ㄙㄠˇ","掃","嫂騷"],
+  ["我每天＿上七點起床。","ㄗㄠˇ","早","澡棗"],
+  ["洗＿的時候要小心滑倒。","ㄗㄠˇ","澡","早棗"],
+  ["他說話的＿度很有禮貌。","ㄊㄞˋ","態","太泰"],
+  ["＿陽從東邊升起。","ㄊㄞˋ","太","態泰"]
+];
+// B 找出寫對的：[正確詞, 錯的詞(空格分開)]
+const BANK_B = [
+  ["已經","己經 巳經"],["認真","認直 忍真"],["辦法","辨法 瓣法"],["再見","在見 再貝"],
+  ["因為","困為 因位"],["安靜","安淨 按靜"],["練習","鍊習 煉習"],["冒險","冒驗 冒檢"],
+  ["經驗","經險 經檢"],["檢查","撿查 臉查"],["撿起來","檢起來 臉起來"],["喝水","渴水 竭水"],
+  ["口渴","口喝 口竭"],["清楚","青楚 請楚"],["晴天","睛天 清天"],["眼睛","眼晴 眼精"],
+  ["邀請","邀情 邀清"],["心情","心晴 心請"],["精神","晴神 精伸"],["游泳","遊泳 游詠"],
+  ["紅綠燈","紅錄燈 紅祿燈"],["比賽","比塞 比寨"],["準備","準背 準被"],["故事","固事 故是"],
+  ["決定","絕定 缺定"],["天氣","天汽 天器"],["祝福","祝副 祝幅"],["幫忙","幫芒 邦忙"],
+  ["迷路","謎路 米路"],["拍手","柏手 泊手"]
+];
+// C 看字選注音：[詞語(「」標出要唸的字), 正確注音, 其他選項(空格分開), 小提醒]
+const BANK_C = [
+  ["「長」大","ㄓㄤˇ","ㄔㄤˊ ㄓㄤ","長大讀ㄓㄤˇ，長頸鹿讀ㄔㄤˊ"],
+  ["「長」頸鹿","ㄔㄤˊ","ㄓㄤˇ ㄔㄤ","長頸鹿讀ㄔㄤˊ，長大讀ㄓㄤˇ"],
+  ["快「樂」","ㄌㄜˋ","ㄩㄝˋ ㄌㄠˋ","快樂讀ㄌㄜˋ，音樂讀ㄩㄝˋ"],
+  ["音「樂」","ㄩㄝˋ","ㄌㄜˋ ㄌㄠˋ","音樂讀ㄩㄝˋ，快樂讀ㄌㄜˋ"],
+  ["睡「覺」","ㄐㄧㄠˋ","ㄐㄩㄝˊ ㄐㄧㄠˇ","睡覺讀ㄐㄧㄠˋ，感覺讀ㄐㄩㄝˊ"],
+  ["感「覺」","ㄐㄩㄝˊ","ㄐㄧㄠˋ ㄐㄩㄝˇ","感覺讀ㄐㄩㄝˊ，睡覺讀ㄐㄧㄠˋ"],
+  ["「好」奇","ㄏㄠˋ","ㄏㄠˇ ㄏㄠ","好奇、愛好讀ㄏㄠˋ，好人讀ㄏㄠˇ"],
+  ["「還」有","ㄏㄞˊ","ㄏㄨㄢˊ ㄏㄞˇ","還有讀ㄏㄞˊ，還書讀ㄏㄨㄢˊ"],
+  ["「還」書","ㄏㄨㄢˊ","ㄏㄞˊ ㄏㄨㄢˇ","還東西給別人讀ㄏㄨㄢˊ"],
+  ["「重」要","ㄓㄨㄥˋ","ㄔㄨㄥˊ ㄓㄨㄥ","重要讀ㄓㄨㄥˋ，重新讀ㄔㄨㄥˊ"],
+  ["「重」新","ㄔㄨㄥˊ","ㄓㄨㄥˋ ㄔㄨㄥˇ","重新、重複讀ㄔㄨㄥˊ"],
+  ["照「相」","ㄒㄧㄤˋ","ㄒㄧㄤ ㄒㄧㄤˇ","照相讀ㄒㄧㄤˋ，相信讀ㄒㄧㄤ"],
+  ["「相」信","ㄒㄧㄤ","ㄒㄧㄤˋ ㄒㄧㄤˇ","相信讀ㄒㄧㄤ，照相讀ㄒㄧㄤˋ"],
+  ["「教」室","ㄐㄧㄠˋ","ㄐㄧㄠ ㄐㄧㄠˇ","教室讀ㄐㄧㄠˋ"],
+  ["跑「得」很快","˙ㄉㄜ","ㄉㄜˊ ㄉㄟˇ","跑得很快的得讀輕聲˙ㄉㄜ，得到讀ㄉㄜˊ"],
+  ["成「為」","ㄨㄟˊ","ㄨㄟˋ ㄨㄟ","成為讀ㄨㄟˊ，為什麼讀ㄨㄟˋ"],
+  ["「為」什麼","ㄨㄟˋ","ㄨㄟˊ ㄨㄟˇ","為什麼讀ㄨㄟˋ，成為讀ㄨㄟˊ"],
+  ["「便」宜","ㄆㄧㄢˊ","ㄅㄧㄢˋ ㄆㄧㄢ","便宜讀ㄆㄧㄢˊ，方便讀ㄅㄧㄢˋ"],
+  ["方「便」","ㄅㄧㄢˋ","ㄆㄧㄢˊ ㄅㄧㄢ","方便讀ㄅㄧㄢˋ，便宜讀ㄆㄧㄢˊ"],
+  ["「數」學","ㄕㄨˋ","ㄕㄨˇ ㄕㄨ","數學讀ㄕㄨˋ，數一數讀ㄕㄨˇ"],
+  ["「數」一數","ㄕㄨˇ","ㄕㄨˋ ㄕㄨ","動作「數數看」讀ㄕㄨˇ"],
+  ["「種」花","ㄓㄨㄥˋ","ㄓㄨㄥˇ ㄓㄨㄥ","種花、種樹讀ㄓㄨㄥˋ，種子讀ㄓㄨㄥˇ"],
+  ["「種」子","ㄓㄨㄥˇ","ㄓㄨㄥˋ ㄓㄨㄥ","種子讀ㄓㄨㄥˇ，種花讀ㄓㄨㄥˋ"],
+  ["「背」書包","ㄅㄟ","ㄅㄟˋ ㄅㄟˇ","用肩膀背東西讀ㄅㄟ，背課文讀ㄅㄟˋ"],
+  ["銀「行」","ㄏㄤˊ","ㄒㄧㄥˊ ㄏㄤˋ","銀行讀ㄏㄤˊ，行人讀ㄒㄧㄥˊ"],
+  ["「調」皮","ㄊㄧㄠˊ","ㄉㄧㄠˋ ㄊㄧㄠ","調皮讀ㄊㄧㄠˊ，調查讀ㄉㄧㄠˋ"],
+  ["「差」不多","ㄔㄚ","ㄔㄞ ㄔㄚˋ","差不多讀ㄔㄚ，出差讀ㄔㄞ"],
+  ["「藏」起來","ㄘㄤˊ","ㄗㄤˋ ㄘㄤ","藏起來讀ㄘㄤˊ，西藏讀ㄗㄤˋ"],
+  ["「著」急","ㄓㄠˊ","˙ㄓㄜ ㄓㄨˋ","著急讀ㄓㄠˊ，看著讀˙ㄓㄜ"],
+  ["有「空」","ㄎㄨㄥˋ","ㄎㄨㄥ ㄎㄨㄥˇ","有空讀ㄎㄨㄥˋ，天空讀ㄎㄨㄥ"],
+  ["「了」解","ㄌㄧㄠˇ","˙ㄌㄜ ㄌㄧㄠˊ","了解讀ㄌㄧㄠˇ，吃了讀˙ㄌㄜ"],
+  ["人「參」","ㄕㄣ","ㄘㄢ ㄙㄢ","人參讀ㄕㄣ，參加讀ㄘㄢ"]
+];
+
+// ===== 轉成統一格式 =====
+const ALL = [];
+BANK_A.forEach((r,i)=>ALL.push({id:"A"+i,type:"A",sentence:r[0],zy:r[1],ans:r[2],others:r[3].split("")}));
+BANK_B.forEach((r,i)=>ALL.push({id:"B"+i,type:"B",ans:r[0],others:r[1].split(" ")}));
+BANK_C.forEach((r,i)=>ALL.push({id:"C"+i,type:"C",word:r[0],ans:r[1],others:r[2].split(" "),tip:r[3]}));
+const byId = Object.fromEntries(ALL.map(q=>[q.id,q]));
+const TYPE_NAME = {A:"看注音選字",B:"找出寫對的",C:"看字選注音"};
+
+// ===== 儲存（錯題本、紀錄）=====
+const KEY = "rina-ziyin-v1";
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || {wrong:{},rounds:0,best:0,total:0,correct:0}; }catch(e){ return {wrong:{},rounds:0,best:0,total:0,correct:0}; } }
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+let store = load();
+
+// ===== 音效 =====
+let ac;
+function beep(good){
+  try{
+    ac = ac || new (window.AudioContext||window.webkitAudioContext)();
+    const notes = good ? [660,880] : [300,220];
+    notes.forEach((f,i)=>{
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.type = good ? "triangle" : "sine"; o.frequency.value=f;
+      const t=ac.currentTime+i*0.12;
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.25,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.22);
+    });
+  }catch(e){}
+}
+
+// ===== 工具 =====
+const $ = id=>document.getElementById(id);
+const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function show(id){ ["home","quiz","result"].forEach(x=>$(x).classList.toggle("hidden",x!==id)); window.scrollTo(0,0); }
+
+function renderHome(){
+  const wc = Object.keys(store.wrong).length;
+  $("wrongCount").textContent = wc;
+  const rate = store.total ? Math.round(store.correct/store.total*100) : 0;
+  $("stats").innerHTML = store.rounds
+    ? `已經挑戰 <b>${store.rounds}</b> 關，最高分 <b>${store.best}</b> 分，總答對率 <b>${rate}%</b>`
+    : `還沒開始挑戰，選一個題型開始吧！`;
+}
+
+// ===== 出題 =====
+let round=[], idx=0, score=0, mode="";
+function start(m){
+  mode=m;
+  let pool;
+  if(m==="WRONG"){
+    pool = Object.keys(store.wrong).map(id=>byId[id]).filter(Boolean);
+    if(!pool.length){ alert("錯題本是空的，太棒了！🎉"); return; }
+  } else if(m==="MIX") pool = ALL;
+  else pool = ALL.filter(q=>q.type===m);
+  round = shuffle(pool).slice(0,10);
+  idx=0; score=0;
+  show("quiz"); renderQ();
+}
+
+function renderQ(){
+  const q = round[idx];
+  $("cnt").textContent = `${idx+1} / ${round.length}`;
+  $("progBar").style.width = (idx/round.length*100)+"%";
+  $("qtype").textContent = TYPE_NAME[q.type];
+  $("feedback").textContent=""; $("feedback").className="feedback";
+  $("next").classList.add("hidden");
+  const opts = $("opts"); opts.innerHTML="";
+  let choices = shuffle([q.ans,...q.others]);
+  if(q.type==="A"){
+    $("prompt").innerHTML = q.sentence.replace("＿",`<span class="blank">？</span><span class="zy">（${q.zy}）</span>`);
+    $("hint").textContent = "空格裡應該填哪一個字？";
+    opts.className="opts three";
+  } else if(q.type==="B"){
+    $("prompt").innerHTML = "哪一個寫對了？";
+    $("hint").textContent = "仔細看每個字的部首喔！";
+    opts.className="opts one";
+  } else {
+    $("prompt").innerHTML = q.word.replace(/「(.)」/,'<span class="hl">$1</span>');
+    $("hint").textContent = "框起來的字要怎麼唸？";
+    opts.className="opts three";
+  }
+  choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="opt"; b.textContent=c;
+    b.onclick=()=>answer(b,c);
+    opts.appendChild(b);
+  });
+}
+
+function answer(btn,c){
+  const q = round[idx];
+  const good = c===q.ans;
+  [...$("opts").children].forEach(b=>{ b.disabled=true; if(b.textContent===q.ans) b.classList.add("ok"); });
+  if(!good) btn.classList.add("bad");
+  beep(good);
+  store.total++;
+  const fb = $("feedback");
+  let explain = "";
+  if(q.type==="A") explain = q.sentence.replace("＿",q.ans);
+  else if(q.type==="B") explain = `正確寫法是「${q.ans}」`;
+  else explain = q.tip;
+  if(good){
+    score++; store.correct++;
+    fb.className="feedback ok";
+    fb.innerHTML = `✅ 答對了！<br>${explain}`;
+    if(store.wrong[q.id]!==undefined){
+      store.wrong[q.id]++;
+      if(store.wrong[q.id]>=2){ delete store.wrong[q.id]; fb.innerHTML += "<br>🎓 這題從錯題本畢業了！"; }
+    }
+  } else {
+    fb.className="feedback bad";
+    fb.innerHTML = `❌ 再想想～<br>${explain}`;
+    store.wrong[q.id]=0;
+  }
+  save();
+  $("next").textContent = idx+1<round.length ? "下一題 →" : "看成績 🏁";
+  $("next").classList.remove("hidden");
+}
+
+function next(){
+  idx++;
+  if(idx<round.length) renderQ(); else finish();
+}
+
+function finish(){
+  const pts = Math.round(score/round.length*100);
+  store.rounds++; store.best=Math.max(store.best,pts); save();
+  $("progBar").style.width="100%";
+  $("rScore").textContent = `${score} / ${round.length}`;
+  let e,m;
+  if(pts===100){e="🏆";m="全部答對，Rina 好厲害！";}
+  else if(pts>=80){e="🌟";m="很棒！答錯的字已經收進錯題本。";}
+  else if(pts>=60){e="💪";m="不錯喔！去錯題本再練一次吧。";}
+  else {e="🌱";m="慢慢來，多練幾次就會記住了！";}
+  $("rEmoji").textContent=e; $("rMsg").textContent=m;
+  show("result");
+}
+
+document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>start(b.dataset.mode));
+$("next").onclick=next;
+$("quit").onclick=()=>{ renderHome(); show("home"); };
+$("again").onclick=()=>start(mode);
+$("toHome").onclick=()=>{ renderHome(); show("home"); };
+renderHome();
+</script>
+</body>
+</html>
