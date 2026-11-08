@@ -62,8 +62,8 @@
         <div class="main">
           <div class="top"><span>${it.kind === 'video' ? '🎥 影片' : '📜 秘笈'}</span><span>${day(it.created_at)}</span>${it.name ? '<span>' + esc(it.name) + '</span>' : ''}</div>
           <div class="kids">${KIDS.map(([k, n]) => `<button data-kid="${k}" class="${it.kid === k ? 'on' : ''}">${n}</button>`).join('')}</div>
-          <textarea placeholder="老師講的重點（可空白）">${esc(it.note)}</textarea>
-          <div class="acts"><button class="btn save">存重點</button><button class="btn danger del">刪除</button><span class="saved"></span></div>
+          <textarea placeholder="老師講的重點（打完會自動儲存）">${esc(it.note)}</textarea>
+          <div class="acts"><button class="btn danger del">刪除</button><span class="saved"></span></div>
         </div>
       </div>`;
     }).join('');
@@ -85,11 +85,6 @@
         it.kid = kb.dataset.kid;
         row.querySelectorAll('[data-kid]').forEach(b => b.classList.toggle('on', b === kb));
         flash(row, '已更新');
-      } else if (e.target.classList.contains('save')) {
-        const note = row.querySelector('textarea').value;
-        await post('POST', { id, note });
-        it.note = note;
-        flash(row, '已存');
       } else if (e.target.classList.contains('del')) {
         if (!row.querySelector('.del').dataset.sure) { e.target.dataset.sure = '1'; e.target.textContent = '再按一次確定刪除'; return; }
         await post('DELETE', { id });
@@ -98,6 +93,35 @@
       }
     } catch (err) { flash(row, '沒存成功，請重新整理再試'); }
   });
+  // 重點說明：打字停下 1 秒、或點到別處，就自動儲存
+  const timers = {}, pending = new Set();
+  async function saveNote(row) {
+    const id = Number(row.dataset.id);
+    const it = items.find(x => x.id === id);
+    const note = row.querySelector('textarea').value;
+    clearTimeout(timers[id]);
+    if (!it || note === it.note) { pending.delete(id); return; }
+    const s = row.querySelector('.saved');
+    s.textContent = '儲存中…';
+    try {
+      await post('POST', { id, note });
+      it.note = note;
+      pending.delete(id);
+      s.textContent = '✓ 已自動儲存';
+      setTimeout(() => { if (s.textContent === '✓ 已自動儲存') s.textContent = ''; }, 2000);
+    } catch (err) { s.textContent = '⚠️ 沒存成功，請檢查網路'; }
+  }
+  const list = document.getElementById('list');
+  list.addEventListener('input', e => {
+    if (e.target.tagName !== 'TEXTAREA') return;
+    const row = e.target.closest('.row'), id = Number(row.dataset.id);
+    pending.add(id);
+    row.querySelector('.saved').textContent = '打字中…';
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(() => saveNote(row), 1000);
+  });
+  list.addEventListener('focusout', e => { if (e.target.tagName === 'TEXTAREA') saveNote(e.target.closest('.row')); });
+  window.addEventListener('beforeunload', e => { if (pending.size) { e.preventDefault(); e.returnValue = ''; } });
   load();
 </script>
 </body>
