@@ -16,6 +16,7 @@
     // pick the per-child manifest/title so "Add to Home Screen" keeps the ?who=
     // instead of falling back to the shared manifest's fixed start_url
     var who = new URLSearchParams(location.search).get('who');
+    if (/\/lilian(\.html)?$/.test(location.pathname)) who = 'Lilian';
     if (who === 'Cathy' || who === 'Rina' || who === 'Lilian') {
       document.getElementById('pwaManifest').href = 'manifest-' + who.toLowerCase() + '.json';
       document.getElementById('pwaTitle').content = 'Better Me - ' + who;
@@ -868,7 +869,7 @@
     </svg>`
   };
 
-  const urlChild = new URLSearchParams(location.search).get('who');
+  const urlChild = /\/lilian(\.html)?$/.test(location.pathname) ? 'Lilian' : new URLSearchParams(location.search).get('who');
   // Lilian（姐姐的孩子）有自己的獨立頁：study-habits.html?who=Lilian 只顯示她一個人，
   // 一般的 Better Me 頁也不會出現她的習慣
   const SOLO = urlChild === 'Lilian';

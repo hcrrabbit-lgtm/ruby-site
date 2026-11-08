@@ -2125,6 +2125,26 @@ export default {
 
       if (path.startsWith("/api/")) return json({ error: "not found" }, { status: 404 });
 
+      // Lilian 的 Better Me：網址固定在 /open/lilian.html，不再跳轉。
+      // 直接把 study-habits.html 的內容送出去，並在 HTML 裡就寫好 Lilian 的「加入主畫面」設定，
+      // 這樣手機加到桌面時一定記住 Lilian，不會變成共用的 Better Me（Cathy／Rina）。
+      if ((path === "/open/lilian.html" || path === "/open/lilian") && request.method === "GET") {
+        let r = await env.ASSETS.fetch(new Request(new URL("/open/study-habits.html", url), request));
+        for (let i = 0; i < 3 && r.status >= 300 && r.status < 400 && r.headers.get("Location"); i++) {
+          r = await env.ASSETS.fetch(new Request(new URL(r.headers.get("Location"), url), request));
+        }
+        let html = await r.text();
+        html = html
+          .replace('href="manifest-better-me.json"', 'href="manifest-lilian.json"')
+          .replace('content="Better Me" id="pwaTitle"', 'content="Better Me - Lilian" id="pwaTitle"')
+          .replace("<title>Better Me</title>", "<title>Better Me - Lilian</title>")
+          .replace('<meta name="theme-color" content="#5F8955">', '<meta name="theme-color" content="#B0607A">');
+        return new Response(html, {
+          status: 200,
+          headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }
+        });
+      }
+
       return env.ASSETS.fetch(request);
     } catch (err) {
       return json({ error: err.message || String(err) }, { status: 500 });
