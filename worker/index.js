@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS admin_notices (id INTEGER PRIMARY KEY AUTOINCREMENT, 
 CREATE TABLE IF NOT EXISTS mystery_draws (class_id TEXT NOT NULL, date TEXT NOT NULL, student_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(class_id, date));
 CREATE TABLE IF NOT EXISTS admin_notice_files (id INTEGER PRIMARY KEY AUTOINCREMENT, notice_id INTEGER NOT NULL, name TEXT NOT NULL, r2_key TEXT NOT NULL, content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, date TEXT NOT NULL, height_cm REAL, weight_kg REAL, created_at TEXT NOT NULL, UNIQUE(child, date));
+CREATE TABLE IF NOT EXISTS go_items (id INTEGER PRIMARY KEY AUTOINCREMENT, kid TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, r2_key TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_cycle (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, flow TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, start_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
 `;
@@ -1992,7 +1993,7 @@ async function handleUsage(env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -2066,6 +2067,11 @@ export default {
       if (path === "/api/gratitude" && request.method === "POST") return await gratitudeHandlers.save(env, request);
 
       // served from public/open/ and bypassed from Cloudflare Access, so kept under /api/open/
+      // 圍棋復盤室：LINE 小幫手收檔、頁面讀清單和播放檔案
+      if (path === "/api/open/line-webhook" && request.method === "POST") return await goLineWebhook(env, request, ctx);
+      if (path === "/api/open/go/items" && request.method === "GET") return await goItemsGet(env);
+      if (path.startsWith("/api/open/go/file/") && (request.method === "GET" || request.method === "HEAD")) return await goFileGet(env, request, path.slice("/api/open/go/file/".length));
+
       if (path === "/api/open/yt-avatar" && request.method === "GET") return await handleYtAvatar(url);
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
       if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
@@ -2180,4 +2186,207 @@ async function handleYtAvatar(url) {
   } catch (e) {
     return new Response("error", { status: 404 });
   }
+}
+
+
+// ---- 圍棋復盤室：LINE 小幫手 ----
+// Ruby 在 LINE 把老師傳的復盤影片、秘笈照片/PDF 轉傳給小幫手 → 存進 R2（go/ 底下）→ 頁面 open/go-review.html 顯示。
+// 只有「第一個傳訊息的人」（Ruby 本人）會被記成主人，其他人傳的東西一律不收。
+// 需要 Cloudflare 秘密變數：LINE_CHANNEL_SECRET、LINE_CHANNEL_ACCESS_TOKEN
+
+const GO_KIDS = { cathy: "Cathy", rina: "Rina", both: "兩個人" };
+
+async function goVerifyLine(env, body, signature) {
+  if (!env.LINE_CHANNEL_SECRET || !signature) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(env.LINE_CHANNEL_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
+  let bin = ""; for (const b of mac) bin += String.fromCharCode(b);
+  return btoa(bin) === signature;
+}
+
+async function goReply(env, replyToken, text, withKidButtons, itemId) {
+  if (!replyToken || !env.LINE_CHANNEL_ACCESS_TOKEN) return;
+  const msg = { type: "text", text };
+  if (withKidButtons) {
+    msg.quickReply = { items: Object.keys(GO_KIDS).map(k => ({
+      type: "action", action: { type: "postback", label: GO_KIDS[k], data: "kid=" + k + "&id=" + itemId, displayText: GO_KIDS[k] }
+    })) };
+  }
+  await fetch("https://api.line.me/v2/bot/message/reply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + env.LINE_CHANNEL_ACCESS_TOKEN },
+    body: JSON.stringify({ replyToken, messages: [msg] })
+  });
+}
+
+async function goGetSetting(env, key) {
+  const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(key).first();
+  return r ? r.value : null;
+}
+async function goSetSetting(env, key, value) {
+  await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(key, value).run();
+}
+
+async function goLineWebhook(env, request, ctx) {
+  const body = await request.text();
+  if (!(await goVerifyLine(env, body, request.headers.get("x-line-signature")))) {
+    return new Response("bad signature", { status: 401 });
+  }
+  let data; try { data = JSON.parse(body); } catch (e) { return new Response("ok"); }
+  const work = (async () => {
+    for (const ev of (data.events || [])) {
+      try { await goHandleEvent(env, ev); } catch (e) { console.log("go line event error", e && e.message); }
+    }
+  })();
+  // 先回 200 給 LINE，下載影片在背景做
+  if (ctx && ctx.waitUntil) ctx.waitUntil(work); else await work;
+  return new Response("ok");
+}
+
+async function goHandleEvent(env, ev) {
+  const userId = ev.source && ev.source.userId;
+  if (!userId || (ev.source.type && ev.source.type !== "user")) return;
+
+  let owner = await goGetSetting(env, "go_line_owner");
+  if (!owner) { await goSetSetting(env, "go_line_owner", userId); owner = userId; }
+  if (userId !== owner) {
+    if (ev.type === "message") await goReply(env, ev.replyToken, "這是私人小幫手，不收其他人的檔案喔。");
+    return;
+  }
+
+  if (ev.type === "follow") {
+    await goReply(env, ev.replyToken, "嗨 Ruby！把老師的復盤影片、秘笈照片或 PDF 轉傳給我，我就幫你存進「圍棋復盤室」。");
+    return;
+  }
+
+  if (ev.type === "postback") {
+    const q = new URLSearchParams(ev.postback.data || "");
+    const kid = q.get("kid"), id = Number(q.get("id"));
+    if (GO_KIDS[kid] && id) {
+      await env.DB.prepare("UPDATE go_items SET kid = ? WHERE id = ?").bind(kid, id).run();
+      // 一次轉傳好幾個檔案時，同一批（前後 5 分鐘內、還沒選孩子的）一起歸給這個孩子
+      const it = await env.DB.prepare("SELECT created_at FROM go_items WHERE id = ?").bind(id).first();
+      if (it) {
+        const t0 = Date.parse(it.created_at);
+        await env.DB.prepare("UPDATE go_items SET kid = ? WHERE kid = '' AND created_at BETWEEN ? AND ?")
+          .bind(kid, new Date(t0 - 5 * 60000).toISOString(), new Date(t0 + 5 * 60000).toISOString()).run();
+      }
+      await goReply(env, ev.replyToken, "好，放在 " + GO_KIDS[kid] + " 那邊了 👍 想加一句老師講的重點，直接打字給我就好。");
+    }
+    return;
+  }
+
+  if (ev.type !== "message") return;
+  const m = ev.message;
+
+  if (m.type === "text") {
+    const t = (m.text || "").trim();
+    const last = await env.DB.prepare("SELECT * FROM go_items ORDER BY id DESC LIMIT 1").first();
+    if (t === "刪除" || t === "刪掉") {
+      if (!last) return goReply(env, ev.replyToken, "目前沒有東西可以刪。");
+      await env.PHOTOS.delete(last.r2_key);
+      await env.DB.prepare("DELETE FROM go_items WHERE id = ?").bind(last.id).run();
+      return goReply(env, ev.replyToken, "已刪除最後一個檔案（" + (last.kind === "video" ? "影片" : "秘笈") + "）。");
+    }
+    if (t === "說明" || t === "help") {
+      return goReply(env, ev.replyToken, "轉傳影片、照片或 PDF 給我就會存起來。\n存好後點 Cathy／Rina 選是誰的。\n打一句話＝當作最新一個檔案的重點說明。\n打「刪除」＝刪掉最新一個檔案。");
+    }
+    // 30 分鐘內上傳的最新檔案 → 當作重點說明
+    if (last && Date.now() - Date.parse(last.created_at) < 30 * 60 * 1000) {
+      await env.DB.prepare("UPDATE go_items SET note = ? WHERE id = ?").bind(t.slice(0, 500), last.id).run();
+      return goReply(env, ev.replyToken, "重點記下來了 ✍️");
+    }
+    return goReply(env, ev.replyToken, "把影片、秘笈照片或 PDF 轉傳給我就可以囉。打「說明」看用法。");
+  }
+
+  let kind, ext, ctype;
+  if (m.type === "video") { kind = "video"; ext = "mp4"; ctype = "video/mp4"; }
+  else if (m.type === "image") { kind = "note"; ext = "jpg"; ctype = "image/jpeg"; }
+  else if (m.type === "file") {
+    const fn = (m.fileName || "").toLowerCase();
+    if (fn.endsWith(".pdf")) { kind = "note"; ext = "pdf"; ctype = "application/pdf"; }
+    else if (/\.(mp4|mov|m4v)$/.test(fn)) { kind = "video"; ext = fn.split(".").pop(); ctype = ext === "mov" ? "video/quicktime" : "video/mp4"; }
+    else if (/\.(jpe?g|png)$/.test(fn)) { kind = "note"; ext = fn.split(".").pop(); ctype = ext === "png" ? "image/png" : "image/jpeg"; }
+    else return goReply(env, ev.replyToken, "這種檔案我還不會存，目前收影片、照片和 PDF。");
+  } else return;
+
+  // 影片在 LINE 那邊可能還在處理，等一下
+  if (m.type === "video") {
+    for (let i = 0; i < 10; i++) {
+      const st = await fetch("https://api-data.line.me/v2/bot/message/" + m.id + "/content/transcoding", { headers: { Authorization: "Bearer " + env.LINE_CHANNEL_ACCESS_TOKEN } });
+      const sj = st.ok ? await st.json() : { status: "succeeded" };
+      if (sj.status === "succeeded") break;
+      if (sj.status === "failed") return goReply(env, ev.replyToken, "LINE 那邊這段影片處理失敗了，再轉傳一次看看？");
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  const res = await fetch("https://api-data.line.me/v2/bot/message/" + m.id + "/content", { headers: { Authorization: "Bearer " + env.LINE_CHANNEL_ACCESS_TOKEN } });
+  if (!res.ok) return goReply(env, ev.replyToken, "抓不到這個檔案（可能太舊已過期），請重新轉傳一次。");
+
+  const day = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  const key = "go/" + day + "-" + m.id + "." + ext;
+  const len = Number(res.headers.get("content-length") || 0);
+  if (len > 0) {
+    const fl = new FixedLengthStream(len);
+    const pipe = res.body.pipeTo(fl.writable);
+    await env.PHOTOS.put(key, fl.readable, { httpMetadata: { contentType: ctype } });
+    await pipe;
+  } else {
+    await env.PHOTOS.put(key, await res.arrayBuffer(), { httpMetadata: { contentType: ctype } });
+  }
+  const head = await env.PHOTOS.head(key);
+  const size = head ? head.size : len;
+  const name = m.type === "file" ? (m.fileName || "") : "";
+
+  // 一次轉傳好幾張：前一個檔案 2 分鐘內才存、而且已經選過孩子 → 沿用同一個孩子，不再一直問
+  const prev = await env.DB.prepare("SELECT kid, created_at FROM go_items ORDER BY id DESC LIMIT 1").first();
+  const reuseKid = prev && prev.kid && Date.now() - Date.parse(prev.created_at) < 2 * 60 * 1000 ? prev.kid : "";
+
+  const ins = await env.DB.prepare("INSERT INTO go_items (kid, kind, r2_key, name, content_type, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(reuseKid, kind, key, name, ctype, size, new Date().toISOString()).run();
+  const id = ins.meta && ins.meta.last_row_id;
+  const what = kind === "video" ? "復盤影片" : "秘笈";
+  if (reuseKid) return goReply(env, ev.replyToken, "存好了 ✅（" + what + "，一樣放 " + GO_KIDS[reuseKid] + "）");
+  return goReply(env, ev.replyToken, "存好了 ✅ 這個" + what + "是誰的？", true, id);
+}
+
+async function goItemsGet(env) {
+  const r = await env.DB.prepare("SELECT id, kid, kind, name, note, content_type, size, created_at FROM go_items ORDER BY created_at DESC, id DESC").all();
+  return json({ items: r.results || [] }, { headers: { "Cache-Control": "no-store" } });
+}
+
+// 播影片需要支援「分段讀取」（Range），手機才能拖曳進度條、iPhone 才播得出來
+async function goFileGet(env, request, idStr) {
+  const id = Number(idStr);
+  if (!id) return new Response("not found", { status: 404 });
+  const row = await env.DB.prepare("SELECT r2_key, content_type, name FROM go_items WHERE id = ?").bind(id).first();
+  if (!row) return new Response("not found", { status: 404 });
+  const head = await env.PHOTOS.head(row.r2_key);
+  if (!head) return new Response("not found", { status: 404 });
+  const total = head.size;
+  const headers = new Headers({
+    "Content-Type": row.content_type || "application/octet-stream",
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "private, max-age=86400",
+  });
+  const rh = request.headers.get("range");
+  const m = rh && /^bytes=(\d*)-(\d*)$/.exec(rh.trim());
+  if (m && (m[1] || m[2])) {
+    let start, end;
+    if (m[1] === "") { const n = Number(m[2]); start = Math.max(0, total - n); end = total - 1; }
+    else { start = Number(m[1]); end = m[2] ? Math.min(Number(m[2]), total - 1) : total - 1; }
+    if (start >= total || start > end) {
+      return new Response(null, { status: 416, headers: { "Content-Range": "bytes */" + total } });
+    }
+    headers.set("Content-Range", "bytes " + start + "-" + end + "/" + total);
+    headers.set("Content-Length", String(end - start + 1));
+    if (request.method === "HEAD") return new Response(null, { status: 206, headers });
+    const obj = await env.PHOTOS.get(row.r2_key, { range: { offset: start, length: end - start + 1 } });
+    return new Response(obj.body, { status: 206, headers });
+  }
+  headers.set("Content-Length", String(total));
+  if (request.method === "HEAD") return new Response(null, { status: 200, headers });
+  const obj = await env.PHOTOS.get(row.r2_key);
+  return new Response(obj.body, { status: 200, headers });
 }

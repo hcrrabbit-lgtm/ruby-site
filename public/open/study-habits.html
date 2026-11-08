@@ -514,6 +514,9 @@
     background:#E4F1EF; border:1.5px solid #BFDCD7; padding:6px 12px; border-radius:999px;
   }
   .video-link:hover{ background:#D6EBE7; }
+  .title-links{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .video-link.go-link{ color:#8A6A3B; background:#F3E9D6; border-color:#E2CFAB; }
+  .video-link.go-link:hover{ background:#ECDDC2; }
   .child-tabs{ gap:6px; margin-bottom:10px; }
   .child-btn{ padding:7px 10px; font-size:14px; border-radius:9px; }
   .view-tabs{ margin:0 0 12px; padding:3px; border-radius:10px; }
@@ -618,7 +621,7 @@
     font-size:11px; font-weight:700; white-space:nowrap; vertical-align:1px;
   }
   /* Lilian 的獨立頁：只顯示她自己的習慣，不顯示 Cathy／Rina 的分頁、放映室和用餐 */
-  body.solo .child-tabs, body.solo .video-link, body.solo #mealSection{ display:none !important; }
+  body.solo .child-tabs, body.solo .video-link, body.solo .title-links, body.solo #mealSection{ display:none !important; }
   body.solo h1{ color:#B0607A; }
 </style>
 </head>
@@ -626,7 +629,10 @@
 <div class="wrap">
   <div class="title-row">
     <h1>✅ Better Me</h1>
-    <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
+    <div class="title-links">
+      <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
+      <a class="video-link go-link" id="goLink" href="go-review.html">⚫️ 復盤室 →</a>
+    </div>
   </div>
 
   <div class="child-tabs" id="childTabs"></div>
@@ -894,6 +900,10 @@
   document.getElementById('videoLink')?.addEventListener('click', (e) => {
     const w = String(activeChild || '').toLowerCase();
     if (w === 'cathy' || w === 'rina') { e.preventDefault(); location.href = 'kids-videos.html?who=' + w; }
+  });
+  document.getElementById('goLink')?.addEventListener('click', (e) => {
+    const w = String(activeChild || '').toLowerCase();
+    if (w === 'cathy' || w === 'rina') { e.preventDefault(); location.href = 'go-review.html?who=' + w; }
   });
 
   function groupByChild(habits){

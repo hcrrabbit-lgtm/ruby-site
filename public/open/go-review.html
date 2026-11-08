@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圍棋復盤室</title>
+<meta name="theme-color" content="#8A6A3B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --go:#8A6A3B; --go-bg:#F3E9D6; --wood:#DDBB82;
+    --rina:#C4863A; --rina-bg:#FBF0DE;
+    --cathy:#6E568A; --cathy-bg:#EFE8F3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 16px 60px;}
+  a.back{display:inline-block;margin-bottom:10px;font-size:14px;color:var(--ink-soft);text-decoration:none;}
+  a.back:hover{color:var(--go);}
+  h1{font-size:30px;margin:0 0 6px;}
+  h1 span{color:var(--go);}
+  .sub{color:var(--ink-soft);margin:0 0 20px;font-size:15px;}
+
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
+  .filters button{font:inherit;font-size:15px;padding:9px 18px;border-radius:999px;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);}
+  .filters button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700;}
+
+  .sec-tabs{display:flex;gap:0;margin-bottom:18px;border-bottom:2px solid var(--line);}
+  .sec-tabs button{font:inherit;font-size:16px;padding:10px 18px;border:0;background:none;cursor:pointer;color:var(--ink-soft);border-bottom:3px solid transparent;margin-bottom:-2px;}
+  .sec-tabs button.on{color:var(--go);border-bottom-color:var(--go);font-weight:700;}
+  .sec-tabs .n{font-size:12px;background:var(--go-bg);color:var(--go);border-radius:999px;padding:1px 8px;margin-left:4px;}
+
+  .videos{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+  @media (max-width:600px){ .videos{grid-template-columns:1fr;} }
+  .v{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(46,42,37,.07);}
+  .v video{width:100%;aspect-ratio:16/9;background:#1d1a16;display:block;}
+  .v .body{padding:12px 16px 14px;}
+  .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);}
+  .tag{font-size:12px;padding:2px 9px;border-radius:999px;background:var(--go-bg);color:var(--go);font-weight:500;}
+  .tag.rina{background:var(--rina-bg);color:var(--rina);}
+  .tag.cathy{background:var(--cathy-bg);color:var(--cathy);}
+  .note{margin:8px 0 0;font-size:15px;line-height:1.6;}
+  .note:empty{display:none;}
+
+  .notes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media (max-width:600px){ .notes{grid-template-columns:repeat(2,1fr);} }
+  .n-card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;text-decoration:none;color:inherit;}
+  .n-card .thumb{aspect-ratio:3/4;background:var(--paper-deep);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .n-card .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .n-card .thumb .pdf{font-size:40px;}
+  .n-card .body{padding:8px 10px 10px;}
+  .n-card .note{font-size:13.5px;margin-top:4px;}
+
+  .empty{color:var(--ink-soft);text-align:center;padding:40px 10px;line-height:1.8;}
+  .rule{margin-top:28px;padding:14px 18px;border-radius:12px;background:var(--paper-deep);color:var(--ink-soft);font-size:14px;line-height:1.7;}
+
+  .lb{position:fixed;inset:0;background:rgba(20,18,15,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;flex-direction:column;gap:10px;}
+  .lb.on{display:flex;}
+  .lb img{max-width:100%;max-height:85vh;border-radius:6px;}
+  .lb .cap{color:#eee;font-size:15px;text-align:center;max-width:700px;}
+  .lb .x{position:absolute;top:10px;right:16px;color:#fff;font-size:32px;background:none;border:0;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="study-habits.html">← 回 Better Me</a>
+  <h1>⚫️ <span>圍棋復盤室</span></h1>
+  <p class="sub">老師幫你復盤的影片和圍棋秘笈都在這裡，隨時可以拿出來複習！</p>
+
+  <div class="filters" id="whoFilter">
+    <button data-who="all" class="on">全部</button>
+    <button data-who="rina">Rina</button>
+    <button data-who="cathy">Cathy</button>
+  </div>
+
+  <div class="sec-tabs" id="secTabs">
+    <button data-sec="video" class="on">🎥 復盤影片<span class="n" id="nVideo">0</span></button>
+    <button data-sec="note">📜 圍棋秘笈<span class="n" id="nNote">0</span></button>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="rule">📝 復盤小提醒：看影片時，可以先暫停想一想「如果是我會下哪裡？」再看老師怎麼說。看完把棋盤擺出來再下一次，會記得更牢喔！</div>
+</div>
+
+<div class="lb" id="lb">
+  <button class="x" id="lbX" aria-label="關閉">×</button>
+  <img id="lbImg" alt="">
+  <div class="cap" id="lbCap"></div>
+</div>
+
+<script>
+  const KID = { cathy: 'Cathy', rina: 'Rina', both: 'Cathy＋Rina' };
+  let items = [];
+  let who = new URLSearchParams(location.search).get('who') || 'all';
+  if (!['all','rina','cathy'].includes(who)) who = 'all';
+  let sec = 'video';
+
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const day = iso => { const d = new Date(iso); return d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate(); };
+  const tag = k => KID[k] ? `<span class="tag ${k === 'both' ? '' : k}">${KID[k]}</span>` : '';
+  const fileUrl = id => '/api/open/go/file/' + id;
+
+  function visible(kind) {
+    return items.filter(it => it.kind === kind && (who === 'all' || it.kid === who || it.kid === 'both' || it.kid === ''));
+  }
+
+  function render() {
+    document.querySelectorAll('#whoFilter button').forEach(b => b.classList.toggle('on', b.dataset.who === who));
+    document.querySelectorAll('#secTabs button').forEach(b => b.classList.toggle('on', b.dataset.sec === sec));
+    document.getElementById('nVideo').textContent = visible('video').length;
+    document.getElementById('nNote').textContent = visible('note').length;
+    const list = document.getElementById('list');
+    const rows = visible(sec);
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty">${sec === 'video' ? '還沒有復盤影片' : '還沒有圍棋秘笈'}。<br>媽媽從 LINE 轉傳過來後，就會出現在這裡。</div>`;
+      return;
+    }
+    if (sec === 'video') {
+      list.innerHTML = '<div class="videos">' + rows.map(it => `
+        <div class="v">
+          <video controls playsinline preload="metadata" src="${fileUrl(it.id)}#t=0.5"></video>
+          <div class="body">
+            <div class="meta">${tag(it.kid)}<span>${day(it.created_at)}</span></div>
+            <p class="note">${esc(it.note)}</p>
+          </div>
+        </div>`).join('') + '</div>';
+    } else {
+      list.innerHTML = '<div class="notes">' + rows.map(it => {
+        const pdf = (it.content_type || '').includes('pdf');
+        const thumb = pdf ? '<span class="pdf">📄</span>' : `<img loading="lazy" src="${fileUrl(it.id)}" alt="">`;
+        const title = pdf && it.name ? `<div style="font-size:13px;font-weight:500;margin-top:4px;">${esc(it.name)}</div>` : '';
+        const attrs = pdf ? `href="${fileUrl(it.id)}" target="_blank" rel="noopener"` : `href="#" data-img="${it.id}"`;
+        return `<a class="n-card" ${attrs}>
+          <div class="thumb">${thumb}</div>
+          <div class="body"><div class="meta">${tag(it.kid)}<span>${day(it.created_at)}</span></div>${title}<p class="note">${esc(it.note)}</p></div>
+        </a>`;
+      }).join('') + '</div>';
+    }
+  }
+
+  document.getElementById('whoFilter').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    who = b.dataset.who; render();
+  });
+  document.getElementById('secTabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    sec = b.dataset.sec; render();
+  });
+  document.getElementById('list').addEventListener('click', e => {
+    const a = e.target.closest('[data-img]'); if (!a) return;
+    e.preventDefault();
+    const it = items.find(x => String(x.id) === a.dataset.img);
+    document.getElementById('lbImg').src = fileUrl(it.id);
+    document.getElementById('lbCap').textContent = it.note || '';
+    document.getElementById('lb').classList.add('on');
+  });
+  const closeLb = () => document.getElementById('lb').classList.remove('on');
+  document.getElementById('lbX').addEventListener('click', closeLb);
+  document.getElementById('lb').addEventListener('click', e => { if (e.target.id === 'lb') closeLb(); });
+
+  fetch('/api/open/go/items', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(d => { items = d.items || []; render(); })
+    .catch(() => { document.getElementById('list').innerHTML = '<div class="empty">讀取失敗，稍後再試一次。</div>'; });
+  render();
+</script>
+</body>
+</html>
