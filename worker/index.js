@@ -2072,6 +2072,9 @@ export default {
       if (path === "/api/open/go/items" && request.method === "GET") return await goItemsGet(env);
       if (path.startsWith("/api/open/go/file/") && (request.method === "GET" || request.method === "HEAD")) return await goFileGet(env, request, path.slice("/api/open/go/file/".length));
 
+      if (path === "/api/admin/go/items" && request.method === "POST") return await goAdminUpdate(env, request);
+      if (path === "/api/admin/go/items" && request.method === "DELETE") return await goAdminDelete(env, request);
+
       if (path === "/api/open/yt-avatar" && request.method === "GET") return await handleYtAvatar(url);
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
       if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
@@ -2263,14 +2266,7 @@ async function goHandleEvent(env, ev) {
     const q = new URLSearchParams(ev.postback.data || "");
     const kid = q.get("kid"), id = Number(q.get("id"));
     if (GO_KIDS[kid] && id) {
-      await env.DB.prepare("UPDATE go_items SET kid = ? WHERE id = ?").bind(kid, id).run();
-      // 一次轉傳好幾個檔案時，同一批（前後 5 分鐘內、還沒選孩子的）一起歸給這個孩子
-      const it = await env.DB.prepare("SELECT created_at FROM go_items WHERE id = ?").bind(id).first();
-      if (it) {
-        const t0 = Date.parse(it.created_at);
-        await env.DB.prepare("UPDATE go_items SET kid = ? WHERE kid = '' AND created_at BETWEEN ? AND ?")
-          .bind(kid, new Date(t0 - 5 * 60000).toISOString(), new Date(t0 + 5 * 60000).toISOString()).run();
-      }
+      await goAssignKid(env, id, kid);
       await goReply(env, ev.replyToken, "好，放在 " + GO_KIDS[kid] + " 那邊了 👍 想加一句老師講的重點，直接打字給我就好。");
     }
     return;
@@ -2288,8 +2284,14 @@ async function goHandleEvent(env, ev) {
       await env.DB.prepare("DELETE FROM go_items WHERE id = ?").bind(last.id).run();
       return goReply(env, ev.replyToken, "已刪除最後一個檔案（" + (last.kind === "video" ? "影片" : "秘笈") + "）。");
     }
+    const kidFromText = goKidFromText(t);
+    if (kidFromText) {
+      if (!last) return goReply(env, ev.replyToken, "目前還沒有檔案可以分類。");
+      await goAssignKid(env, last.id, kidFromText);
+      return goReply(env, ev.replyToken, "好，最新這批放在 " + GO_KIDS[kidFromText] + " 那邊了 👍");
+    }
     if (t === "說明" || t === "help") {
-      return goReply(env, ev.replyToken, "轉傳影片、照片或 PDF 給我就會存起來。\n存好後點 Cathy／Rina 選是誰的。\n打一句話＝當作最新一個檔案的重點說明。\n打「刪除」＝刪掉最新一個檔案。");
+      return goReply(env, ev.replyToken, "轉傳影片、照片或 PDF 給我就會存起來。\n存好後點 Cathy／Rina 選是誰的。\n打「Cathy」「Rina」或「兩個」＝改最新那批是誰的。\n打其他一句話＝當作最新一個檔案的重點說明。\n打「刪除」＝刪掉最新一個檔案。");
     }
     // 30 分鐘內上傳的最新檔案 → 當作重點說明
     if (last && Date.now() - Date.parse(last.created_at) < 30 * 60 * 1000) {
@@ -2321,11 +2323,19 @@ async function goHandleEvent(env, ev) {
     }
   }
 
-  const res = await fetch("https://api-data.line.me/v2/bot/message/" + m.id + "/content", { headers: { Authorization: "Bearer " + env.LINE_CHANNEL_ACCESS_TOKEN } });
-  if (!res.ok) return goReply(env, ev.replyToken, "抓不到這個檔案（可能太舊已過期），請重新轉傳一次。");
-
   const day = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
   const key = "go/" + day + "-" + m.id + "." + ext;
+  const name = m.type === "file" ? (m.fileName || "") : "";
+  // 先登記一筆（size 留空＝還在存），這樣檔案還在下載時打的字、按的按鈕都會對到這個檔案
+  const ins = await env.DB.prepare("INSERT INTO go_items (kid, kind, r2_key, name, content_type, size, created_at) VALUES ('', ?, ?, ?, ?, NULL, ?)")
+    .bind(kind, key, name, ctype, new Date().toISOString()).run();
+  const id = ins.meta && ins.meta.last_row_id;
+
+  const res = await fetch("https://api-data.line.me/v2/bot/message/" + m.id + "/content", { headers: { Authorization: "Bearer " + env.LINE_CHANNEL_ACCESS_TOKEN } });
+  if (!res.ok) {
+    await env.DB.prepare("DELETE FROM go_items WHERE id = ?").bind(id).run();
+    return goReply(env, ev.replyToken, "抓不到這個檔案（可能太舊已過期），請重新轉傳一次。");
+  }
   const len = Number(res.headers.get("content-length") || 0);
   if (len > 0) {
     const fl = new FixedLengthStream(len);
@@ -2336,23 +2346,36 @@ async function goHandleEvent(env, ev) {
     await env.PHOTOS.put(key, await res.arrayBuffer(), { httpMetadata: { contentType: ctype } });
   }
   const head = await env.PHOTOS.head(key);
-  const size = head ? head.size : len;
-  const name = m.type === "file" ? (m.fileName || "") : "";
+  await env.DB.prepare("UPDATE go_items SET size = ? WHERE id = ?").bind(head ? head.size : len, id).run();
 
-  // 一次轉傳好幾張：前一個檔案 2 分鐘內才存、而且已經選過孩子 → 沿用同一個孩子，不再一直問
-  const prev = await env.DB.prepare("SELECT kid, created_at FROM go_items ORDER BY id DESC LIMIT 1").first();
-  const reuseKid = prev && prev.kid && Date.now() - Date.parse(prev.created_at) < 2 * 60 * 1000 ? prev.kid : "";
-
-  const ins = await env.DB.prepare("INSERT INTO go_items (kid, kind, r2_key, name, content_type, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(reuseKid, kind, key, name, ctype, size, new Date().toISOString()).run();
-  const id = ins.meta && ins.meta.last_row_id;
   const what = kind === "video" ? "復盤影片" : "秘笈";
-  if (reuseKid) return goReply(env, ev.replyToken, "存好了 ✅（" + what + "，一樣放 " + GO_KIDS[reuseKid] + "）");
+  const row = await env.DB.prepare("SELECT kid FROM go_items WHERE id = ?").bind(id).first();
+  if (row && row.kid) return goReply(env, ev.replyToken, "存好了 ✅（" + what + "，放在 " + GO_KIDS[row.kid] + "）");
   return goReply(env, ev.replyToken, "存好了 ✅ 這個" + what + "是誰的？", true, id);
 }
 
+function goKidFromText(t) {
+  const s = t.toLowerCase().replace(/\s/g, "");
+  if (s.length > 12) return "";
+  const c = s.includes("cathy"), r = s.includes("rina");
+  if ((c && r) || /^(是)?(兩個|兩個人|都是|都有|兩個都是)$/.test(s)) return "both";
+  if (c) return "cathy";
+  if (r) return "rina";
+  return "";
+}
+
+// 把這個檔案，以及同一批（前後 5 分鐘內、還沒選孩子的）一起歸給這個孩子
+async function goAssignKid(env, id, kid) {
+  await env.DB.prepare("UPDATE go_items SET kid = ? WHERE id = ?").bind(kid, id).run();
+  const it = await env.DB.prepare("SELECT created_at FROM go_items WHERE id = ?").bind(id).first();
+  if (!it) return;
+  const t0 = Date.parse(it.created_at);
+  await env.DB.prepare("UPDATE go_items SET kid = ? WHERE kid = '' AND created_at BETWEEN ? AND ?")
+    .bind(kid, new Date(t0 - 5 * 60000).toISOString(), new Date(t0 + 5 * 60000).toISOString()).run();
+}
+
 async function goItemsGet(env) {
-  const r = await env.DB.prepare("SELECT id, kid, kind, name, note, content_type, size, created_at FROM go_items ORDER BY created_at DESC, id DESC").all();
+  const r = await env.DB.prepare("SELECT id, kid, kind, name, note, content_type, size, created_at FROM go_items WHERE size IS NOT NULL ORDER BY created_at DESC, id DESC").all();
   return json({ items: r.results || [] }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -2389,4 +2412,29 @@ async function goFileGet(env, request, idStr) {
   if (request.method === "HEAD") return new Response(null, { status: 200, headers });
   const obj = await env.PHOTOS.get(row.r2_key);
   return new Response(obj.body, { status: 200, headers });
+}
+
+
+// ---- 圍棋復盤室：管理（在登入後面）----
+async function goAdminUpdate(env, request) {
+  const b = await request.json();
+  const id = Number(b.id);
+  if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  if (b.kid !== undefined) {
+    if (!(b.kid === "" || GO_KIDS[b.kid])) return json({ error: "kid 不對" }, { status: 400 });
+    await env.DB.prepare("UPDATE go_items SET kid = ? WHERE id = ?").bind(b.kid, id).run();
+  }
+  if (b.note !== undefined) {
+    await env.DB.prepare("UPDATE go_items SET note = ? WHERE id = ?").bind(String(b.note).slice(0, 500), id).run();
+  }
+  return json({ ok: true });
+}
+
+async function goAdminDelete(env, request) {
+  const b = await request.json();
+  const row = await env.DB.prepare("SELECT r2_key FROM go_items WHERE id = ?").bind(Number(b.id)).first();
+  if (!row) return json({ error: "找不到" }, { status: 404 });
+  await env.PHOTOS.delete(row.r2_key);
+  await env.DB.prepare("DELETE FROM go_items WHERE id = ?").bind(Number(b.id)).run();
+  return json({ ok: true });
 }

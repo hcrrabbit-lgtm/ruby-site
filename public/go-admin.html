@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>復盤室整理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#F7F3EB; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1; --go:#8A6A3B; --go-bg:#F3E9D6; --warn:#B96B77; --done:#5F8955; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 14px 60px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px;}
+  h1{font-family:'Noto Serif TC',serif;color:var(--go);margin:8px 0 4px;font-size:26px;}
+  .desc{color:var(--ink-soft);font-size:14px;line-height:1.7;margin:0 0 16px;}
+  .row{display:flex;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;align-items:flex-start;}
+  .thumb{flex:none;width:110px;height:80px;border-radius:8px;background:#1d1a16;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:30px;}
+  .thumb video,.thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .top{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-soft);}
+  .kids{display:flex;gap:4px;flex-wrap:wrap;}
+  .kids button{font:inherit;font-size:13px;padding:4px 10px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;}
+  .kids button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700;}
+  textarea{font:inherit;font-size:14px;width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;resize:vertical;min-height:38px;}
+  .acts{display:flex;gap:6px;align-items:center;}
+  .btn{font:inherit;font-size:13px;padding:5px 12px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;}
+  .btn.danger{color:var(--warn);}
+  .saved{font-size:12px;color:var(--done);}
+  .empty{color:var(--ink-soft);text-align:center;padding:40px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 回首頁</a>
+  <h1>⚫️ 復盤室整理</h1>
+  <p class="desc">改每個檔案是誰的、修改重點說明，或刪掉傳錯的檔案。改完會立刻出現在孩子的「<a href="open/go-review.html">圍棋復盤室</a>」。這一頁要登入才看得到。</p>
+  <div id="list"><div class="empty">讀取中…</div></div>
+</div>
+<script>
+  const KIDS = [['cathy','Cathy'],['rina','Rina'],['both','兩個人'],['','未分類']];
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const day = iso => { const d = new Date(iso); return (d.getMonth()+1) + '/' + d.getDate() + ' ' + d.toTimeString().slice(0,5); };
+  let items = [];
+
+  async function load() {
+    const d = await fetch('/api/open/go/items', { cache: 'no-store' }).then(r => r.json());
+    items = d.items || [];
+    render();
+  }
+  function render() {
+    const list = document.getElementById('list');
+    if (!items.length) { list.innerHTML = '<div class="empty">還沒有檔案。</div>'; return; }
+    list.innerHTML = items.map(it => {
+      const url = '/api/open/go/file/' + it.id;
+      const pdf = (it.content_type || '').includes('pdf');
+      const thumb = it.kind === 'video' ? `<video src="${url}#t=0.5" preload="metadata" muted playsinline></video>`
+        : pdf ? '📄' : `<img src="${url}" loading="lazy" alt="">`;
+      return `<div class="row" data-id="${it.id}">
+        <a class="thumb" href="${url}" target="_blank" rel="noopener">${thumb}</a>
+        <div class="main">
+          <div class="top"><span>${it.kind === 'video' ? '🎥 影片' : '📜 秘笈'}</span><span>${day(it.created_at)}</span>${it.name ? '<span>' + esc(it.name) + '</span>' : ''}</div>
+          <div class="kids">${KIDS.map(([k, n]) => `<button data-kid="${k}" class="${it.kid === k ? 'on' : ''}">${n}</button>`).join('')}</div>
+          <textarea placeholder="老師講的重點（可空白）">${esc(it.note)}</textarea>
+          <div class="acts"><button class="btn save">存重點</button><button class="btn danger del">刪除</button><span class="saved"></span></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  async function post(method, body) {
+    const r = await fetch('/api/admin/go/items', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('fail');
+  }
+  function flash(row, text) { const s = row.querySelector('.saved'); s.textContent = text; setTimeout(() => s.textContent = '', 1500); }
+
+  document.getElementById('list').addEventListener('click', async e => {
+    const row = e.target.closest('.row'); if (!row) return;
+    const id = Number(row.dataset.id);
+    const it = items.find(x => x.id === id);
+    try {
+      const kb = e.target.closest('[data-kid]');
+      if (kb) {
+        await post('POST', { id, kid: kb.dataset.kid });
+        it.kid = kb.dataset.kid;
+        row.querySelectorAll('[data-kid]').forEach(b => b.classList.toggle('on', b === kb));
+        flash(row, '已更新');
+      } else if (e.target.classList.contains('save')) {
+        const note = row.querySelector('textarea').value;
+        await post('POST', { id, note });
+        it.note = note;
+        flash(row, '已存');
+      } else if (e.target.classList.contains('del')) {
+        if (!row.querySelector('.del').dataset.sure) { e.target.dataset.sure = '1'; e.target.textContent = '再按一次確定刪除'; return; }
+        await post('DELETE', { id });
+        items = items.filter(x => x.id !== id);
+        render();
+      }
+    } catch (err) { flash(row, '沒存成功，請重新整理再試'); }
+  });
+  load();
+</script>
+</body>
+</html>
