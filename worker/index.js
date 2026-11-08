@@ -237,6 +237,18 @@ async function ensureSchema(env) {
     // column already exists, safe to ignore
   }
   try {
+    // 比賽種類（圍棋／英文／語文／跳繩／美術／其他）
+    await env.DB.prepare("ALTER TABLE bm_contests ADD COLUMN kind TEXT NOT NULL DEFAULT ''").run();
+  } catch (e) {
+    // column already exists, safe to ignore
+  }
+  try {
+    // 以前的比賽紀錄都是圍棋，名稱有「棋」的先歸到圍棋
+    await env.DB.prepare("UPDATE bm_contests SET kind = '圍棋' WHERE kind = '' AND name LIKE '%棋%'").run();
+  } catch (e) {
+    // best-effort; the page also guesses the kind from the name
+  }
+  try {
     // 一次性：把 Ruby 自己的習慣清單放進「健康家庭」的每日習慣追蹤（已有同名的就跳過；跑過一次就不再跑，之後她刪掉的不會被加回來）
     const seeded = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'ruby_habits_seed_v1'").first();
     if (!seeded) {
@@ -1641,6 +1653,7 @@ async function handleGrades(env, url) {
 
 // ---- Better Me 里程碑／比賽／成長紀錄 (served under /api/open/, no login) ----
 const BM_CHILDREN = new Set(["Cathy", "Rina", "Lilian"]);
+const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美術", "其他"]);
 const BM_TRACKS = new Set(["ienglish", "yehu"]);
 const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -1669,7 +1682,7 @@ async function bmRecordsGet(env, url) {
   if (!BM_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
   const [levels, contests, growth, vision, cycle] = await Promise.all([
     env.DB.prepare("SELECT id, track, label, date FROM bm_levels WHERE child = ? ORDER BY date, id").bind(child).all(),
-    env.DB.prepare("SELECT id, date, name, division, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
+    env.DB.prepare("SELECT id, date, name, division, kind, result FROM bm_contests WHERE child = ? ORDER BY date DESC, id DESC").bind(child).all(),
     env.DB.prepare("SELECT id, date, height_cm as heightCm, weight_kg as weightKg FROM bm_growth WHERE child = ? ORDER BY date").bind(child).all(),
     env.DB.prepare(
       `SELECT id, date, va_r as vaR, va_l as vaL, sph_r as sphR, sph_l as sphL, cyl_r as cylR, cyl_l as cylL, note
@@ -1701,16 +1714,17 @@ async function bmContestPost(env, request) {
   const name = bmClean(b.name, 80);
   const result = bmClean(b.result, 40);
   const division = bmClean(b.division, 40);
+  const kind = BM_CONTEST_KINDS.has(b.kind) ? b.kind : "";
   if (!BM_CHILDREN.has(b.child) || !name || !result || !BM_DATE_RE.test(b.date || "")) {
     return json({ error: "資料不完整" }, { status: 400 });
   }
   const editId = bmEditId(b);
   if (editId !== null) {
-    return bmRunUpdate(env.DB.prepare("UPDATE bm_contests SET date = ?, name = ?, division = ?, result = ? WHERE id = ? AND child = ?")
-      .bind(b.date, name, division, result, editId, b.child));
+    return bmRunUpdate(env.DB.prepare("UPDATE bm_contests SET date = ?, name = ?, division = ?, kind = ?, result = ? WHERE id = ? AND child = ?")
+      .bind(b.date, name, division, kind, result, editId, b.child));
   }
-  await env.DB.prepare("INSERT INTO bm_contests (child, date, name, division, result, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(b.child, b.date, name, division, result, new Date().toISOString()).run();
+  await env.DB.prepare("INSERT INTO bm_contests (child, date, name, division, kind, result, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(b.child, b.date, name, division, kind, result, new Date().toISOString()).run();
   return json({ ok: true });
 }
 
@@ -1846,7 +1860,7 @@ async function bmReadImage(env, request, instructions) {
 async function bmReadCertificate(env, request) {
   const instructions =
     "這是一張台灣的比賽獎狀照片（可能是圍棋、英文、語文、跳繩、美術等各種比賽）。請只讀出四件事，用 JSON 回答，不要有其他文字：" +
-    '{"name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、中年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、佳作、特優、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
+    '{"kind":"比賽種類，只能是 圍棋、英文、語文、跳繩、美術、其他 其中一個（語文包含國語、作文、字音字形、朗讀、演說；跳繩以外的運動填其他）","name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、中年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、佳作、特優、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
     "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
   const r = await bmReadImage(env, request, instructions);
   if (r.error) return r.error;
@@ -1855,6 +1869,7 @@ async function bmReadCertificate(env, request) {
   return json({
     name: bmClean(p.name, 80),
     division: bmClean(p.division, 40),
+    kind: BM_CONTEST_KINDS.has(p.kind) ? p.kind : "",
     result: bmClean(p.result, 40),
     date: BM_DATE_RE.test(date) ? date : ""
   });

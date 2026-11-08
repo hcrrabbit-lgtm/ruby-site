@@ -557,6 +557,10 @@
   .contest-name{ font-size:13.5px; font-weight:700; color:var(--ink); word-break:break-word; }
   .contest-meta{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
   .contest-meta b{ color:var(--child-c, var(--study)); }
+  .contest-kind-h{ font-size:13px; font-weight:700; color:var(--child-c, var(--study)); margin:14px 0 2px; padding-bottom:4px; border-bottom:1.5px dashed var(--line); }
+  .contest-kind-h:first-of-type{ margin-top:4px; }
+  .contest-kind-h span{ font-weight:500; color:var(--ink-soft); font-size:12px; }
+  .contest-kind-h + .contest-list li:first-child{ border-top:0; }
   .photo-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; width:100%; }
   .photo-note{ font-size:11.5px; color:var(--ink-soft); line-height:1.6; }
   .photo-status{ font-size:12.5px; color:var(--child-c, var(--study)); font-weight:700; }
@@ -1761,17 +1765,36 @@
     return '🏆';
   }
 
+  // 比賽種類：分類顯示，沒選種類的舊紀錄就用名稱猜
+  const CONTEST_KINDS = [
+    { k: '圍棋', icon: '⚫', re: /棋/ },
+    { k: '英文', icon: '🔤', re: /英文|英語|English|拼字|spelling/i },
+    { k: '語文', icon: '📖', re: /語文|國語|作文|字音|字形|朗讀|演說|說故事|書法|閱讀/ },
+    { k: '跳繩', icon: '🪢', re: /跳繩/ },
+    { k: '美術', icon: '🎨', re: /美術|繪畫|畫|寫生|美展|海報/ },
+    { k: '其他', icon: '🏅', re: null }
+  ];
+  function contestKind(c){
+    if (CONTEST_KINDS.some(x => x.k === c.kind)) return c.kind;
+    const hit = CONTEST_KINDS.find(x => x.re && x.re.test(c.name || ''));
+    return hit ? hit.k : '其他';
+  }
   function contestCardHtml(){
     const list = recData.contests;
-    const items = list.length
-      ? `<ul class="contest-list">${list.map(c => `<li>
+    const itemHtml = c => `<li>
           <span class="contest-medal">${medalFor(c.result)}</span>
           <div class="contest-body">
             <div class="contest-name">${escapeHtml(c.name)}</div>
             <div class="contest-meta">${fmtDate(c.date)}${gradeTag(c.date)}${c.division ? `　${escapeHtml(c.division)}` : ''}　<b>${escapeHtml(c.result)}</b></div>
           </div>
           ${rowActs('contest', c.id)}
-        </li>`).join('')}</ul>`
+        </li>`;
+    const items = list.length
+      ? CONTEST_KINDS.map(x => {
+          const rows = list.filter(c => contestKind(c) === x.k);
+          return rows.length ? `<div class="contest-kind-h">${x.icon} ${x.k} <span>（${rows.length}）</span></div>
+            <ul class="contest-list">${rows.map(itemHtml).join('')}</ul>` : '';
+        }).join('')
       : `<p class="rec-empty">還沒有比賽紀錄。</p>`;
     return `<div class="rec-card ${childCls()}">
       <h2 class="rec-title">🏆 各項比賽成績</h2>
@@ -1782,7 +1805,8 @@
           <input type="file" accept="image/*" capture="environment" id="contestPhoto" hidden>
           <span class="photo-status" id="contestPhotoStatus"></span>
         </div>
-        <div class="photo-note">照片只用來讀出比賽名稱、組別、成績和日期，不會被存下來；獎狀上的姓名不會記錄。讀完請檢查一下再按儲存。</div>
+        <div class="photo-note">照片只用來讀出比賽種類、名稱、組別、成績和日期，不會被存下來；獎狀上的姓名不會記錄。讀完請檢查一下再按儲存。</div>
+        <label>種類<select id="contestKind">${CONTEST_KINDS.map(x => `<option value="${x.k}">${x.icon} ${x.k}</option>`).join('')}</select></label>
         <label class="grow">比賽名稱<input type="text" maxlength="80" id="contestName" placeholder="例如：南投縣縣長盃圍棋賽"></label>
         <label>組別<input type="text" maxlength="40" id="contestDivision" placeholder="例如：國小低年級組" style="width:150px"></label>
         <label>成績<input type="text" maxlength="40" id="contestResult" placeholder="例如：第三名" style="width:120px"></label>
@@ -1825,6 +1849,7 @@
       startEditing(document.getElementById('contestForm'), c.id, () => {
         document.getElementById('contestName').value = c.name;
         document.getElementById('contestDivision').value = c.division || '';
+        document.getElementById('contestKind').value = contestKind(c);
         document.getElementById('contestResult').value = c.result;
         document.getElementById('contestDate').value = c.date;
       });
@@ -1849,9 +1874,10 @@
       const name = document.getElementById('contestName').value.trim();
       const result = document.getElementById('contestResult').value.trim();
       const division = document.getElementById('contestDivision').value.trim();
+      const kind = document.getElementById('contestKind').value;
       const date = document.getElementById('contestDate').value;
       if (!name || !result || !date) { alert('比賽名稱、成績、日期都要填'); return; }
-      try { await recSend('/contests', 'POST', { child: activeChild, name, division, result, date, id: editIdOf(e.target) }); playChime(); }
+      try { await recSend('/contests', 'POST', { child: activeChild, name, division, kind, result, date, id: editIdOf(e.target) }); playChime(); }
       catch (err) { alert(err.message); return; }
       loadRecords();
     });
@@ -1886,6 +1912,8 @@
       const image = await shrinkImage(file, 1280);
       const out = await recSend('/contests/read-photo', 'POST', { image });
       if (out.name) document.getElementById('contestName').value = out.name;
+      const k = out.kind || (out.name ? contestKind({ name: out.name }) : '');
+      if (k) document.getElementById('contestKind').value = k;
       if (out.division) document.getElementById('contestDivision').value = out.division;
       if (out.result) document.getElementById('contestResult').value = out.result;
       if (out.date) document.getElementById('contestDate').value = out.date;
