@@ -1653,7 +1653,7 @@ async function handleGrades(env, url) {
 
 // ---- Better Me 里程碑／比賽／成長紀錄 (served under /api/open/, no login) ----
 const BM_CHILDREN = new Set(["Cathy", "Rina", "Lilian"]);
-const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美術", "其他"]);
+const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美術", "鋼琴", "其他"]);
 const BM_TRACKS = new Set(["ienglish", "yehu"]);
 const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -1860,7 +1860,7 @@ async function bmReadImage(env, request, instructions) {
 async function bmReadCertificate(env, request) {
   const instructions =
     "這是一張台灣的比賽獎狀照片（可能是圍棋、英文、語文、跳繩、美術等各種比賽）。請只讀出四件事，用 JSON 回答，不要有其他文字：" +
-    '{"kind":"比賽種類，只能是 圍棋、英文、語文、跳繩、美術、其他 其中一個（語文包含國語、作文、字音字形、朗讀、演說；跳繩以外的運動填其他）","name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、中年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、佳作、特優、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
+    '{"kind":"比賽種類，只能是 圍棋、英文、語文、跳繩、美術、鋼琴、其他 其中一個（語文包含國語、作文、字音字形、朗讀、演說；跳繩以外的運動填其他）","name":"比賽名稱（含屆數與主辦單位名稱可以，但不要有任何人名）","division":"組別，例如 國小低年級組、中年級組、15級組、業餘初段組","result":"成績，例如 第三名、優勝、佳作、特優、5勝2敗、晉升3級","date":"比賽日期 YYYY-MM-DD"}。' +
     "民國年請換算成西元（民國年＋1911）。看不清楚的欄位填空字串。絕對不要寫出得獎人或任何人的姓名、學校班級、身分證字號。";
   const r = await bmReadImage(env, request, instructions);
   if (r.error) return r.error;
