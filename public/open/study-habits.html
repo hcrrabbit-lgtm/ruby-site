@@ -1819,7 +1819,7 @@
 
   function renderMilestones(){
     const box = document.getElementById('viewMilestones');
-    box.innerHTML = `${editToolbarHtml()}<div class="rec-grid">${levelCardHtml('ienglish')}${levelCardHtml('yehu')}</div>
+    box.innerHTML = `${editToolbarHtml()}<div class="rec-grid"${activeChild === 'Lilian' ? ' style="grid-template-columns:1fr"' : ''}>${levelCardHtml('ienglish')}${activeChild === 'Lilian' ? '' : levelCardHtml('yehu')}</div>
       <div style="height:16px"></div>${contestCardHtml()}`;
 
     box.querySelectorAll('form[data-track]').forEach(f => f.addEventListener('submit', async e => {
