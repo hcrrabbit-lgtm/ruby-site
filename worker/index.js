@@ -274,6 +274,26 @@ async function ensureSchema(env) {
     // best-effort; can still be added by hand on the Better Me page
   }
   try {
+    // 一次性：Lilian 的 Better Me 新增四個打勾項目（已有同名就跳過；跑過一次就不再跑，之後刪掉不會被加回來）
+    const done = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'lilian_habits_seed_v1'").first();
+    if (!done) {
+      const names = ["瓜瓜漂流", "Moby+", "小I", "跳繩"];
+      const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(order_no), 0) as m FROM study_habits").first();
+      let order = (maxRow && maxRow.m) || 0;
+      for (let i = 0; i < names.length; i++) {
+        const dup = await env.DB.prepare("SELECT id FROM study_habits WHERE child = 'Lilian' AND name = ?").bind(names[i]).first();
+        if (dup) continue;
+        order += 1;
+        await env.DB.prepare(
+          "INSERT INTO study_habits (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, 'Lilian')"
+        ).bind("shabit_" + Date.now() + "_" + i, names[i], order, new Date().toISOString()).run();
+      }
+      await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('lilian_habits_seed_v1', '1')").run();
+    }
+  } catch (e) {
+    // best-effort; can still be added by hand on the Better Me page
+  }
+  try {
     await env.DB.prepare(
       `INSERT INTO app_settings (key, value) VALUES ('schema_bootstrap_done', ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
@@ -1620,7 +1640,7 @@ async function handleGrades(env, url) {
 }
 
 // ---- Better Me 里程碑／比賽／成長紀錄 (served under /api/open/, no login) ----
-const BM_CHILDREN = new Set(["Cathy", "Rina"]);
+const BM_CHILDREN = new Set(["Cathy", "Rina", "Lilian"]);
 const BM_TRACKS = new Set(["ienglish", "yehu"]);
 const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -612,8 +612,8 @@
     background:var(--child-bg, var(--study-bg)); color:var(--child-c, var(--study));
     font-size:11px; font-weight:700; white-space:nowrap; vertical-align:1px;
   }
-  /* Lilian 的獨立頁：只顯示她自己的習慣，不顯示 Cathy／Rina 的分頁、放映室、紀錄和用餐 */
-  body.solo .child-tabs, body.solo .video-link, body.solo .view-tabs, body.solo #mealSection{ display:none !important; }
+  /* Lilian 的獨立頁：只顯示她自己的習慣，不顯示 Cathy／Rina 的分頁、放映室和用餐 */
+  body.solo .child-tabs, body.solo .video-link, body.solo #mealSection{ display:none !important; }
   body.solo h1{ color:#B0607A; }
 </style>
 </head>
@@ -873,6 +873,7 @@
     document.title = 'Better Me - Lilian';
     document.querySelector('h1').textContent = '✅ Lilian 的 Better Me';
   }
+  const REC_CHILDREN = ['Cathy', 'Rina', 'Lilian'];
   const CHILD_GROUPS = SOLO ? ['Lilian'] : ['Cathy', 'Rina', '其他'];
   const CHILD_SLUG = { Cathy: 'child-cathy', Rina: 'child-rina', Lilian: 'child-lilian', '其他': 'child-other' };
   let activeChild = SOLO ? 'Lilian' : 'Cathy';
@@ -1535,7 +1536,7 @@
   let activeView = 'habits';
   try { activeView = localStorage.getItem('betterMeView') || 'habits'; } catch (e) {}
   if (activeView === 'vision') { activeView = 'growth'; growthSub = 'vision'; }
-  if (!VIEWS[activeView] || SOLO) activeView = 'habits';
+  if (!VIEWS[activeView]) activeView = 'habits';
   if (!SUBS[growthSub]) growthSub = 'body';
   let recData = null;
   let recLoadSeq = 0;
@@ -1559,7 +1560,7 @@
   function noteVisionFor(child, rows){ visionDue[child] = nextVisionDate(rows); renderNotices(); }
   async function loadVisionDue(){
     const child = activeChild;
-    if (child !== 'Cathy' && child !== 'Rina') { renderNotices(); return; }
+    if (!REC_CHILDREN.includes(child)) { renderNotices(); return; }
     try {
       const d = await fetch(REC_API + '/records?child=' + encodeURIComponent(child)).then(r => r.json());
       noteVisionFor(child, d.vision);
@@ -1654,8 +1655,8 @@
     const seq = ++recLoadSeq;
     const child = activeChild;
     const box = document.getElementById(VIEWS[activeView]);
-    if (child !== 'Cathy' && child !== 'Rina') {
-      const msg = `<p class="rec-empty">里程碑和成長紀錄只有 Cathy 和 Rina 有喔。</p>`;
+    if (!REC_CHILDREN.includes(child)) {
+      const msg = `<p class="rec-empty">里程碑和成長紀錄只有 Cathy、Rina 和 Lilian 有喔。</p>`;
       if (activeView === 'growth') {
         document.getElementById('growthTiles').innerHTML = msg;
         Object.values(SUBS).forEach(id => { document.getElementById(id).innerHTML = ''; });
@@ -1696,8 +1697,8 @@
   const childCls = () => CHILD_SLUG[activeChild] || '';
 
   // 讀小一那一學年的開始年份（學年從 8 月算起）。
-  // 2026 學年 Cathy 國二、Rina 小三。
-  const GRADE1_YEAR = { Cathy: 2019, Rina: 2024 };
+  // 2026 學年 Cathy 國二、Rina 小三、Lilian 小三。
+  const GRADE1_YEAR = { Cathy: 2019, Rina: 2024, Lilian: 2024 };
   const GRADE_NAMES = { '-3': '幼幼班', '-2': '小班', '-1': '中班', '0': '大班',
     1: '小一', 2: '小二', 3: '小三', 4: '小四', 5: '小五', 6: '小六',
     7: '國一', 8: '國二', 9: '國三', 10: '高一', 11: '高二', 12: '高三' };
@@ -1939,7 +1940,7 @@
   function renderBody(){
     const box = document.getElementById('subBody');
     const rows = recData.growth;
-    const color = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A';
+    const color = activeChild === 'Rina' ? '#3B7EA8' : activeChild === 'Lilian' ? '#B0607A' : '#4C8C5A';
     const table = rows.length
       ? `<table class="growth-table"><thead><tr><th>日期</th><th>身高</th><th>體重</th><th></th></tr></thead><tbody>
           ${rows.slice().reverse().map(r => `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}</td>
@@ -2290,7 +2291,7 @@
   function renderVision(){
     const box = document.getElementById('viewVision');
     const rows = recData.vision || [];
-    const cR = activeChild === 'Rina' ? '#3B7EA8' : '#4C8C5A', cL = '#C9A227';
+    const cR = activeChild === 'Rina' ? '#3B7EA8' : activeChild === 'Lilian' ? '#B0607A' : '#4C8C5A', cL = '#C9A227';
     const eyeInputs = side => `
       <td><input type="number" step="any" min="0.01" max="2" inputmode="decimal" id="vVa${side}" placeholder="例 0.8"></td>`;
     const sphInputs = side => `
