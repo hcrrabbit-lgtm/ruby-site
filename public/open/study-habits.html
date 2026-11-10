@@ -1581,7 +1581,7 @@
   // 內容放在 notices.json，由 Claude 依 Ruby 的交代直接修改；過了日期自動不顯示
   let noticeData = null;
   const visionDue = {}; // child -> { last, next }
-  function noteVisionFor(child, rows){ visionDue[child] = nextVisionDate(rows); renderNotices(); }
+  function noteVisionFor(child, rows){ visionDue[child] = nextVisionDate(rows, child); renderNotices(); }
   async function loadVisionDue(){
     const child = activeChild;
     if (!REC_CHILDREN.includes(child)) { renderNotices(); return; }
@@ -1602,7 +1602,7 @@
     if (!box || !noticeData) return;
     const today = todayStr();
     const vd = visionDue[activeChild];
-    const auto = vd ? [{ text: `👀 建議到診所檢查視力（上次 ${shortDate(vd.last)}，一個月一次）`, date: vd.next, auto: true }] : [];
+    const auto = vd ? [{ text: `👀 建議到診所檢查視力（上次 ${shortDate(vd.last)}，${monthsText(vd.months)}一次）`, date: vd.next, auto: true }] : [];
     const list = noticeData
       .filter(n => n && n.text && (SOLO ? n.who === 'Lilian' : (!n.who || n.who === 'all' || n.who === activeChild)))
       .filter(n => !n.date || (n.end || n.date) >= today)
@@ -1636,7 +1636,7 @@
   // 回診完成打勾：記一筆今天的視力紀錄（數字可之後補），提醒就自動往後延一個月
   async function markVisionVisit(cb){
     const child = activeChild;
-    if (!confirm(`${child} 今天（${shortDate(todayStr())}）已經回診了嗎？\n打勾後，下次提醒會改成一個月後。`)) { cb.checked = false; return; }
+    if (!confirm(`${child} 今天（${shortDate(todayStr())}）已經回診了嗎？\n打勾後，下次提醒會改成${monthsText(visionMonths(child))}後。`)) { cb.checked = false; return; }
     cb.disabled = true;
     try {
       await recSend('/vision', 'POST', { child, date: todayStr(), note: '✅ 已回診（視力數字可之後補上）' });
@@ -2096,11 +2096,14 @@
     const t = new Date(y, m - 1 + n, Math.min(d, last));
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
   }
-  // 視力建議一個月檢查一次：以最近一次紀錄往後推一個月
-  const VISION_EVERY_MONTHS = 1;
-  function nextVisionDate(rows){
+  // 視力檢查間隔（月）：Rina 三個月一次，其他人一個月一次；以最近一次紀錄往後推
+  const VISION_EVERY_MONTHS = { Rina: 3 };
+  const visionMonths = child => VISION_EVERY_MONTHS[child] || 1;
+  const monthsText = n => n === 1 ? '一個月' : n === 3 ? '三個月' : `${n} 個月`;
+  function nextVisionDate(rows, child){
     const last = (rows || []).map(r => r.date).sort().pop();
-    return last ? { last, next: addMonths(last, VISION_EVERY_MONTHS) } : null;
+    const months = visionMonths(child || activeChild);
+    return last ? { last, months, next: addMonths(last, months) } : null;
   }
   function shortDate(ds){ const [, m, d] = ds.split('-').map(Number); return `${m}/${d}`; }
   function dueText(ds){
@@ -2128,7 +2131,7 @@
       : `${deg(lv.sphR)} / ${deg(lv.sphL)}<small style="font-size:13px;font-weight:500"> 度</small>`;
     const visionLbl = !lv || lv.vaR != null || lv.vaL != null ? '👀 視力（右／左）'
       : ((lv.sphR || 0) < 0 || (lv.sphL || 0) < 0 ? '👀 近視度數（右／左）' : '👀 度數（右／左）');
-    const vn = nextVisionDate(recData.vision);
+    const vn = nextVisionDate(recData.vision, activeChild);
     const c = (recData.cycle || []).slice().sort((a, b) => a.start < b.start ? -1 : 1);
     const { avg } = cycleStats(c);
     const lc = c[c.length - 1];
