@@ -1491,7 +1491,10 @@
   function renderMonthSections(data, month){
     const container = document.getElementById('habitMonthSections');
     const monthLabelText = `${habitState.viewDate.getFullYear()}年${habitState.viewDate.getMonth() + 1}月`;
-    const list = groupByChild(data.habits || [])[activeChild] || [];
+    // 依本月完成次數排序：做最多次的在最上面，次數一樣就照原本順序
+    const doneCount = h => new Set((data.logs || {})[h.id] || []).size;
+    const list = (groupByChild(data.habits || [])[activeChild] || []).slice()
+      .sort((a, b) => doneCount(b) - doneCount(a));
     const monthlyTotal = list.reduce((sum, h) => sum + ((data.logs[h.id] || []).length) + ((data.bonusByHabit && data.bonusByHabit[h.id]) || 0), 0);
     const bodyHtml = list.length === 0
       ? `<p class="habit-empty">目前還沒有習慣項目可以統計。</p>`
