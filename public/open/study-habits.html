@@ -2118,10 +2118,17 @@
       return `<div><div class="t-lbl">${label}</div><div class="t-val">${a ? a[key] + ' ' + unit : '—'}</div>
         <div class="t-sub">${diff != null ? `比上次 ${diff > 0 ? '+' : ''}${diff}` : (a ? fmtDate(a.date) : '還沒有紀錄')}</div></div>`;
     };
-    const v = (recData.vision || []).filter(r => r.vaR != null || r.vaL != null);
-    const lv = v[v.length - 1];
-    const vn = nextVisionDate(recData.vision);
     const va = x => x == null ? '—' : vaText(x);
+    // 最近一筆有數字的視力紀錄：有裸視就顯示裸視，只有度數就顯示度數
+    const v = (recData.vision || []).filter(r => ['vaR', 'vaL', 'sphR', 'sphL'].some(k => r[k] != null));
+    const lv = v[v.length - 1];
+    const deg = x => x == null ? '—' : x === 0 ? '0' : x < 0 ? String(-x) : '+' + x;
+    const visionVal = !lv ? '—'
+      : (lv.vaR != null || lv.vaL != null) ? `${va(lv.vaR)} / ${va(lv.vaL)}`
+      : `${deg(lv.sphR)} / ${deg(lv.sphL)}<small style="font-size:13px;font-weight:500"> 度</small>`;
+    const visionLbl = !lv || lv.vaR != null || lv.vaL != null ? '👀 視力（右／左）'
+      : ((lv.sphR || 0) < 0 || (lv.sphL || 0) < 0 ? '👀 近視度數（右／左）' : '👀 度數（右／左）');
+    const vn = nextVisionDate(recData.vision);
     const c = (recData.cycle || []).slice().sort((a, b) => a.start < b.start ? -1 : 1);
     const { avg } = cycleStats(c);
     const lc = c[c.length - 1];
@@ -2135,7 +2142,7 @@
     const tile = (k, inner, wide) => `<button type="button" class="g-tile ${cls} ${wide ? 'wide' : ''} ${growthSub === k ? 'on' : ''}" data-sub="${k}">${inner}</button>`;
     return `<div class="g-tiles">
       ${tile('body', bodyHalf('heightCm', '📏 身高', 'cm') + `<div style="text-align:right">${bodyHalf('weightKg', '體重', 'kg')}</div>`, true)}
-      ${tile('vision', `<div class="t-lbl">👀 視力（右／左）</div><div class="t-val">${lv ? va(lv.vaR) + ' / ' + va(lv.vaL) : '—'}</div>
+      ${tile('vision', `<div class="t-lbl">${visionLbl}</div><div class="t-val">${visionVal}</div>
         <div class="t-sub">${vn ? `下次檢查 ${shortDate(vn.next)}・${dueText(vn.next)}` : '還沒有紀錄'}</div>`)}
       ${tile('cycle', `<div class="t-lbl">🌸 花期小記</div><div class="t-val">${cVal}</div><div class="t-sub">${cSub}</div>`)}
     </div>`;
