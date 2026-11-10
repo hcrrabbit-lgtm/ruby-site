@@ -532,6 +532,12 @@
   }
   .notice-badge.pin{ font-size:13px; padding:2px 8px; }
   .rules-fold{ margin:0 0 12px; }
+  .visit-check{
+    flex:0 0 auto; display:inline-flex; align-items:center; gap:4px; cursor:pointer;
+    padding:3px 8px; border:1.5px solid #EAD9A8; border-radius:999px; background:#fff;
+    font-size:12px; font-weight:700; color:#7A5A12; white-space:nowrap;
+  }
+  .visit-check input{ width:16px; height:16px; margin:0; accent-color:#4C8C5A; }
   .rules-fold summary{ padding:4px 2px; font-size:12.5px; }
   .rec-empty{ font-size:13px; color:var(--ink-soft); margin:2px 0 8px; }
 
@@ -1619,9 +1625,36 @@
     box.innerHTML = `<div class="notice-board">
       <h2 class="notice-title">📌 公布欄</h2>
       ${list.length
-        ? `<ul class="notice-list">${list.map(n => `<li>${badge(n)}<div class="notice-text">${escapeHtml(n.text)}${dateLine(n)}</div></li>`).join('')}</ul>`
+        ? `<ul class="notice-list">${list.map(n => `<li>${badge(n)}<div class="notice-text">${escapeHtml(n.text)}${dateLine(n)}</div>${n.auto
+            ? `<label class="visit-check" title="回診完成就打勾"><input type="checkbox" class="vision-visit-cb"><span>已回診</span></label>` : ''}</li>`).join('')}</ul>`
         : `<p class="notice-empty">目前沒有公告。</p>`}
     </div>`;
+    const cb = box.querySelector('.vision-visit-cb');
+    if (cb) cb.addEventListener('change', () => markVisionVisit(cb));
+  }
+
+  // 回診完成打勾：記一筆今天的視力紀錄（數字可之後補），提醒就自動往後延一個月
+  async function markVisionVisit(cb){
+    const child = activeChild;
+    if (!confirm(`${child} 今天（${shortDate(todayStr())}）已經回診了嗎？\n打勾後，下次提醒會改成一個月後。`)) { cb.checked = false; return; }
+    cb.disabled = true;
+    try {
+      await recSend('/vision', 'POST', { child, date: todayStr(), note: '✅ 已回診（視力數字可之後補上）' });
+      playChime();
+      await loadVisionDue();
+      const vd = visionDue[child];
+      if (vd) showVisitToast(`記好了！下次回診提醒：${shortDate(vd.next)}。視力數字可以到「成長 → 視力」補上`);
+    } catch (err) {
+      alert(err.message);
+      cb.checked = false; cb.disabled = false;
+    }
+  }
+  function showVisitToast(msg){
+    let t = document.getElementById('visitToast');
+    if (!t) { t = document.createElement('div'); t.id = 'visitToast'; t.className = 'streak-toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 4000);
   }
   loadNotices();
   loadVisionDue();

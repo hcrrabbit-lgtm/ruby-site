@@ -1767,7 +1767,7 @@ async function bmVisionPost(env, request) {
     cylR: num(b.cylR, 0, 800, true), cylL: num(b.cylL, 0, 800, true)
   };
   const vals = Object.values(f);
-  if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || vals.some(x => !x.ok) || vals.every(x => x.v === null)) {
+  if (!BM_CHILDREN.has(b.child) || !BM_DATE_RE.test(b.date || "") || vals.some(x => !x.ok) || (vals.every(x => x.v === null) && !bmClean(b.note, 80))) {
     return json({ error: "資料不完整或數字不合理" }, { status: 400 });
   }
   const editId = bmEditId(b);
