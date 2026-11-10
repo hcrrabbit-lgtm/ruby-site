@@ -2127,10 +2127,10 @@
     const lv = v[v.length - 1];
     const deg = x => x == null ? '—' : x === 0 ? '0' : x < 0 ? String(-x) : '+' + x;
     const visionVal = !lv ? '—'
-      : (lv.vaR != null || lv.vaL != null) ? `${va(lv.vaR)} / ${va(lv.vaL)}`
-      : `${deg(lv.sphR)} / ${deg(lv.sphL)}<small style="font-size:13px;font-weight:500"> 度</small>`;
-    const visionLbl = !lv || lv.vaR != null || lv.vaL != null ? '👀 視力（右／左）'
-      : ((lv.sphR || 0) < 0 || (lv.sphL || 0) < 0 ? '👀 近視度數（右／左）' : '👀 度數（右／左）');
+      : (lv.vaR != null || lv.vaL != null) ? `${va(lv.vaL)} / ${va(lv.vaR)}`
+      : `${deg(lv.sphL)} / ${deg(lv.sphR)}<small style="font-size:13px;font-weight:500"> 度</small>`;
+    const visionLbl = !lv || lv.vaR != null || lv.vaL != null ? '👀 視力（左／右）'
+      : ((lv.sphR || 0) < 0 || (lv.sphL || 0) < 0 ? '👀 近視度數（左／右）' : '👀 度數（左／右）');
     const vn = nextVisionDate(recData.vision, activeChild);
     const c = (recData.cycle || []).slice().sort((a, b) => a.start < b.start ? -1 : 1);
     const { avg } = cycleStats(c);
@@ -2386,12 +2386,12 @@
     const cylInputs = side => `
       <td><input type="number" step="any" min="0" max="800" inputmode="numeric" id="vCyl${side}" placeholder="度"></td>`;
     const table = rows.length
-      ? `<table class="growth-table vision-table"><thead><tr><th>日期</th><th>右眼</th><th>左眼</th><th></th></tr></thead><tbody>
+      ? `<table class="growth-table vision-table"><thead><tr><th>日期</th><th>左眼</th><th>右眼</th><th></th></tr></thead><tbody>
           ${rows.slice().reverse().map(r => {
             const R = eyeSummary(r, 'R'), L = eyeSummary(r, 'L');
             const cell = e => `${e.va != null ? e.va : '—'}${e.extra ? `<span class="note">${escapeHtml(e.extra)}</span>` : ''}`;
             return `<tr><td>${fmtDate(r.date)}${gradeTag(r.date)}${r.note ? `<span class="note">${escapeHtml(r.note)}</span>` : ''}</td>
-              <td>${cell(R)}</td><td>${cell(L)}</td>
+              <td>${cell(L)}</td><td>${cell(R)}</td>
               <td>${rowActs('vision', r.id)}</td></tr>`;
           }).join('')}
         </tbody></table>`
@@ -2399,7 +2399,7 @@
     const hasSph = rows.some(r => r.sphR != null || r.sphL != null);
     box.innerHTML = `${subToolbarHtml(rows.length)}<div class="rec-card form-card ${childCls()}">
         <h2 class="rec-title">👀 記錄視力檢查</h2>
-        <div class="eye-now">${eyeNowCard(rows, 'R', '右眼')}${eyeNowCard(rows, 'L', '左眼')}</div>
+        <div class="eye-now">${eyeNowCard(rows, 'L', '左眼')}${eyeNowCard(rows, 'R', '右眼')}</div>
         <form novalidate class="rec-form" id="visionForm" style="margin-top:0;border-top:0;padding-top:0">
           <div class="photo-row">
             <button type="button" class="rec-btn" id="visionPhotoBtn">📷 拍檢查單自動填寫</button>
@@ -2408,11 +2408,11 @@
           </div>
           <div class="photo-note">可以拍學校的視力檢查通知單，或眼科、眼鏡行的驗光單。照片只用來讀數字，不會被存下來。讀完請檢查一下再按儲存。</div>
           <table class="eye-form">
-            <thead><tr><th></th><th>右眼</th><th>左眼</th></tr></thead>
+            <thead><tr><th></th><th>左眼</th><th>右眼</th></tr></thead>
             <tbody>
-              <tr><th>裸視</th>${eyeInputs('R')}${eyeInputs('L')}</tr>
-              <tr><th>度數</th>${sphInputs('R')}${sphInputs('L')}</tr>
-              <tr><th>散光</th>${cylInputs('R')}${cylInputs('L')}</tr>
+              <tr><th>裸視</th>${eyeInputs('L')}${eyeInputs('R')}</tr>
+              <tr><th>度數</th>${sphInputs('L')}${sphInputs('R')}</tr>
+              <tr><th>散光</th>${cylInputs('L')}${cylInputs('R')}</tr>
             </tbody>
           </table>
           <label>日期<input type="date" id="vDate" value="${todayStr()}" max="${todayStr()}"></label>
@@ -2423,10 +2423,10 @@
       <div class="rec-card ${childCls()}">
         <h2 class="rec-title">📈 視力變化</h2>
         <div class="growth-chart"><h3>裸視視力（越高越好）</h3>${multiLineSvg(rows,
-          [{ key: 'vaR', label: '右眼', color: cR }, { key: 'vaL', label: '左眼', color: cL }],
+          [{ key: 'vaL', label: '左眼', color: cL }, { key: 'vaR', label: '右眼', color: cR }],
           { lo: 0, hi: 1.5, ticks: [0, 0.5, 1.0, 1.5], fmt: v => (Math.round(v * 10) / 10).toFixed(1), title: '裸視視力變化' })}</div>
         ${hasSph ? `<div class="growth-chart"><h3>近視度數（度，越高越深；遠視顯示為負數）</h3>${multiLineSvg(rows,
-          [{ key: 'sphR', label: '右眼', color: cR, map: v => -v }, { key: 'sphL', label: '左眼', color: cL, map: v => -v }],
+          [{ key: 'sphL', label: '左眼', color: cL, map: v => -v }, { key: 'sphR', label: '右眼', color: cR, map: v => -v }],
           { minSpan: 100, step: 25, title: '近視度數變化' })}</div>` : ''}
       </div>
       <div class="rec-card ${childCls()}">
