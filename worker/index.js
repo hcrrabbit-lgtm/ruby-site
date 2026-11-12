@@ -511,6 +511,23 @@ async function handleBehaviorSummary(env, url) {
   return json(map);
 }
 
+// 跨班級的打分數進度：每班人數，以及每個作業（依名稱跨班對應）已打分數的人數。
+// 分數 0 代表只拍照還沒打分數，不算已打。
+async function handleAssignmentProgress(env) {
+  const totals = (await env.DB.prepare(
+    "SELECT class_id as classId, COUNT(*) as total FROM students GROUP BY class_id"
+  ).all()).results;
+  const rows = (await env.DB.prepare(
+    `SELECT a.class_id as classId, a.name as name,
+            (SELECT COUNT(*) FROM submissions sub JOIN students s ON s.id = sub.student_id
+              WHERE sub.assignment_id = a.id AND s.class_id = a.class_id AND sub.score > 0) as scored
+     FROM assignments a`
+  ).all()).results;
+  const classTotals = {};
+  totals.forEach(r => { classTotals[r.classId] = r.total; });
+  return json({ classTotals, rows });
+}
+
 async function handleAssignmentScores(env, url) {
   const classId = url.searchParams.get("classId") || "5-1";
   const assignments = (await env.DB.prepare(
@@ -2081,6 +2098,7 @@ export default {
       if (path === "/api/assignments/rename" && request.method === "POST") return await handleAssignmentsRename(env, request);
       if (path === "/api/assignments" && request.method === "DELETE") return await handleAssignmentsDelete(env, request);
       if (path === "/api/assignments/scores" && request.method === "GET") return await handleAssignmentScores(env, url);
+      if (path === "/api/assignments/progress" && request.method === "GET") return await handleAssignmentProgress(env);
 
       if (path === "/api/photo" && request.method === "POST") return await handlePhotoUpload(env, request, url);
       if (path.startsWith("/api/photo/") && request.method === "GET") {

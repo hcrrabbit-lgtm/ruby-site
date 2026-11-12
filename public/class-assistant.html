@@ -207,6 +207,39 @@
     background:var(--sage);border-color:var(--sage);color:#fff;
   }
 
+  /* 打分數提醒 */
+  .score-reminder{
+    background:#FBF0E4;border:1px solid #EBCB9A;color:#7A5522;
+    padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.6;margin-top:10px;
+  }
+  .score-reminder b{font-weight:700;}
+  .score-reminder-line + .score-reminder-line{margin-top:2px;}
+  .class-btn{position:relative;}
+  .class-btn .score-dot{
+    position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;
+    border:2px solid var(--card);
+  }
+  .score-dot.ok{background:#5E9C5A;}
+  .score-dot.half{background:#E6A532;}
+  .score-dot.none{background:#B9B4A6;}
+  .unit-progress{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:9px 10px;margin:-4px 0 12px;
+  }
+  .unit-progress-title{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .unit-progress-chips{display:flex;flex-wrap:wrap;gap:5px;}
+  .unit-chip{font-size:12px;font-weight:600;padding:3px 8px;border-radius:8px;white-space:nowrap;}
+  .unit-chip.ok{background:#E6F1E2;color:#2F5A2C;}
+  .unit-chip.half{background:#FFF1D6;color:#7A5410;}
+  .unit-chip.none{background:#EEEBE2;color:#5F5E5A;}
+  .unit-progress-legend{display:flex;gap:12px;font-size:11px;color:var(--ink-soft);margin-top:7px;}
+  .unit-progress-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:3px;}
+  .art-toolbar-actions{display:flex;gap:6px;align-items:center;}
+  #artUnscoredBtn.active{background:#FFF1D6;border-color:#E6A532;color:#7A5410;}
+  .art-row.unscored{border-color:#E6B85C;background:#FFFBF2;}
+  .art-row-unscored{font-size:11px;color:#7A5410;font-weight:600;white-space:nowrap;}
+  .art-empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:16px;}
+
   .section-title{font-size:14px;font-weight:700;color:var(--ink-soft);margin:6px 0 8px;overflow:auto;}
 
   .assign-form{
@@ -656,6 +689,7 @@
         <textarea id="classProgressNote" rows="2" placeholder="下課後隨手記,下次選這班就會看到..."></textarea>
       </div>
     </div>
+    <div class="score-reminder" id="scoreReminder" style="display:none;"></div>
     <div class="class-buttons" id="classButtons"></div>
     <div class="no-class-banner" id="noClassBanner" style="display:none;">
       這個時段課表上沒有排課,已切換為手動選擇班級。
@@ -706,12 +740,16 @@
   <section class="panel" id="panel-artwork">
 
     <div class="assignment-buttons" id="assignmentButtons"></div>
+    <div class="unit-progress" id="unitProgress" style="display:none;"></div>
     <input type="file" id="cameraInput" accept="image/*" style="display:none;">
     <input type="file" id="albumInput" accept="image/*" style="display:none;">
 
     <div class="toolbar">
       <span class="count" id="artCount">0 位學生</span>
-      <button type="button" class="sort-btn" id="artDownloadBtn">📦 下載照片(ZIP)</button>
+      <div class="art-toolbar-actions">
+        <button type="button" class="sort-btn" id="artUnscoredBtn">只看未打分</button>
+        <button type="button" class="sort-btn" id="artDownloadBtn">📦 下載照片(ZIP)</button>
+      </div>
     </div>
     <div class="art-list" id="artRoster"></div>
   </section>
@@ -1643,7 +1681,7 @@ function renderWeeklySchedule(){
 function renderClassButtons(){
   const root = document.getElementById("classButtons");
   root.innerHTML = currentClasses.map(c =>
-    `<button type="button" class="class-btn ${c.id === currentClassId ? "active" : ""}" data-id="${c.id}">${c.name}</button>`
+    `<button type="button" class="class-btn ${c.id === currentClassId ? "active" : ""}" data-id="${c.id}">${c.name}${classDotHtml(c.id)}</button>`
   ).join("");
   root.querySelectorAll(".class-btn").forEach(btn => {
     btn.addEventListener("click", () => selectClass(btn.dataset.id));
@@ -1670,6 +1708,7 @@ document.querySelectorAll("nav.tabs button").forEach(btn => {
     document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
     document.body.classList.toggle("wide-panel", btn.dataset.tab === "progress");
     if(btn.dataset.tab === "progress") loadProgressOverview();
+    renderClassButtons();
   });
 });
 
@@ -1846,6 +1885,7 @@ async function loadStatsData(){
     }
   }
   renderStatsTable();
+  scheduleScoreProgressRefresh();
 }
 
 function statsBehaviorFor(studentId){
@@ -2014,7 +2054,7 @@ function renderStatsTable(){
       if(Number.isNaN(val)) return;
       if(!statsScores[studentId]) statsScores[studentId] = {};
       statsScores[studentId][assignmentId] = val;
-      apiPost("/api/submissions/score", { assignmentId, studentId, score: val }).catch(()=>{});
+      apiPost("/api/submissions/score", { assignmentId, studentId, score: val }).then(() => refreshScoreProgress()).catch(()=>{});
       const avgCell = root.querySelector(`[data-avg-for="${assignmentId}"]`);
       if(avgCell) avgCell.textContent = avgFor(assignmentId);
     });
@@ -2591,6 +2631,7 @@ function renderAssignmentButtons(){
       await loadSubmissionsForCurrentAssignment();
     });
   });
+  renderScoreProgress();
 }
 
 async function loadAssignments(){
@@ -2825,11 +2866,23 @@ function renderArtRoster(){
   const data = submissions[currentAssignmentId] || {};
   const root = document.getElementById("artRoster");
   if(!root) return;
-  document.getElementById("artCount").textContent = rosterCache.length + " 位學生";
+  const isScored = st => !!(data[st.id] && data[st.id].score > 0);
+  const missing = rosterCache.filter(st => !isScored(st)).length;
+  document.getElementById("artCount").textContent = rosterCache.length + " 位學生" +
+    (currentAssignmentId && rosterCache.length ? (missing ? `・還差 ${missing} 人` : "・全部打完") : "");
+  const filterBtn = document.getElementById("artUnscoredBtn");
+  filterBtn.classList.toggle("active", artShowUnscoredOnly);
+  filterBtn.textContent = artShowUnscoredOnly ? "顯示全部" : "只看未打分";
 
-  const list = [...rosterCache].sort((a,b) => a.seat - b.seat);
+  let list = [...rosterCache].sort((a,b) => a.seat - b.seat);
+  if(artShowUnscoredOnly) list = list.filter(st => !isScored(st));
+  if(artShowUnscoredOnly && !list.length){
+    root.innerHTML = `<div class="art-empty">這班這個單元全部打完了 🎉</div>`;
+    return;
+  }
   root.innerHTML = list.map(st => {
     const e = data[st.id];
+    const unscored = currentAssignmentId && !isScored(st);
     const photoUrls = e ? (e.photoKeys && e.photoKeys.length ? e.photoKeys.map(k => `/api/photo/${k}`) : (e.dataUrls || [])) : [];
     const hasPhoto = photoUrls.length > 0;
     const countBadge = photoUrls.length > 1 ? `<span class="art-photo-count">${photoUrls.length}</span>` : "";
@@ -2839,7 +2892,7 @@ function renderArtRoster(){
     const tierBadge = e && e.tier ? `<span class="art-tier-badge ${TIER_CLASS[e.tier] || ""}">${e.tier}</span>` : "";
     const statusText = hasPhoto ? "已建檔" : (e ? "尚未拍照" : "尚未建檔");
     return `
-      <div class="art-row" data-student="${st.id}">
+      <div class="art-row ${unscored ? "unscored" : ""}" data-student="${st.id}">
         ${photoInner}
         <div class="art-row-main">
           <div class="art-row-name">
@@ -2847,7 +2900,7 @@ function renderArtRoster(){
             <input type="number" class="art-score-input" data-student="${st.id}" value="${e && e.score ? e.score : ""}" placeholder="分數">
           </div>
           <div class="art-row-meta">
-            ${tierBadge}<span class="art-row-status">${statusText}</span>
+            ${tierBadge}<span class="art-row-status">${statusText}</span>${unscored ? `<span class="art-row-unscored">未打分</span>` : ""}
             <input type="text" class="art-note-input" data-student="${st.id}" value="${e && e.note ? e.note : ""}" placeholder="備註">
           </div>
         </div>
@@ -2917,6 +2970,105 @@ function renderArtRoster(){
     });
   });
 }
+
+/* ---------- 打分數提醒（跨班進度） ---------- */
+// 某個單元只要有任何一班開始打分數，就提醒還有哪些班沒打完。
+// 單元依「名稱」跨班對應（各班的作業是分開建的，例如每班都有一個「波點」）。
+let artShowUnscoredOnly = false;
+let scoreProgress = null;   // { classTotals: {classId: n}, rows: [{classId, name, scored}] }
+let scoreProgressTimer = null;
+
+async function refreshScoreProgress(){
+  try{
+    scoreProgress = await apiGet("/api/assignments/progress");
+  }catch(e){ return; }
+  renderScoreProgress();
+}
+// 打分數時每格都會觸發，等手停下來再一起更新
+function scheduleScoreProgressRefresh(){
+  clearTimeout(scoreProgressTimer);
+  scoreProgressTimer = setTimeout(refreshScoreProgress, 600);
+}
+
+function unitStatusByClass(name){
+  if(!scoreProgress || !name) return null;
+  const out = {};
+  currentClasses.forEach(c => {
+    const total = scoreProgress.classTotals[c.id] || 0;
+    const row = scoreProgress.rows.find(r => r.classId === c.id && r.name === name);
+    const scored = row ? Math.min(row.scored, total) : 0;
+    const status = total && scored >= total ? "ok" : scored > 0 ? "half" : "none";
+    out[c.id] = { total, scored, status };
+  });
+  return out;
+}
+
+function currentUnitName(){
+  const a = assignments.find(x => x.id === currentAssignmentId);
+  return a ? a.name : "";
+}
+
+function shortClassName(id){
+  const c = currentClasses.find(x => x.id === id);
+  return c ? c.name.replace(/^四年(\d)班$/, "40$1") : id;
+}
+
+function classDotHtml(classId){
+  const artTab = document.querySelector('nav.tabs button[data-tab="artwork"]');
+  if(!artTab || !artTab.classList.contains("active")) return "";
+  const st = unitStatusByClass(currentUnitName());
+  if(!st || !st[classId]) return "";
+  const anyStarted = Object.values(st).some(x => x.scored > 0);
+  if(!anyStarted) return "";
+  return `<span class="score-dot ${st[classId].status}"></span>`;
+}
+
+function renderScoreProgress(){
+  if(!scoreProgress) return;
+
+  // 1) 頂端提醒條：所有「有班開始打、但還沒全部打完」的單元
+  const names = [...new Set(scoreProgress.rows.map(r => r.name))];
+  const lines = [];
+  names.forEach(name => {
+    const st = unitStatusByClass(name);
+    if(!st) return;
+    const vals = Object.entries(st);
+    if(!vals.some(([, x]) => x.scored > 0)) return;
+    const pending = vals.filter(([, x]) => x.status !== "ok")
+      .map(([id, x]) => x.status === "half" ? `${shortClassName(id)}（差 ${x.total - x.scored} 人）` : shortClassName(id));
+    if(pending.length) lines.push(`🔔 「<b>${name}</b>」還沒打完：${pending.join("、")}`);
+  });
+  const banner = document.getElementById("scoreReminder");
+  banner.innerHTML = lines.map(l => `<div class="score-reminder-line">${l}</div>`).join("");
+  banner.style.display = lines.length ? "" : "none";
+
+  // 2) 作品庫：目前單元各班進度
+  const box = document.getElementById("unitProgress");
+  const name = currentUnitName();
+  const st = unitStatusByClass(name);
+  if(!st || !Object.values(st).some(x => x.scored > 0)){
+    box.style.display = "none";
+  }else{
+    const chips = Object.entries(st).map(([id, x]) => {
+      const label = x.status === "ok" ? "完成" : x.status === "half" ? `差 ${x.total - x.scored} 人` : "未開始";
+      return `<span class="unit-chip ${x.status}">${shortClassName(id)} ${label}</span>`;
+    }).join("");
+    const allDone = Object.values(st).every(x => x.status === "ok");
+    box.innerHTML = `
+      <div class="unit-progress-title">「${name}」各班打分數進度${allDone ? "：每一班都打完了 ✅" : ""}</div>
+      <div class="unit-progress-chips">${chips}</div>
+      <div class="unit-progress-legend"><span><i style="background:#5E9C5A"></i>完成</span><span><i style="background:#E6A532"></i>打到一半</span><span><i style="background:#B9B4A6"></i>未開始</span></div>`;
+    box.style.display = "";
+  }
+
+  // 3) 班級按鈕上的小圓點
+  renderClassButtons();
+}
+
+document.getElementById("artUnscoredBtn").addEventListener("click", () => {
+  artShowUnscoredOnly = !artShowUnscoredOnly;
+  renderArtRoster();
+});
 
 async function loadSubmissionsForCurrentAssignment(){
   if(!currentAssignmentId){ renderArtRoster(); return; }
