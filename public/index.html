@@ -368,19 +368,22 @@
     padding:20px;
   }
 
-  /* ---------- Ruby 進化中：分區版面 ---------- */
-  .ev-jump{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 8px; }
-  .ev-jump a{
-    text-decoration:none; font-size:13.5px; color:#6B6257; background:#FBF8F2;
-    border:1px solid #D9CFBE; border-radius:999px; padding:6px 14px;
+  /* ---------- Ruby 進化中：上方四格切換，一次只顯示一區 ---------- */
+  .ev-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:0 0 20px; }
+  .ev-tabs button{
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    border:1px solid #E3DACB; background:#FBF8F2; color:#6B6257; border-radius:14px;
+    padding:12px 6px; font-size:14px; font-weight:700; letter-spacing:.04em; cursor:pointer; font-family:inherit;
   }
-  .ev-jump a:hover{ border-color:var(--c-health); color:var(--c-health); }
-  .ev-block{ margin-top:34px; padding-top:26px; border-top:1px solid #E3DACB; scroll-margin-top:16px; }
-  .ev-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
-  .ev-block h3{ font-size:18px; margin:0 0 4px; color:var(--c-health); }
+  .ev-tabs button span{ font-size:20px; }
+  .ev-tabs button.active{ background:#fff; border-color:var(--c-health); color:var(--c-health); box-shadow:0 3px 10px rgba(46,42,37,.08); }
+  @media (max-width:520px){ .ev-tabs{ gap:6px; } .ev-tabs button{ font-size:12.5px; padding:10px 2px; } }
+  #health .ev-block{ display:none; margin:0; }
+  #health .ev-block.active{ display:block; }
+  .ev-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .ev-head h3{ display:none; }
   .ev-desc{ font-size:13px; color:#8C8274; margin:0; }
   .ev-head .habit-toolbar{ margin:0; }
-  #health .habit-section{ margin-top:34px; }
   #health .gratitude{ margin:0; }
   /* ---------- 感恩日記 ---------- */
   .gratitude{
@@ -857,11 +860,11 @@
     <h2>✨ Ruby 進化中</h2>
     <p class="section-desc">放我自己的成長：每天打卡、感恩日記、英語練習，一點一點進化。</p>
 
-    <nav class="ev-jump">
-      <a href="#evToday" data-jump="evToday">✅ 今日打卡</a>
-      <a href="#evMonth" data-jump="evMonth">📊 本月統計</a>
-      <a href="#gratitude" data-jump="gratitude">🌱 感恩日記</a>
-      <a href="#evEnglish" data-jump="evEnglish">📚 英語練習</a>
+    <nav class="ev-tabs">
+      <button type="button" data-panel="evToday"><span>✅</span>今日打卡</button>
+      <button type="button" data-panel="evMonth"><span>📊</span>本月統計</button>
+      <button type="button" data-panel="evGratitude"><span>🌱</span>感恩日記</button>
+      <button type="button" data-panel="evEnglish"><span>📚</span>英語練習</button>
     </nav>
 
     <!-- 1. 今日打卡 -->
@@ -902,7 +905,7 @@
     </div>
 
     <!-- 3. 感恩日記 -->
-    <div class="ev-block">
+    <div class="ev-block" id="evGratitude">
       <div class="gratitude" id="gratitude">
         <h3>🌱 感恩日記 <small id="gCount"></small></h3>
         <p class="g-sub">今天有哪些小事，讓你覺得感謝？</p>
@@ -973,11 +976,18 @@
     if(el) el.textContent = '';
   });
 
-  // Ruby 進化中：頁內快速跳轉（不改網址，重新整理時才不會跑錯分頁）
-  document.querySelectorAll('.ev-jump a').forEach(a => a.addEventListener('click', e => {
-    e.preventDefault();
-    document.getElementById(a.dataset.jump)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }));
+  // Ruby 進化中：上方四格切換，記住上次看的那一區
+  function showEvPanel(id){
+    document.querySelectorAll('.ev-tabs button').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+    document.querySelectorAll('#health .ev-block').forEach(el => el.classList.toggle('active', el.id === id));
+    try { localStorage.setItem('evPanel', id); } catch (e) {}
+  }
+  document.querySelectorAll('.ev-tabs button').forEach(b => b.addEventListener('click', () => showEvPanel(b.dataset.panel)));
+  (function(){
+    let id = 'evToday';
+    try { id = localStorage.getItem('evPanel') || id; } catch (e) {}
+    showEvPanel(document.getElementById(id) ? id : 'evToday');
+  })();
 
   // ---------- 每日習慣追蹤 ----------
   function pad2(n){ return n.toString().padStart(2, '0'); }
