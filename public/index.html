@@ -368,12 +368,26 @@
     padding:20px;
   }
 
+  /* ---------- Ruby 進化中：分區版面 ---------- */
+  .ev-jump{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 8px; }
+  .ev-jump a{
+    text-decoration:none; font-size:13.5px; color:#6B6257; background:#FBF8F2;
+    border:1px solid #D9CFBE; border-radius:999px; padding:6px 14px;
+  }
+  .ev-jump a:hover{ border-color:var(--c-health); color:var(--c-health); }
+  .ev-block{ margin-top:34px; padding-top:26px; border-top:1px solid #E3DACB; scroll-margin-top:16px; }
+  .ev-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  .ev-block h3{ font-size:18px; margin:0 0 4px; color:var(--c-health); }
+  .ev-desc{ font-size:13px; color:#8C8274; margin:0; }
+  .ev-head .habit-toolbar{ margin:0; }
+  #health .habit-section{ margin-top:34px; }
+  #health .gratitude{ margin:0; }
   /* ---------- 感恩日記 ---------- */
   .gratitude{
     margin:8px 0 32px; padding:20px 18px 18px;
     background:#FBF8F2; border:1px solid #E3DACB; border-radius:16px;
   }
-  .habit-section .gratitude h3{
+  .gratitude h3{
     font-family:'Noto Serif TC', serif; font-size:19px; margin:0; color:#3B352D; letter-spacing:.06em;
     display:flex; align-items:baseline; justify-content:space-between; gap:8px;
   }
@@ -841,30 +855,54 @@
   <!-- 六、Ruby 進化中（原「健康家庭」） -->
   <section id="health">
     <h2>✨ Ruby 進化中</h2>
-    <p class="section-desc">放我自己的成長：每日習慣、感恩日記、英語練習，一點一點進化。</p>
+    <p class="section-desc">放我自己的成長：每天打卡、感恩日記、英語練習，一點一點進化。</p>
 
-    <div class="grid" style="margin-bottom:22px;">
-      <div class="card health" onclick="window.location.href='open/english-vocab.html'">
-        <div class="num">英語</div>
-        <h3>英語單字遊樂場 →</h3>
-        <p>跟 Claude 語音對話學到的生字：看圖聽音、翻牌配對、闖關、60 秒快閃，會依程度自動變難。</p>
-      </div>
-    </div>
+    <nav class="ev-jump">
+      <a href="#evToday" data-jump="evToday">✅ 今日打卡</a>
+      <a href="#evMonth" data-jump="evMonth">📊 本月統計</a>
+      <a href="#gratitude" data-jump="gratitude">🌱 感恩日記</a>
+      <a href="#evEnglish" data-jump="evEnglish">📚 英語練習</a>
+    </nav>
 
-    <div class="habit-section">
-      <h3>✅ 每日習慣追蹤</h3>
-      <p class="section-desc" style="margin-bottom:14px;">點一下打卡今天完成的習慣，下面會自動累積成本月統計表。</p>
-
-      <div class="habit-toolbar">
-        <button id="habitSoundBtn" type="button">🔈 聲音開</button>
-        <button id="habitEditBtn" type="button">✎ 編輯</button>
+    <!-- 1. 今日打卡 -->
+    <div class="habit-section ev-block" id="evToday">
+      <div class="ev-head">
+        <div>
+          <h3>✅ 今日打卡</h3>
+          <p class="ev-desc">完成了就點一下。</p>
+        </div>
+        <div class="habit-toolbar">
+          <button id="habitSoundBtn" type="button">🔈 聲音開</button>
+          <button id="habitEditBtn" type="button">✎ 編輯</button>
+        </div>
       </div>
       <div id="habitToday" class="habit-today"></div>
       <div class="habit-add">
         <input id="habitNewName" type="text" placeholder="新增習慣，例如：喝水2000ml" maxlength="30">
         <button id="habitAddBtn" type="button">＋ 新增</button>
       </div>
+    </div>
 
+    <!-- 2. 本月統計 -->
+    <div class="ev-block" id="evMonth">
+      <div class="ev-head">
+        <div>
+          <h3>📊 本月統計</h3>
+          <p class="ev-desc">忘了勾？點表格裡那一天的格子就能補勾，再點一次取消。</p>
+        </div>
+      </div>
+      <div class="habit-month-nav">
+        <button id="habitPrevMonth" type="button">‹</button>
+        <span class="label" id="habitMonthLabel"></span>
+        <button id="habitNextMonth" type="button">›</button>
+      </div>
+      <div class="habit-table-wrap">
+        <table class="habit-table" id="habitTable"></table>
+      </div>
+    </div>
+
+    <!-- 3. 感恩日記 -->
+    <div class="ev-block">
       <div class="gratitude" id="gratitude">
         <h3>🌱 感恩日記 <small id="gCount"></small></h3>
         <p class="g-sub">今天有哪些小事，讓你覺得感謝？</p>
@@ -877,15 +915,22 @@
         </div>
         <div class="g-list" id="gList"></div>
       </div>
+    </div>
 
-      <div class="habit-month-nav">
-        <button id="habitPrevMonth" type="button">‹</button>
-        <span class="label" id="habitMonthLabel"></span>
-        <button id="habitNextMonth" type="button">›</button>
+    <!-- 4. 英語練習 -->
+    <div class="ev-block" id="evEnglish">
+      <div class="ev-head">
+        <div>
+          <h3>📚 英語練習</h3>
+          <p class="ev-desc">跟 Claude 語音對話學到的生字，都收在這裡。</p>
+        </div>
       </div>
-      <p class="habit-table-hint">忘了勾？點下面表格裡那一天的格子就能補勾，再點一次取消。</p>
-      <div class="habit-table-wrap">
-        <table class="habit-table" id="habitTable"></table>
+      <div class="grid">
+        <div class="card health" onclick="window.location.href='open/english-vocab.html'">
+          <div class="num">英語</div>
+          <h3>英語單字遊樂場 →</h3>
+          <p>看圖聽音、翻牌配對、闖關、60 秒快閃，會依程度自動變難。</p>
+        </div>
       </div>
     </div>
   </section>
@@ -927,6 +972,12 @@
     const el = document.getElementById('usageWidget');
     if(el) el.textContent = '';
   });
+
+  // Ruby 進化中：頁內快速跳轉（不改網址，重新整理時才不會跑錯分頁）
+  document.querySelectorAll('.ev-jump a').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById(a.dataset.jump)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
 
   // ---------- 每日習慣追蹤 ----------
   function pad2(n){ return n.toString().padStart(2, '0'); }
