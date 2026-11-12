@@ -164,7 +164,7 @@ function nextReview(){if(!D.last)return '今天就開始吧！';const idx=Math.m
  const due=new Date(D.last);due.setDate(due.getDate()+INTERVALS[Math.max(idx,0)]);
  const today=new Date();today.setHours(0,0,0,0);due.setHours(0,0,0,0);const diff=Math.round((due-today)/864e5);
  if(diff<=0)return '今天該複習了 ⏰';if(diff===1)return '明天';return diff+' 天後（'+(due.getMonth()+1)+'/'+due.getDate()+'）'}
-function top(title,pct){return `<div class="topbar"><button class="back" onclick="home()">←</button>${pct!=null?`<div class="prog"><i style="width:${pct}%"></i></div>`:`<h2 style="margin:0">${title}</h2>`}</div>`}
+function topBar(title,pct){return `<div class="topbar"><button class="back" onclick="home()">←</button>${pct!=null?`<div class="prog"><i style="width:${pct}%"></i></div>`:`<h2 style="margin:0">${title}</h2>`}</div>`}
 
 /* ========== 首頁 ========== */
 function home(){
@@ -202,7 +202,7 @@ function resetAll(){if(!resetArm){resetArm=true;event.target.textContent='再按
 /* ========== 1. 認識單字 ========== */
 function learn(i){
  const w=W[i];
- app.innerHTML=`${top('',(i+1)/W.length*100)}
+ app.innerHTML=`${topBar('',(i+1)/W.length*100)}
  <div class="card pop">
   <div class="pic">${PICS[w.id]}</div>
   <div class="big">${w.en}</div>
@@ -229,7 +229,7 @@ function match(){
  const words=sample(W,6);
  const cards=shuffle(words.flatMap(w=>[{id:w.id,t:'p'},{id:w.id,t:'w'}]));
  MG={cards,open:[],done:0,moves:0,start:Date.now(),lock:false,tick:null};
- app.innerHTML=`${top('翻牌配對')}
+ app.innerHTML=`${topBar('翻牌配對')}
  <div class="hud"><span>翻開：<b id="mv">0</b> 次</span><span>⏱ <b id="tm">0</b> 秒</span></div>
  <div class="grid4" id="mg">${cards.map((c,i)=>`<button class="mc" data-i="${i}" onclick="flip(${i})"><div class="in"><div class="f">?</div><div class="b">${c.t==='p'?PICS[c.id]:byId[c.id].en}</div></div></button>`).join('')}</div>
  <p class="note center" style="margin-top:12px">把「圖」和「英文字」配成一對 ${D.bestMatch?`・最佳紀錄 ${D.bestMatch} 秒`:''}</p>`;
@@ -248,7 +248,7 @@ function flip(i){
    [a,b].forEach(k=>document.querySelector(`.mc[data-i="${k}"]`).classList.add('done'));
    if(MG.done===6){clearInterval(MG.tick);const sec=Math.round((Date.now()-MG.start)/1000);
     const rec=!D.bestMatch||sec<D.bestMatch;if(rec)D.bestMatch=sec;save();burst();
-    setTimeout(()=>{app.innerHTML=`${top('完成！')}<div class="card center pop"><div style="font-size:54px">🎉</div>
+    setTimeout(()=>{app.innerHTML=`${topBar('完成！')}<div class="card center pop"><div style="font-size:54px">🎉</div>
      <h2>${sec} 秒・翻了 ${MG.moves} 次</h2><p>${rec?'🏆 新紀錄！':'最佳紀錄：'+D.bestMatch+' 秒'}</p>
      <div class="row" style="justify-content:center"><button class="ghost" onclick="match()">再玩一次</button><button class="primary" onclick="quest()">去闖關 🖌️</button></div></div>`},700)}
   }else{
@@ -301,7 +301,7 @@ function ask(){
   <input class="type" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="打出英文單字" onkeydown="if(event.key==='Enter')checkType()">
   <div class="row" style="justify-content:center;margin-top:12px"><button class="ghost" onclick="hint()">💡 給我第一個字母</button><button class="primary" onclick="checkType()">送出</button></div>`;
  }
- app.innerHTML=`${top('',Q.idx/Q.queue.length*100)}
+ app.innerHTML=`${topBar('',Q.idx/Q.queue.length*100)}
  <div class="hud"><span>⭐ ${Q.score} 分</span><span class="combo">${Q.combo>=2?'🔥 連續 '+Q.combo:''}</span><span>${stars(lv)}</span></div>
  <div class="card" id="qc">${body}<div class="fb" id="fb"></div></div>`;
  if(type==='spell')renderSlots();
@@ -347,7 +347,7 @@ function finish(){
  const up=W.filter(w=>D.m[w.id]>Q.before[w.id]);
  const acc=Math.round(Q.right/(Q.right+Q.wrong)*100);
  burst(20);
- app.innerHTML=`${top('闖關完成！')}
+ app.innerHTML=`${topBar('闖關完成！')}
  <div class="card center pop"><div style="font-size:54px">${acc>=80?'🏆':acc>=60?'🎨':'💪'}</div>
  <h2>${Q.score} 分・正確率 ${acc}%</h2><p>最長連續答對：🔥 ${Q.best}</p>
  ${up.length?`<p>升級的字：${up.map(w=>`<span class="pill">${w.en} ${stars(D.m[w.id])}</span>`).join(' ')}</p>`:''}
@@ -359,7 +359,7 @@ function finish(){
 let SP;
 function speed(){
  SP={score:0,end:Date.now()+60000,combo:0,tick:null,last:null};
- app.innerHTML=`${top('60 秒快閃')}<div class="card center"><p class="q">看中文，<b>越快</b>選出英文越好！<br>連續答對分數加倍 🔥</p><button class="primary" onclick="spGo()">開始！</button></div>`;
+ app.innerHTML=`${topBar('60 秒快閃')}<div class="card center"><p class="q">看中文，<b>越快</b>選出英文越好！<br>連續答對分數加倍 🔥</p><button class="primary" onclick="spGo()">開始！</button></div>`;
 }
 function spGo(){SP.end=Date.now()+60000;SP.tick=setInterval(()=>{const e=$('#spt');if(!e){clearInterval(SP.tick);return}
  const left=Math.max(0,Math.ceil((SP.end-Date.now())/1000));e.textContent=left;if(left<=0){clearInterval(SP.tick);spEnd()}},200);spAsk()}
@@ -367,7 +367,7 @@ function spAsk(){
  let w;do{w=sample(W,1)[0]}while(SP.last&&w.id===SP.last&&W.length>1);SP.last=w.id;
  const opts=shuffle([w,...sample(W.filter(x=>x.id!==w.id),3)]);
  const mode=Math.random()<.5?'zh':'pic';
- app.innerHTML=`${top('60 秒快閃')}
+ app.innerHTML=`${topBar('60 秒快閃')}
  <div class="timer">⏱ <span id="spt">${Math.ceil((SP.end-Date.now())/1000)}</span></div>
  <div class="hud"><span>⭐ ${SP.score}</span><span class="combo">${SP.combo>=2?'🔥 x'+SP.combo:''}</span></div>
  <div class="card">${mode==='zh'?`<div class="big">${w.zh}</div>`:`<div class="pic" style="width:110px;height:110px">${PICS[w.id]}</div>`}
@@ -383,7 +383,7 @@ function spPick(el,id){
 }
 function spEnd(){
  const rec=SP.score>D.bestSpeed;if(rec)D.bestSpeed=SP.score;save();if(rec)burst();
- app.innerHTML=`${top('時間到！')}<div class="card center pop"><div style="font-size:54px">⚡</div><h2>${SP.score} 分</h2>
+ app.innerHTML=`${topBar('時間到！')}<div class="card center pop"><div style="font-size:54px">⚡</div><h2>${SP.score} 分</h2>
  <p>${rec?'🏆 新紀錄！':'最高紀錄：'+D.bestSpeed+' 分'}</p>
  <div class="row" style="justify-content:center"><button class="ghost" onclick="home()">回首頁</button><button class="primary" onclick="speed()">再挑戰</button></div></div>`;
 }
