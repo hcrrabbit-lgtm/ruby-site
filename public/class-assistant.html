@@ -152,8 +152,10 @@
     font-size:12px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);
     background:var(--paper);color:var(--ink-soft);cursor:pointer;font-weight:600;
   }
+  .att-btn.late{background:#FBF1E2;border-color:#E6C79B;color:#9A6524;}
+  .att-btn.absent{background:#E9EFF5;border-color:#A9BED3;color:#3F5F80;}
   .att-btn.late.on{background:var(--ochre);border-color:var(--ochre);color:#fff;}
-  .att-btn.absent.on{background:var(--clay);border-color:var(--clay);color:#fff;}
+  .att-btn.absent.on{background:#4F7397;border-color:#4F7397;color:#fff;}
 
   /* behavior controls */
   .beh-controls{display:flex;align-items:center;gap:8px;}
@@ -433,8 +435,10 @@
   .minus-reason-actions button{flex:1;height:40px;border-radius:10px;font-size:14px;cursor:pointer;}
   .minus-reason-skip{background:#fff;border:1px solid #d8d0c4;color:inherit;}
   .minus-reason-ok{background:var(--clay);border:none;color:#fff;font-weight:700;}
-  .seat-score-att{display:flex;justify-content:center;gap:8px;margin-bottom:6px;}
-  .seat-score-late-total{font-size:11px;color:var(--clay);font-weight:700;margin-bottom:12px;}
+  .seat-score-att{display:flex;justify-content:center;gap:10px;margin-bottom:14px;}
+  .seat-score-att .att-btn{flex:1;max-width:150px;padding:10px 8px;border-width:2px;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .seat-score-att .att-label{font-size:17px;font-weight:700;}
+  .seat-score-att .att-total{font-size:12px;font-weight:600;opacity:.85;}
   .seat-score-notes{text-align:left;margin-top:4px;}
   .seat-label{font-size:11px;text-align:center;color:var(--ink);line-height:1.25;word-break:break-all;}
   .seating-blackboard{
@@ -1762,10 +1766,10 @@ function renderRoster(){
         </div>
         <div class="student-row-controls">
           <div class="att-controls">
-            <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">遲到</button>
-            <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">請假</button>
+            <button class="att-btn late ${state==='late'?'on':''}" data-id="${st.id}" data-state="late">⏰ 遲到</button>
+            <button class="att-btn absent ${state==='absent'?'on':''}" data-id="${st.id}" data-state="absent">🏠 請假</button>
           </div>
-          <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0} 次</div>
+          <div class="late-total">累計遲到 ${(lateTotals[st.id] && lateTotals[st.id].late) || 0}・請假 ${(lateTotals[st.id] && lateTotals[st.id].absent) || 0}</div>
           <div class="beh-controls">
             <button class="beh-btn beh-minus" data-id="${st.id}" data-delta="-1">－ ${behToday.minus}</button>
             <button class="beh-undo-btn" data-id="${st.id}" title="復原今天最後一次加/扣分">↺</button>
@@ -2264,10 +2268,9 @@ function openSeatScore(studentId){
         </div>
       </div>
       <div class="seat-score-att">
-        <button class="att-btn late" id="seatScoreLateBtn" data-state="late">遲到</button>
-        <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent">請假</button>
+        <button class="att-btn late" id="seatScoreLateBtn" data-state="late"><span class="att-label">⏰ 遲到</span><span class="att-total" id="seatScoreLateTotal"></span></button>
+        <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent"><span class="att-label">🏠 請假</span><span class="att-total" id="seatScoreAbsentTotal"></span></button>
       </div>
-      <div class="seat-score-late-total" id="seatScoreLateTotal"></div>
       <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
       <div class="seat-score-notes" id="seatScoreNotesSection" hidden>
         <div class="student-notes-list" id="seatScoreNotesList">載入中...</div>
@@ -2431,7 +2434,9 @@ function updateSeatScoreModal(studentId){
   document.getElementById("seatScoreLateBtn").classList.toggle("on", state === "late");
   document.getElementById("seatScoreAbsentBtn").classList.toggle("on", state === "absent");
   const lateCount = (lateTotals[studentId] && lateTotals[studentId].late) || 0;
-  document.getElementById("seatScoreLateTotal").textContent = `累計遲到 ${lateCount} 次`;
+  const absentCount = (lateTotals[studentId] && lateTotals[studentId].absent) || 0;
+  document.getElementById("seatScoreLateTotal").textContent = `累計 ${lateCount} 次`;
+  document.getElementById("seatScoreAbsentTotal").textContent = `累計 ${absentCount} 次`;
 }
 
 function escapeHtml(str){
