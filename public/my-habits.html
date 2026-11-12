@@ -50,12 +50,35 @@
   .habit-section{ margin-top:8px !important; }
   .habit-section > h3, .habit-section > h3 + .section-desc{ display:none; }
   .section-desc{ color:var(--ink-soft); font-size:14px; }
+  /* ---------- Ruby 進化中：上方四格切換，一次只顯示一區 ---------- */
+  .ev-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:0 0 20px; }
+  .ev-tabs button{
+    display:flex; flex-direction:row; align-items:center; justify-content:center; gap:7px;
+    border:1px solid #E3DACB; background:#FBF8F2; color:#8C8274; border-radius:12px;
+    padding:9px 6px; font-size:14px; font-weight:500; letter-spacing:.08em; cursor:pointer;
+    font-family:'Noto Serif TC', serif;
+  }
+  .ev-tabs button span{ display:flex; }
+  .ev-tabs button svg{ width:19px; height:19px; }
+  .ev-tabs button.active{ background:#fff; border-color:var(--c-health); color:var(--c-health); font-weight:700; box-shadow:0 2px 8px rgba(46,42,37,.06); }
+  @media (max-width:520px){ .ev-tabs{ gap:6px; } .ev-tabs button{ flex-direction:column; gap:3px; font-size:12.5px; padding:8px 2px; letter-spacing:.03em; } .ev-tabs button svg{ width:17px; height:17px; } }
+  #ev .ev-block{ display:none; margin:0; }
+  #ev .ev-block.active{ display:block; }
+  .ev-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .ev-head h3{ display:none; }
+  .ev-desc{ font-size:13px; color:#8C8274; margin:0; }
+  .ev-head .habit-toolbar{ margin:0; }
+  #ev .gratitude{ margin:0; }
+  #ev .habit-section{ margin-top:0 !important; }
+  .ev-card{ display:block; text-decoration:none; color:inherit; background:#FBF8F2; border:1px solid #E3DACB; border-radius:16px; padding:18px; }
+  .ev-card b{ font-family:'Noto Serif TC', serif; font-size:17px; color:#3B352D; letter-spacing:.04em; }
+  .ev-card p{ margin:6px 0 0; font-size:13px; color:#8C8274; }
   /* ---------- 感恩日記 ---------- */
   .gratitude{
     margin:8px 0 32px; padding:20px 18px 18px;
     background:#FBF8F2; border:1px solid #E3DACB; border-radius:16px;
   }
-  .habit-section .gratitude h3{
+  .gratitude h3{
     font-family:'Noto Serif TC', serif; font-size:19px; margin:0; color:#3B352D; letter-spacing:.06em;
     display:flex; align-items:baseline; justify-content:space-between; gap:8px;
   }
@@ -114,41 +137,41 @@
   }
   .habit-today{
     display:grid !important;
-    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
-    gap:12px;
+    grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));
+    gap:8px;
   }
-  @media (max-width:520px){ .habit-today{ grid-template-columns:repeat(2, 1fr); gap:10px; } .habit-today .habit-tile{ aspect-ratio:5 / 4; } }
+  @media (max-width:520px){ .habit-today{ grid-template-columns:repeat(3, 1fr); gap:7px; } }
   .habit-tile{
     --tc:#8A9A7B;
     position:relative;
-    aspect-ratio:1 / 1;
+    min-height:78px;
     background:#F7F3EC;
     border:1px solid #E3DACB;
-    border-radius:14px;
-    padding:14px;
-    display:flex; flex-direction:column; justify-content:space-between;
+    border-radius:12px;
+    padding:10px 10px 8px;
+    display:flex; flex-direction:column; justify-content:space-between; gap:6px;
     cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
     transition:background .2s ease, border-color .2s ease, transform .12s ease;
     overflow:hidden;
   }
   .habit-tile::before{
-    content:""; position:absolute; left:14px; top:14px; width:22px; height:3px; border-radius:2px; background:var(--tc);
+    content:""; position:absolute; left:10px; top:10px; width:18px; height:3px; border-radius:2px; background:var(--tc);
   }
   .habit-tile:active{ transform:scale(.97); }
   .habit-tile .t-name{
-    font-family:'Noto Serif TC', serif; font-weight:700; font-size:18px; line-height:1.35;
-    color:#3B352D; margin-top:14px; letter-spacing:.02em;
+    font-family:'Noto Serif TC', serif; font-weight:700; font-size:15px; line-height:1.3;
+    color:#3B352D; margin-top:8px; padding-right:24px; letter-spacing:.02em;
   }
   .habit-tile .t-check{
-    position:absolute; right:12px; top:10px;
-    width:34px; height:34px; border-radius:50%;
+    position:absolute; right:8px; top:8px;
+    width:22px; height:22px; border-radius:50%;
     border:1.5px solid #CFC4B2;
     display:flex; align-items:center; justify-content:center;
-    font-size:18px; color:transparent;
+    font-size:12px; color:transparent;
     transition:all .2s ease;
   }
   .habit-tile .t-auto{ display:inline-block; margin-left:5px; padding:0 5px; font-size:10px; line-height:16px; border-radius:8px; border:1px solid currentColor; opacity:.6; vertical-align:2px; font-weight:400; }
-  .habit-tile .t-status{ font-size:12.5px; color:#8C8274; letter-spacing:.03em; }
+  .habit-tile .t-status{ font-size:11.5px; color:#8C8274; letter-spacing:.03em; }
   .habit-tile .t-status.stale{ color:#A5654A; font-weight:700; }
   .habit-tile.done{ background:var(--tc); border-color:var(--tc); }
   .habit-tile.done::before{ background:rgba(255,255,255,.6); }
@@ -157,12 +180,12 @@
   .habit-tile.done .t-check{ background:#fff; border-color:#fff; color:var(--tc); }
   .habit-tile.pop{ animation:tilePop .35s ease; }
   @keyframes tilePop{ 0%{transform:scale(1)} 40%{transform:scale(1.05)} 100%{transform:scale(1)} }
-  .habit-tile .t-edit-row{ display:none; position:absolute; right:8px; bottom:8px; gap:6px; }
+  .habit-tile .t-edit-row{ display:none; position:absolute; right:6px; bottom:6px; gap:4px; }
   .habit-section.editing .habit-tile .t-edit-row{ display:flex; }
   .habit-section.editing .habit-tile .t-status{ visibility:hidden; }
   .habit-tile .t-rename, .habit-tile .t-remove{
     border:1px solid #E3DACB; background:rgba(255,255,255,.92); color:#5a5148; border-radius:999px;
-    padding:3px 9px; font-size:12px; cursor:pointer; font-family:inherit;
+    padding:2px 7px; font-size:11px; cursor:pointer; font-family:inherit;
   }
   .habit-section.editing .habit-tile{ cursor:default; }
   .habit-section:not(.editing) .habit-add{ display:none; }
@@ -262,21 +285,46 @@
     <h1>我的習慣</h1>
     <span class="date" id="todayLabel"></span>
   </div>
-    <div class="habit-section">
-      <h3>✅ 每日習慣追蹤</h3>
-      <p class="section-desc" style="margin-bottom:14px;">點一下打卡今天完成的習慣，下面會自動累積成本月統計表。</p>
+  <div id="ev">
+    <nav class="ev-tabs">
+      <button type="button" data-panel="evToday"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.4 2.4 4.8-5"/></svg></span>今日打卡</button>
+      <button type="button" data-panel="evMonth"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V8"/><path d="M17 16v-6"/></svg></span>本月統計</button>
+      <button type="button" data-panel="evGratitude"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-8"/><path d="M12 12c0-3.5-2.5-6-6.5-6 0 3.8 2.6 6 6.5 6z"/><path d="M12 14.5c0-3 2.2-5 5.8-5 0 3.2-2.3 5-5.8 5z"/></svg></span>感恩日記</button>
+      <button type="button" data-panel="evEnglish"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7c-2-1.6-4.6-2.2-8-2v12.5c3.4-.2 6 .4 8 2 2-1.6 4.6-2.2 8-2V5c-3.4-.2-6 .4-8 2z"/><path d="M12 7v12.5"/></svg></span>英語練習</button>
+    </nav>
 
-      <div class="habit-toolbar">
-        <button id="habitSoundBtn" type="button">🔈 聲音開</button>
-        <button id="habitEditBtn" type="button">✎ 編輯</button>
+    <!-- 1. 今日打卡 -->
+    <div class="habit-section ev-block" id="evToday">
+      <div class="ev-head">
+        <div><p class="ev-desc">完成了就點一下。</p></div>
+        <div class="habit-toolbar">
+          <button id="habitSoundBtn" type="button">🔈 聲音開</button>
+          <button id="habitEditBtn" type="button">✎ 編輯</button>
+        </div>
       </div>
       <div id="habitToday" class="habit-today"></div>
       <div class="habit-add">
         <input id="habitNewName" type="text" placeholder="新增習慣，例如：喝水2000ml" maxlength="30">
         <button id="habitAddBtn" type="button">＋ 新增</button>
       </div>
+    </div>
 
-      <div class="gratitude" id="gratitude">
+    <!-- 2. 本月統計 -->
+    <div class="ev-block" id="evMonth">
+      <div class="ev-head"><div><p class="ev-desc">忘了勾？點表格裡那一天的格子就能補勾，再點一次取消。</p></div></div>
+      <div class="habit-month-nav">
+        <button id="habitPrevMonth" type="button">‹</button>
+        <span class="label" id="habitMonthLabel"></span>
+        <button id="habitNextMonth" type="button">›</button>
+      </div>
+      <div class="habit-table-wrap">
+        <table class="habit-table" id="habitTable"></table>
+      </div>
+    </div>
+
+    <!-- 3. 感恩日記 -->
+    <div class="ev-block" id="evGratitude">
+      <div class="gratitude" id="gratitude" style="margin:0">
         <h3>🌱 感恩日記 <small id="gCount"></small></h3>
         <p class="g-sub">今天有哪些小事，讓你覺得感謝？</p>
         <p class="g-editing-label" id="gEditingLabel"></p>
@@ -288,18 +336,31 @@
         </div>
         <div class="g-list" id="gList"></div>
       </div>
-
-      <div class="habit-month-nav">
-        <button id="habitPrevMonth" type="button">‹</button>
-        <span class="label" id="habitMonthLabel"></span>
-        <button id="habitNextMonth" type="button">›</button>
-      </div>
-      <p class="habit-table-hint">忘了勾？點下面表格裡那一天的格子就能補勾，再點一次取消。</p>
-      <div class="habit-table-wrap">
-        <table class="habit-table" id="habitTable"></table>
-      </div>
     </div>
+
+    <!-- 4. 英語練習 -->
+    <div class="ev-block" id="evEnglish">
+      <div class="ev-head"><div><p class="ev-desc">跟 Claude 語音對話學到的生字，都收在這裡。玩完一輪會自動勾「單字練習」。</p></div></div>
+      <a class="ev-card" href="open/english-vocab.html">
+        <b>英語單字遊樂場 →</b>
+        <p>看圖聽音、翻牌配對、闖關、60 秒快閃，會依程度自動變難。</p>
+      </a>
+    </div>
+  </div>
 <script>
+  // 上方四格切換，記住上次看的那一區
+  function showEvPanel(id){
+    document.querySelectorAll('.ev-tabs button').forEach(b => b.classList.toggle('active', b.dataset.panel === id));
+    document.querySelectorAll('#ev .ev-block').forEach(el => el.classList.toggle('active', el.id === id));
+    try { localStorage.setItem('mhPanel', id); } catch (e) {}
+  }
+  document.querySelectorAll('.ev-tabs button').forEach(b => b.addEventListener('click', () => showEvPanel(b.dataset.panel)));
+  (function(){
+    let id = 'evToday';
+    try { id = localStorage.getItem('mhPanel') || id; } catch (e) {}
+    showEvPanel(document.getElementById(id) ? id : 'evToday');
+  })();
+
   // ---------- 每日習慣追蹤 ----------
   function pad2(n){ return n.toString().padStart(2, '0'); }
   function todayStr(){
