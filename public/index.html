@@ -1011,11 +1011,18 @@
         fetch('/api/habits').then(r => r.json()),
         fetch('/api/habits/log?date=' + todayStr()).then(r => r.json())
       ]);
+      if (!Array.isArray(habits) || !todayLog || todayLog.error) throw new Error('bad data');
       habitState.habits = habits;
       habitState.todayLog = todayLog;
       renderHabitToday();
       loadHabitMonth();
-    } catch (e) { /* 健康家庭習慣追蹤載入失敗時不影響其他頁面 */ }
+    } catch (e) {
+      // 連不上（多半是登入過期）：已經有畫面就不動它；空白時告訴她怎麼辦，不要整片空白
+      const wrap = document.getElementById('habitToday');
+      if (wrap && !wrap.querySelector('.habit-tile')) {
+        wrap.innerHTML = '<p class="habit-empty" style="padding:8px 0;grid-column:1/-1;">資料暫時抓不到，可能是登入過期了。<br><a href="#" onclick="location.reload();return false;" style="color:#8A9A7B;font-weight:700;">點這裡重新整理</a>（需要的話會請你重新登入）</p>';
+      }
+    }
   }
 
   const TILE_COLORS = ['#8A9A7B','#B07D62','#B89B5E','#6F8193','#9C7A86','#6E7B5B','#A08C76','#7D8C8C','#A7786A'];
