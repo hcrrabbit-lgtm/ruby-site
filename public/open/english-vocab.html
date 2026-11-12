@@ -263,6 +263,17 @@ try{const s=JSON.parse(localStorage.getItem(KEY));if(s)D=Object.assign(D,s)}catc
 D.d4=D.d4||{};D.box=D.box||{};W.forEach(w=>{if(D.m[w.id]==null)D.m[w.id]=0});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
 
+/* ========== 練完一輪 → 自動幫「Ruby 進化中」的每日習慣勾「單字練習」 ========== */
+function practiced(){
+ const t=dstr();if(D.ping===t)return;
+ fetch('/api/open/vocab-done',{method:'POST'}).then(r=>r.ok?r.json():null).then(j=>{
+  if(!j||!j.ok)return;D.ping=t;save();
+  const n=document.createElement('div');n.textContent='✅ 今日打卡：單字練習 已自動打勾';
+  n.style.cssText='position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#3d3a35;color:#fbf7ef;padding:9px 16px;border-radius:20px;font-size:14px;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.18)';
+  document.body.appendChild(n);setTimeout(()=>n.remove(),2800);
+ }).catch(()=>{});
+}
+
 /* ========== 小工具 ========== */
 const $=s=>document.querySelector(s);
 const app=$('#app');
@@ -346,7 +357,7 @@ function learn(i){
  </div>
  <div class="row" style="justify-content:space-between">
   <button class="ghost" ${i===0?'style="visibility:hidden"':''} onclick="learn(${i-1})">← 上一個</button>
-  ${i<W.length-1?`<button class="primary" onclick="learn(${i+1})">下一個 →</button>`:`<button class="primary" onclick="D.learned=true;save();match()">去翻牌配對 🃏</button>`}
+  ${i<W.length-1?`<button class="primary" onclick="learn(${i+1})">下一個 →</button>`:`<button class="primary" onclick="D.learned=true;save();practiced();match()">去翻牌配對 🃏</button>`}
  </div>
  <p class="note center">小提醒：跟著唸出聲音，記得更快！</p>`;
  setTimeout(()=>speak(w.en),250);
@@ -376,7 +387,7 @@ function flip(i){
    MG.open=[];MG.done++;tone(true);
    [a,b].forEach(k=>document.querySelector(`.mc[data-i="${k}"]`).classList.add('done'));
    if(MG.done===6){clearInterval(MG.tick);const sec=Math.round((Date.now()-MG.start)/1000);
-    const rec=!D.bestMatch||sec<D.bestMatch;if(rec)D.bestMatch=sec;save();burst();
+    const rec=!D.bestMatch||sec<D.bestMatch;if(rec)D.bestMatch=sec;save();burst();practiced();
     setTimeout(()=>{app.innerHTML=`${topBar('完成！')}<div class="card center pop"><div style="font-size:54px">🎉</div>
      <h2>${sec} 秒・翻了 ${MG.moves} 次</h2><p>${rec?'🏆 新紀錄！':'最佳紀錄：'+D.bestMatch+' 秒'}</p>
      <div class="row" style="justify-content:center"><button class="ghost" onclick="match()">再玩一次</button><button class="primary" onclick="quest()">去闖關 🖌️</button></div></div>`},700)}
@@ -480,7 +491,7 @@ function judge(ok){
  fb.innerHTML+=`<div style="text-align:right;margin-top:8px"><button class="primary" onclick="Q.idx++;ask()">下一題 →</button></div>`;
 }
 function finish(){
- D.sessions++;D.last=new Date().toISOString();save();
+ D.sessions++;D.last=new Date().toISOString();save();practiced();
  const up=W.filter(w=>D.m[w.id]>Q.before[w.id]);
  const acc=Math.round(Q.right/(Q.right+Q.wrong)*100);
  burst(20);
@@ -534,7 +545,7 @@ function spPick(el,id){
  setTimeout(spAsk,ok?250:800);
 }
 function spEnd(){
- const rec=SP.score>D.bestSpeed;if(rec)D.bestSpeed=SP.score;save();if(rec)burst();
+ const rec=SP.score>D.bestSpeed;if(rec)D.bestSpeed=SP.score;save();if(rec)burst();practiced();
  app.innerHTML=`${topBar('時間到！')}<div class="card center pop"><div style="font-size:54px">⚡</div><h2>${SP.score} 分</h2>
  <p>${rec?'🏆 新紀錄！':'最高紀錄：'+D.bestSpeed+' 分'}</p>
  <div class="row" style="justify-content:center"><button class="ghost" onclick="home()">回首頁</button><button class="primary" onclick="speed()">再挑戰</button></div></div>`;

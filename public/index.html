@@ -484,6 +484,7 @@
     font-size:12px; color:transparent;
     transition:all .2s ease;
   }
+  .habit-tile .t-auto{ display:inline-block; margin-left:5px; padding:0 5px; font-size:10px; line-height:16px; border-radius:8px; border:1px solid currentColor; opacity:.6; vertical-align:2px; font-weight:400; }
   .habit-tile .t-status{ font-size:11.5px; color:#8C8274; letter-spacing:.03em; }
   .habit-tile .t-status.stale{ color:#A5654A; font-weight:700; }
   .habit-tile.done{ background:var(--tc); border-color:var(--tc); }
@@ -1042,7 +1043,7 @@
       const st = habitStatus(h, done);
       return `<div class="habit-tile ${done ? 'done' : ''}" data-id="${h.id}" style="--tc:${TILE_COLORS[i % TILE_COLORS.length]}" role="button" aria-pressed="${done}">
         <span class="t-check">✓</span>
-        <div class="t-name">${escapeHtml(h.name)}</div>
+        <div class="t-name">${escapeHtml(h.name)}${h.id.startsWith('habit_auto_') ? '<span class="t-auto" title="做完會自動打勾">自動</span>' : ''}</div>
         <div class="t-status ${st.stale ? 'stale' : ''}">${st.text}</div>
         <div class="t-edit-row">
           <button class="t-rename" type="button" data-rename="${h.id}">改名</button>
@@ -1410,6 +1411,7 @@
         if (!had) gState.total++;
       } else if (had) gState.total--;
       if (!res.deleted && typeof habitSound === 'function') habitSound(true);
+      if (typeof loadHabits === 'function') loadHabits(); // 感恩日記存檔會自動打勾，重新抓一次
       const wasPast = gState.date !== todayStr();
       gRenderList();
       if (wasPast) { gEdit(todayStr()); gMsg('已更新 ✓'); } else gMsg(res.deleted ? '已清空' : '已收進日記 ✓');
@@ -1417,6 +1419,11 @@
     btn.disabled = false;
   });
   gLoad(false);
+  // 從單字遊戲等頁面切回來時，重新抓今日打卡（自動打勾的項目才會馬上顯示）
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && typeof loadHabits === 'function') loadHabits();
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted && typeof loadHabits === 'function') loadHabits(); });
 </script>
 
 </body>

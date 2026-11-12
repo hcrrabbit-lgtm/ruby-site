@@ -271,6 +271,23 @@ async function ensureSchema(env) {
     // best-effort; she can still add habits by hand on the page
   }
   try {
+    // 一次性：Ruby 進化中的每日習慣加入兩個「自動打勾」項目（固定 id，感恩日記存檔／單字遊戲玩完一輪時自動勾）
+    const autoSeeded = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'ruby_auto_habits_seed_v1'").first();
+    if (!autoSeeded) {
+      const maxRow = await env.DB.prepare("SELECT COALESCE(MAX(order_no), 0) as m FROM habits").first();
+      let order = (maxRow && maxRow.m) || 0;
+      for (const [id, name] of [[AUTO_HABIT_VOCAB, "單字練習"], [AUTO_HABIT_GRATITUDE, "寫感恩日記"]]) {
+        order++;
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO habits (id, name, order_no, created_at, child) VALUES (?, ?, ?, ?, NULL)"
+        ).bind(id, name, order, new Date().toISOString()).run();
+      }
+      await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('ruby_auto_habits_seed_v1', '1')").run();
+    }
+  } catch (e) {
+    // best-effort
+  }
+  try {
     // 一次性：Better Me 幫 Rina 新增「讀寫網」打勾項目（已有同名就跳過；跑過一次就不再跑，之後刪掉不會被加回來）
     const done = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'rina_duxiewang_seed_v1'").first();
     if (!done) {
@@ -1339,6 +1356,29 @@ function makeHabitHandlers(habitsTable, logsTable, idPrefix, opts) {
   };
 }
 
+// ---- 自動打勾：做了就幫 Ruby 進化中的每日習慣打勾（她刪掉該習慣就不再勾）----
+const AUTO_HABIT_VOCAB = "habit_auto_vocab";
+const AUTO_HABIT_GRATITUDE = "habit_auto_gratitude";
+async function autoCheckHabit(env, habitId, date, done) {
+  try {
+    if (done) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO habit_logs (habit_id, date, bonus) SELECT id, ?, 0 FROM habits WHERE id = ?"
+      ).bind(date, habitId).run();
+    } else {
+      await env.DB.prepare("DELETE FROM habit_logs WHERE habit_id = ? AND date = ?").bind(habitId, date).run();
+    }
+  } catch (e) {
+    // 打勾失敗不影響原本的存檔
+  }
+}
+// 單字遊戲在 /open/（不用登入），所以這支放 /api/open/：只會把「今天的單字練習」打勾，不收任何參數、不回傳任何資料
+async function vocabDonePost(env) {
+  const today = taipeiDateStr(taipeiNow());
+  await autoCheckHabit(env, AUTO_HABIT_VOCAB, today, true);
+  return json({ ok: true, date: today });
+}
+
 // ---- 感恩日記（Ruby 自己的，有登入鎖，不放在 /api/open/）----
 const gratitudeHandlers = {
   async list(env, url) {
@@ -1361,12 +1401,14 @@ const gratitudeHandlers = {
     const clean = (Array.isArray(items) ? items : []).map(t => String(t || "").trim().slice(0, 300)).filter(Boolean).slice(0, 10);
     if (clean.length === 0) {
       await env.DB.prepare("DELETE FROM gratitude_journal WHERE date = ?").bind(date).run();
+      await autoCheckHabit(env, AUTO_HABIT_GRATITUDE, date, false);
       return json({ ok: true, deleted: true });
     }
     await env.DB.prepare(
       `INSERT INTO gratitude_journal (date, items, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(date) DO UPDATE SET items = excluded.items, updated_at = excluded.updated_at`
     ).bind(date, JSON.stringify(clean), new Date().toISOString()).run();
+    await autoCheckHabit(env, AUTO_HABIT_GRATITUDE, date, true);
     return json({ ok: true, date, items: clean });
   },
 };
@@ -2075,6 +2117,7 @@ export default {
       if (path === "/api/admin/go/items" && request.method === "POST") return await goAdminUpdate(env, request);
       if (path === "/api/admin/go/items" && request.method === "DELETE") return await goAdminDelete(env, request);
 
+      if (path === "/api/open/vocab-done" && request.method === "POST") return await vocabDonePost(env);
       if (path === "/api/open/yt-avatar" && request.method === "GET") return await handleYtAvatar(url);
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
       if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
