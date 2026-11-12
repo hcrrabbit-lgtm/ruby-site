@@ -5,37 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ruby 的英語單字遊樂場</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#fbf6ec; --ink:#2d3a4a; --muted:#7a7266; --card:#fff;
-  --coral:#ef6f5e; --sun:#ffc94a; --mint:#5cbf8f; --sky:#5a9cf0; --lav:#a78bfa;
-  --line:#e8dfcf; --ok:#2fa36b; --bad:#e2504a;
+  --paper:#f8f3ea; --ink:#3d3a35; --muted:#857c70; --card:#fffdf8;
+  --coral:#c27a5c; --sun:#e8cf8f; --mint:#8fa37f; --sky:#8aa5b8; --lav:#a9b79a;
+  --line:#e6dccb; --ok:#6f8f5f; --bad:#c0665a; --shadow:#e3d7c3;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--paper);color:var(--ink);
   font-family:"Fredoka","PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;}
-body{background-image:radial-gradient(#efe5d2 1px,transparent 1px);background-size:18px 18px;min-height:100vh}
+body{background-image:radial-gradient(#ece3d3 1px,transparent 1px);background-size:18px 18px;min-height:100vh}
 .wrap{max-width:560px;margin:0 auto;padding:18px 16px 60px}
-h1{font-size:26px;margin:6px 0 2px;letter-spacing:.5px}
-h2{font-size:20px;margin:0 0 10px}
+h1{font-size:25px;margin:6px 0 2px;letter-spacing:1px;font-family:"Noto Serif TC",serif;font-weight:700;display:flex;align-items:center;gap:8px}
+h1 svg{width:34px;height:34px}
+.mini{display:inline-block;width:20px;height:20px;vertical-align:-4px}
+.btn .ic svg{width:38px;height:38px}
+h2{font-size:20px;margin:0 0 10px;font-family:"Noto Serif TC",serif;font-weight:700}
 .sub{color:var(--muted);font-size:14px;margin:0 0 16px}
 button{font-family:inherit;cursor:pointer;border:none}
-.card{background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:16px;box-shadow:4px 4px 0 var(--ink);margin-bottom:16px}
-.btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:2px solid var(--ink);
-  border-radius:16px;padding:14px;box-shadow:3px 3px 0 var(--ink);font-size:17px;color:var(--ink);margin-bottom:12px;transition:transform .08s}
-.btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
-.btn .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;flex:none;border:2px solid var(--ink)}
+.card{background:var(--card);border:1.5px solid var(--ink);border-radius:18px;padding:16px;box-shadow:4px 4px 0 var(--shadow);margin-bottom:16px}
+.btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1.5px solid var(--ink);
+  border-radius:16px;padding:14px;box-shadow:3px 3px 0 var(--shadow);font-size:17px;color:var(--ink);margin-bottom:12px;transition:transform .08s}
+.btn:active{transform:translate(3px,3px);box-shadow:none}
+.btn .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;flex:none;border:1.5px solid var(--ink)}
 .btn small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .btn .step{margin-left:auto;font-size:12px;background:var(--paper);border:1.5px solid var(--ink);border-radius:20px;padding:2px 8px;white-space:nowrap}
 .pill{display:inline-block;border:1.5px solid var(--ink);border-radius:999px;padding:3px 10px;font-size:13px;background:#fff}
-.primary{background:var(--coral);color:#fff;border:2px solid var(--ink);border-radius:14px;padding:12px 18px;font-size:17px;font-weight:600;box-shadow:3px 3px 0 var(--ink)}
+.primary{background:var(--coral);color:#fff;border:1.5px solid var(--ink);border-radius:14px;padding:12px 18px;font-size:17px;font-weight:600;box-shadow:3px 3px 0 var(--shadow)}
 .primary:active{transform:translate(3px,3px);box-shadow:none}
-.ghost{background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:14px;padding:10px 14px;font-size:15px;box-shadow:2px 2px 0 var(--ink)}
+.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:14px;padding:10px 14px;font-size:15px;box-shadow:2px 2px 0 var(--shadow)}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.back{background:#fff;border:2px solid var(--ink);border-radius:12px;width:42px;height:42px;font-size:20px;box-shadow:2px 2px 0 var(--ink)}
-.prog{flex:1;height:14px;border:2px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden}
+.back{background:#fff;border:1.5px solid var(--ink);border-radius:12px;width:42px;height:42px;font-size:20px;box-shadow:2px 2px 0 var(--shadow)}
+.prog{flex:1;height:14px;border:1.5px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden}
 .prog i{display:block;height:100%;background:var(--mint);width:0;transition:width .3s}
 .wordlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .wl{display:flex;align-items:center;gap:8px;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:6px 8px}
@@ -50,12 +53,12 @@ button{font-family:inherit;cursor:pointer;border:none}
 .tip{background:#fff6dc;border:1.5px dashed #d8a700;border-radius:12px;padding:10px 12px;font-size:15px;line-height:1.5;margin-top:10px}
 .sent{background:#eef6ff;border-radius:12px;padding:10px 12px;font-size:16px;line-height:1.5;margin-top:10px}
 .sent small{color:var(--muted);display:block;font-size:13px}
-.speak{background:var(--sky);color:#fff;border:2px solid var(--ink);border-radius:999px;padding:6px 14px;font-size:15px;box-shadow:2px 2px 0 var(--ink)}
+.speak{background:var(--sky);color:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:6px 14px;font-size:15px;box-shadow:2px 2px 0 var(--shadow)}
 .speak.slow{background:#fff;color:var(--ink)}
 .center{text-align:center}
 .q{font-size:19px;text-align:center;margin:6px 0 12px;line-height:1.5}
 .opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.opt{background:#fff;border:2px solid var(--ink);border-radius:14px;padding:12px 8px;font-size:17px;box-shadow:2px 2px 0 var(--ink);min-height:58px;color:var(--ink)}
+.opt{background:#fff;border:1.5px solid var(--ink);border-radius:14px;padding:12px 8px;font-size:17px;box-shadow:2px 2px 0 var(--shadow);min-height:58px;color:var(--ink)}
 .opt svg{width:84px;height:84px}
 .opt.ok{background:#d9f5e6;border-color:var(--ok)}
 .opt.bad{background:#fde1df;border-color:var(--bad)}
@@ -64,9 +67,9 @@ button{font-family:inherit;cursor:pointer;border:none}
 .slot{width:30px;height:38px;border-bottom:3px solid var(--ink);font-size:24px;font-weight:600;display:grid;place-items:center}
 .slot.sp{border:none;width:14px}
 .tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
-.tile{width:42px;height:46px;background:var(--sun);border:2px solid var(--ink);border-radius:10px;font-size:22px;font-weight:600;box-shadow:2px 2px 0 var(--ink);color:var(--ink)}
+.tile{width:42px;height:46px;background:#f3e3b8;border:1.5px solid var(--ink);border-radius:10px;font-size:22px;font-weight:600;box-shadow:2px 2px 0 var(--shadow);color:var(--ink)}
 .tile.used{opacity:.2;pointer-events:none}
-input.type{width:100%;font-family:inherit;font-size:22px;padding:12px;border:2px solid var(--ink);border-radius:12px;text-align:center;outline:none}
+input.type{width:100%;font-family:inherit;font-size:22px;padding:12px;border:1.5px solid var(--ink);border-radius:12px;text-align:center;outline:none}
 input.type:focus{box-shadow:0 0 0 3px var(--sun)}
 .fb{margin-top:14px;border-radius:14px;padding:12px;font-size:16px;line-height:1.5;display:none}
 .fb.ok{display:block;background:#d9f5e6;border:2px solid var(--ok)}
@@ -77,8 +80,8 @@ input.type:focus{box-shadow:0 0 0 3px var(--sun)}
 .mc{aspect-ratio:3/4;perspective:600px;background:none;padding:0}
 .mc .in{position:relative;width:100%;height:100%;transition:transform .35s;transform-style:preserve-3d}
 .mc.flip .in{transform:rotateY(180deg)}
-.mc .f,.mc .b{position:absolute;inset:0;border:2px solid var(--ink);border-radius:12px;backface-visibility:hidden;display:grid;place-items:center;padding:4px}
-.mc .f{background:var(--lav);font-size:26px;color:#fff;box-shadow:2px 2px 0 var(--ink)}
+.mc .f,.mc .b{position:absolute;inset:0;border:1.5px solid var(--ink);border-radius:12px;backface-visibility:hidden;display:grid;place-items:center;padding:4px}
+.mc .f{background:var(--lav);font-size:26px;color:#fff;box-shadow:2px 2px 0 var(--shadow)}
 .mc .b{background:#fff;transform:rotateY(180deg);font-size:13px;font-weight:600;text-align:center;line-height:1.15;color:var(--ink)}
 .mc .b svg{width:90%;height:90%}
 .mc.done .b{background:#d9f5e6;border-color:var(--ok)}
@@ -250,6 +253,7 @@ const W=[
   tip:'重音在中間 pa-GO-da！日月潭旁的慈恩塔就是一座 pagoda 🏯',
   sent:'There is a tall ___ by Sun Moon Lake.',sentZh:'日月潭旁邊有一座高高的塔。'}
 ];
+const I={"learn": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"ilw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><path d=\"M24 14c-5-3-11-4-16-3v24c5-1 11 0 16 3z\" fill=\"#fbf7ef\"/><path d=\"M24 14c5-3 11-4 16-3v24c-5-1-11 0-16 3z\" fill=\"#9fb5c4\"/></g><g filter=\"url(#ilw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M24 14c-5-3-11-4-16-3v24c5-1 11 0 16 3\"/><path d=\"M24 14c5-3 11-4 16-3v24c-5-1-11 0-16 3\"/><path d=\"M24 14v24\"/><path d=\"M12 17c3-.5 6 0 8 1M12 22c3-.5 6 0 8 1M12 27c3-.5 6 0 8 1\" stroke-width=\"1\"/><path d=\"M30 8c2 3 2 6 0 9-2-3-2-6 0-9z\" stroke-width=\"1.1\"/></g></svg>", "match": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"imw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><rect x=\"9\" y=\"12\" width=\"17\" height=\"24\" rx=\"2\" fill=\"#a9b79a\" transform=\"rotate(-10 17 24)\"/><rect x=\"22\" y=\"11\" width=\"17\" height=\"24\" rx=\"2\" fill=\"#fbf7ef\" transform=\"rotate(8 30 23)\"/></g><g filter=\"url(#imw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"12\" width=\"17\" height=\"24\" rx=\"2\" transform=\"rotate(-10 17 24)\"/><rect x=\"22\" y=\"11\" width=\"17\" height=\"24\" rx=\"2\" transform=\"rotate(8 30 23)\"/><path d=\"M30 19c1.5-3 6-2.5 5.5 1-.5 3-5.5 6-5.5 6s-5-3-5.5-6c-.5-3.5 4-4 5.5-1z\" stroke-width=\"1.1\" transform=\"rotate(8 30 23) translate(-1 1)\"/><path d=\"M14 20l2 3-2 3-2-3z\" stroke-width=\"1\" transform=\"rotate(-10 17 24)\"/></g></svg>", "quest": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"iqw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><path d=\"M30 8l8 8-12 12-8-8z\" fill=\"#b98a63\"/><path d=\"M18 20l8 8c-2 4-6 8-14 10 1-8 3-14 6-18z\" fill=\"#d4906f\"/></g><g filter=\"url(#iqw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M38 6l4 4-13 15-6-6z\"/><path d=\"M23 19l6 6c-2 5-7 10-17 13 2-9 5-16 11-19z\"/><path d=\"M15 34c2-3 4-6 7-8\" stroke-width=\"1\"/><circle cx=\"36\" cy=\"38\" r=\"2.5\" stroke-width=\"1.1\"/></g></svg>", "box": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"ibw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><rect x=\"10\" y=\"20\" width=\"28\" height=\"18\" rx=\"1.5\" fill=\"#e2bd6b\"/><rect x=\"8\" y=\"14\" width=\"32\" height=\"7\" rx=\"1.5\" fill=\"#e7b9aa\"/></g><g filter=\"url(#ibw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"10\" y=\"20\" width=\"28\" height=\"18\" rx=\"1.5\"/><rect x=\"8\" y=\"14\" width=\"32\" height=\"7\" rx=\"1.5\"/><path d=\"M24 14v24\"/><path d=\"M24 14c-3-6-10-6-9-2 1 3 6 2 9 2zM24 14c3-6 10-6 9-2-1 3-6 2-9 2z\"/><path d=\"M14 26h6M14 30h4\" stroke-width=\".9\" stroke-dasharray=\"1.5 2\"/></g></svg>", "speed": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"isw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><circle cx=\"24\" cy=\"27\" r=\"13\" fill=\"#fbf7ef\"/><path d=\"M24 27V14a13 13 0 0 1 12 8z\" fill=\"#e2bd6b\"/></g><g filter=\"url(#isw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"24\" cy=\"27\" r=\"13\"/><path d=\"M21 8h6M24 8v6M34 15l2-2\"/><path d=\"M24 27l6-6\"/><circle cx=\"24\" cy=\"27\" r=\"1.3\"/><path d=\"M6 22h4M5 27h5M6 32h4\" stroke-width=\"1\"/></g></svg>", "cal": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"icw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><rect x=\"8\" y=\"11\" width=\"32\" height=\"28\" rx=\"2\" fill=\"#fbf7ef\"/><rect x=\"8\" y=\"11\" width=\"32\" height=\"8\" fill=\"#d4906f\"/></g><g filter=\"url(#icw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"8\" y=\"11\" width=\"32\" height=\"28\" rx=\"2\"/><path d=\"M8 19h32M16 7v7M32 7v7\"/><path d=\"M15 26h3M23 26h3M31 26h3M15 32h3M23 32h3\" stroke-width=\"1.3\"/></g></svg>", "bulb": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"iiw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><path d=\"M24 8c-7 0-11 5-11 11 0 5 4 7 5 12h12c1-5 5-7 5-12 0-6-4-11-11-11z\" fill=\"#e2bd6b\"/></g><g filter=\"url(#iiw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M24 8c-7 0-11 5-11 11 0 5 4 7 5 12h12c1-5 5-7 5-12 0-6-4-11-11-11z\"/><path d=\"M19 35h10M20 39h8\"/><path d=\"M20 18c1-3 3-4 5-4\" stroke-width=\"1\"/></g></svg>", "palette": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 48 48\"><defs><filter id=\"ipw\" x=\"-5%\" y=\"-5%\" width=\"110%\" height=\"110%\"><feTurbulence type=\"fractalNoise\" baseFrequency=\".09\" numOctaves=\"2\" seed=\"5\"/><feDisplacementMap in=\"SourceGraphic\" scale=\"1.2\"/></filter></defs><g transform=\"translate(1.4 1.2)\" opacity=\".9\"><path d=\"M24 8C13 8 6 15 6 24s7 16 16 16c3 0 4-2 3-4s0-4 3-4h5c5 0 9-3 9-9 0-9-8-15-18-15z\" fill=\"#fbf7ef\"/><circle cx=\"15\" cy=\"22\" r=\"3\" fill=\"#d4906f\"/><circle cx=\"21\" cy=\"15\" r=\"3\" fill=\"#e2bd6b\"/><circle cx=\"30\" cy=\"15\" r=\"3\" fill=\"#a9b79a\"/><circle cx=\"35\" cy=\"23\" r=\"3\" fill=\"#9fb5c4\"/></g><g filter=\"url(#ipw)\" fill=\"none\" stroke=\"#3d3a35\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M24 8C13 8 6 15 6 24s7 16 16 16c3 0 4-2 3-4s0-4 3-4h5c5 0 9-3 9-9 0-9-8-15-18-15z\"/><circle cx=\"15\" cy=\"30\" r=\"2.5\" stroke-width=\"1.1\"/></g></svg>"};
 const byId=Object.fromEntries(W.map(w=>[w.id,w]));
 
 /* ========== 儲存（只存在這台裝置的瀏覽器） ========== */
@@ -271,8 +275,8 @@ let AC=null;
 function tone(ok){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const notes=ok?[660,880]:[300,220];
  notes.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=f;o.connect(g);g.connect(AC.destination);
  const t=AC.currentTime+i*0.11;g.gain.setValueAtTime(.18,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);o.start(t);o.stop(t+.2)})}catch(e){}}
-function burst(n=14){const em=['⭐','🎨','✨','🖌️','🌈','🏅'];for(let i=0;i<n;i++){const s=document.createElement('div');s.className='burst';
- s.textContent=em[i%em.length];s.style.left=(innerWidth/2)+'px';s.style.top=(innerHeight/2)+'px';
+function burst(n=14){const em=['#d4906f','#e2bd6b','#a9b79a','#9fb5c4','#e7b9aa','#7f8f6a'];for(let i=0;i<n;i++){const s=document.createElement('div');s.className='burst';
+ s.style.background=em[i%em.length];s.style.width=s.style.height=(6+Math.random()*8)+'px';s.style.borderRadius=Math.random()<.5?'50%':'2px';s.style.left=(innerWidth/2)+'px';s.style.top=(innerHeight/2)+'px';
  s.style.setProperty('--dx',(Math.random()*360-180)+'px');s.style.setProperty('--dy',(Math.random()*-420+60)+'px');
  document.body.appendChild(s);setTimeout(()=>s.remove(),1200)}}
 const INTERVALS=[1,2,4,7,14];
@@ -294,19 +298,19 @@ function home(){
  try{speechSynthesis.cancel()}catch(e){}
  const total=W.reduce((a,w)=>a+D.m[w.id],0),max=W.length*4;
  app.innerHTML=`
- <h1>🎨 Ruby 的單字遊樂場</h1>
+ <h1>${I.palette} Ruby 的單字遊樂場</h1>
  <p class="sub">11/12 語音對話收集的 7 個生字・掌握度 ${Math.round(total/max*100)}%</p>
  <div class="card">
   <div class="wordlist">${W.map(w=>`<div class="wl">${PICS[w.id]}<div><b>${w.en}</b>${wordBadge(w.id)}</div></div>`).join('')}</div>
-  <p class="note" style="margin:10px 0 0">📅 下次複習：<b>${nextReview()}</b></p>
+  <p class="note" style="margin:10px 0 0"><span class="mini">${I.cal}</span> 下次複習：<b>${nextReview()}</b></p>
  </div>
- <button class="btn" onclick="learn(0)"><span class="ic" style="background:#dff0ff">👀</span><span>認識單字<small>看圖・聽發音・記憶小撇步</small></span><span class="step">第 1 步</span></button>
- <button class="btn" onclick="match()"><span class="ic" style="background:#efe7ff">🃏</span><span>翻牌配對<small>圖片和單字配成對，暖身記憶</small></span><span class="step">第 2 步</span></button>
- <button class="btn" onclick="quest()"><span class="ic" style="background:#ffe4dc">🖌️</span><span>美術教室闖關<small>會依你的程度自動變難</small></span><span class="step">第 3 步</span></button>
- <button class="btn" onclick="boxView()"><span class="ic" style="background:#fff0d6">🎁</span><span>記憶寶盒（${Object.keys(D.box).length} / ${W.length}）<small>真正記住的字收在這裡${W.some(w=>boxDue(w.id))?'・<b style="color:var(--coral)">有字要抽查了！</b>':''}</small></span></button>
- <button class="btn" onclick="speed()"><span class="ic" style="background:#fff3c4">⚡</span><span>60 秒快閃<small>越快越熟！最高 ${D.bestSpeed} 分</small></span><span class="step">挑戰</span></button>
+ <button class="btn" onclick="learn(0)"><span class="ic" style="background:#e9eef1">${I.learn}</span><span>認識單字<small>看圖・聽發音・記憶小撇步</small></span><span class="step">第 1 步</span></button>
+ <button class="btn" onclick="match()"><span class="ic" style="background:#ebefe5">${I.match}</span><span>翻牌配對<small>圖片和單字配成對，暖身記憶</small></span><span class="step">第 2 步</span></button>
+ <button class="btn" onclick="quest()"><span class="ic" style="background:#f6e7df">${I.quest}</span><span>美術教室闖關<small>會依你的程度自動變難</small></span><span class="step">第 3 步</span></button>
+ <button class="btn" onclick="boxView()"><span class="ic" style="background:#f6eedb">${I.box}</span><span>記憶寶盒（${Object.keys(D.box).length} / ${W.length}）<small>真正記住的字收在這裡${W.some(w=>boxDue(w.id))?'・<b style="color:var(--coral)">有字要抽查了！</b>':''}</small></span></button>
+ <button class="btn" onclick="speed()"><span class="ic" style="background:#f4eedf">${I.speed}</span><span>60 秒快閃<small>越快越熟！最高 ${D.bestSpeed} 分</small></span><span class="step">挑戰</span></button>
  <div class="card">
- <details><summary>🧠 這個遊戲為什麼這樣設計？</summary>
+ <details><summary><span class="mini">${I.bulb}</span> 這個遊戲為什麼這樣設計？</summary>
  <ul>
   <li><b>圖文雙重記憶</b>：每個字都配上圖和聲音，大腦用兩條路記，比較不容易忘。</li>
   <li><b>主動回想</b>：闖關時要自己想出答案，比一直看單字表記得更牢。</li>
