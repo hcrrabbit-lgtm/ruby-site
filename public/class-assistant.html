@@ -423,6 +423,16 @@
   .seat-score-controls .beh-btn{min-width:96px;height:46px;font-size:16px;}
   .seat-score-controls .beh-undo-btn{width:42px;height:42px;font-size:18px;}
   .seat-score-tally{font-size:13px;color:var(--ink-soft);margin-bottom:12px;}
+  .minus-reason{text-align:left;border:2px solid var(--clay);border-radius:12px;padding:10px 12px;margin:0 0 12px;background:#fff;}
+  .minus-reason-title{font-size:13px;font-weight:700;color:var(--clay);margin-bottom:8px;}
+  .minus-reason-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+  .minus-reason-chip{font-size:13px;padding:5px 10px;border-radius:999px;border:1px solid #d8d0c4;background:#fff;color:inherit;cursor:pointer;}
+  .minus-reason-chip.on{background:#fae8e0;border-color:var(--clay);color:var(--clay);}
+  .minus-reason textarea{width:100%;box-sizing:border-box;font-size:15px;}
+  .minus-reason-actions{display:flex;gap:8px;margin-top:8px;}
+  .minus-reason-actions button{flex:1;height:40px;border-radius:10px;font-size:14px;cursor:pointer;}
+  .minus-reason-skip{background:#fff;border:1px solid #d8d0c4;color:inherit;}
+  .minus-reason-ok{background:var(--clay);border:none;color:#fff;font-weight:700;}
   .seat-score-att{display:flex;justify-content:center;gap:8px;margin-bottom:6px;}
   .seat-score-late-total{font-size:11px;color:var(--clay);font-weight:700;margin-bottom:12px;}
   .seat-score-notes{text-align:left;margin-top:4px;}
@@ -2242,6 +2252,17 @@ function openSeatScore(studentId){
         <button class="beh-btn beh-plus" id="seatScorePlus">＋ 加分</button>
       </div>
       <div class="seat-score-tally" id="seatScoreTally"></div>
+      <div class="minus-reason" id="minusReasonBox" hidden>
+        <div class="minus-reason-title">已扣 1 分，補上原因（可略過）</div>
+        <div class="minus-reason-chips">
+          ${["上課講話","沒帶用具","離開座位","干擾同學","沒收拾桌面"].map(r => `<button type="button" class="minus-reason-chip">${r}</button>`).join("")}
+        </div>
+        <textarea id="minusReasonInput" rows="2" placeholder="或自己輸入原因..."></textarea>
+        <div class="minus-reason-actions">
+          <button type="button" class="minus-reason-skip" id="minusReasonSkip">略過</button>
+          <button type="button" class="minus-reason-ok" id="minusReasonOk">確認原因</button>
+        </div>
+      </div>
       <div class="seat-score-att">
         <button class="att-btn late" id="seatScoreLateBtn" data-state="late">遲到</button>
         <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent">請假</button>
@@ -2317,15 +2338,74 @@ function openSeatScore(studentId){
       alert("新增失敗,請檢查網路連線後再試一次。");
     }
   });
+  // 每次加/扣分記一筆，復原時才知道要不要連同扣分紀錄一起刪
+  const scoreActions = [];
+  let pendingMinus = null; // 目前原因方塊對應的那次扣分
+  const reasonBox = document.getElementById("minusReasonBox");
+  const reasonInput = document.getElementById("minusReasonInput");
+  const NO_REASON = "【扣分】（未填原因）";
+  function closeReasonBox(){
+    reasonBox.hidden = true;
+    pendingMinus = null;
+  }
+  async function refreshNotesIfOpen(){
+    if(notesLoaded) await refreshSeatNotes();
+  }
+  reasonBox.querySelectorAll(".minus-reason-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.remove("on"));
+      chip.classList.add("on");
+      reasonInput.value = chip.textContent;
+    });
+  });
+  reasonInput.addEventListener("input", () => {
+    reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.toggle("on", c.textContent === reasonInput.value.trim()));
+  });
+
   document.getElementById("seatScorePlus").addEventListener("click", () => {
     applyBehaviorDelta(studentId, 1);
+    scoreActions.push({ delta: 1 });
     updateSeatScoreModal(studentId);
   });
   document.getElementById("seatScoreMinus").addEventListener("click", () => {
+    // 按下去就先扣分，原因之後再補
     applyBehaviorDelta(studentId, -1);
     updateSeatScoreModal(studentId);
+    const action = { delta: -1, noteId: null, notePromise: null };
+    action.notePromise = apiPost("/api/student-notes", { studentId, note: NO_REASON })
+      .then(res => { action.noteId = res.id; refreshNotesIfOpen(); return res.id; })
+      .catch(() => null);
+    scoreActions.push(action);
+    pendingMinus = action;
+    reasonInput.value = "";
+    reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.remove("on"));
+    reasonBox.hidden = false;
+  });
+  document.getElementById("minusReasonSkip").addEventListener("click", closeReasonBox);
+  document.getElementById("minusReasonOk").addEventListener("click", async () => {
+    const action = pendingMinus;
+    const reason = reasonInput.value.trim();
+    closeReasonBox();
+    if(!action || !reason) return;
+    const noteId = await action.notePromise;
+    try{
+      if(noteId) await apiPost("/api/student-notes/update", { id: noteId, note: `【扣分】${reason}` });
+      else await apiPost("/api/student-notes", { studentId, note: `【扣分】${reason}` });
+      await refreshNotesIfOpen();
+    }catch(e){
+      alert("原因儲存失敗,請檢查網路連線後再試一次。");
+    }
   });
   document.getElementById("seatScoreUndo").addEventListener("click", async () => {
+    const last = scoreActions.pop();
+    if(last && last.delta < 0){
+      if(pendingMinus === last) closeReasonBox();
+      const noteId = await last.notePromise;
+      if(noteId){
+        try{ await apiDelete("/api/student-notes", { id: noteId }); }catch(e){}
+        await refreshNotesIfOpen();
+      }
+    }
     await undoBehavior(studentId);
     updateSeatScoreModal(studentId);
   });
