@@ -120,5 +120,6 @@ function render(){
 fetch("moby-plus.json", {cache:"no-store"}).then(r => r.json()).then(j => { data = j.records || []; render(); })
   .catch(() => { document.getElementById("main").innerHTML = `<div class="card empty">紀錄暫時讀不到，請稍後再試。</div>`; });
 </script>
+<script src="/open/refresh-button.js" defer></script>
 </body>
 </html>
