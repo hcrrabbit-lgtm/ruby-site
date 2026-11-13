@@ -1733,12 +1733,16 @@ function applyBehaviorDelta(id, delta){
   if(!behavior[id]) behavior[id] = { plus: 0, minus: 0 };
   if(delta > 0) behavior[id].plus += delta;
   else behavior[id].minus += -delta;
-  if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0 };
+  if(!statsBehaviorTotals[id]) statsBehaviorTotals[id] = { plus: 0, minus: 0, minusCount: 0 };
   if(delta > 0) statsBehaviorTotals[id].plus += delta;
-  else statsBehaviorTotals[id].minus += -delta;
+  else{
+    statsBehaviorTotals[id].minus += -delta;
+    statsBehaviorTotals[id].minusCount = (statsBehaviorTotals[id].minusCount || 0) + 1;
+  }
   playBeep(delta > 0 ? 880 : 330, 0.05);
   renderRoster();
   renderSeatingChart();
+  renderStudentsGrid();
   apiPost("/api/behavior", { studentId: id, date: selectedDate, delta })
     .then(() => loadStatsData())
     .catch(()=>{});
@@ -1754,10 +1758,14 @@ async function undoBehavior(id){
     }
     if(statsBehaviorTotals[id]){
       if(delta > 0) statsBehaviorTotals[id].plus = Math.max(0, statsBehaviorTotals[id].plus - delta);
-      else statsBehaviorTotals[id].minus = Math.max(0, statsBehaviorTotals[id].minus - (-delta));
+      else{
+        statsBehaviorTotals[id].minus = Math.max(0, statsBehaviorTotals[id].minus - (-delta));
+        statsBehaviorTotals[id].minusCount = Math.max(0, (statsBehaviorTotals[id].minusCount || 0) - 1);
+      }
     }
     renderRoster();
     renderSeatingChart();
+    renderStudentsGrid();
     renderStatsTable();
   }catch(err){
     alert("今天沒有可復原的加/扣分紀錄");
@@ -1767,9 +1775,16 @@ async function undoBehavior(id){
 // shared by the roster's att-btn and the seating chart's tap-to-score modal
 function toggleAttendance(id, state){
   const turningOn = attendance[id] !== state;
+  // 先在畫面上把累計次數加/減，不用等伺服器回應
+  const prev = attendance[id];
+  if(!lateTotals[id]) lateTotals[id] = { late: 0, absent: 0 };
+  if(prev) lateTotals[id][prev] = Math.max(0, (lateTotals[id][prev] || 0) - 1);
+  if(turningOn) lateTotals[id][state] = (lateTotals[id][state] || 0) + 1;
   attendance[id] = turningOn ? state : undefined;
   if(attendance[id] === undefined) delete attendance[id];
   renderRoster();
+  renderStudentsGrid();
+  renderStatsTable();
   if(!mysteryState && !mysteryRolling) renderMystery();
   const st = studentsFor(currentClassId).find(s => s.id === id);
   if(!st) return;
@@ -2215,6 +2230,26 @@ document.getElementById("dateInput").addEventListener("change", (e) => {
   selectedDate = e.target.value || todayStr();
   loadAttendanceAndBehaviorForDate();
 });
+
+/* ---------- 跨裝置自動同步累計次數 ----------
+   手機和電腦同時開著時，另一台記的請假/遲到/扣分，每 15 秒或切回這個畫面時自動抓最新的，不用重新整理 */
+async function syncTotalsQuietly(){
+  if(!currentClassId || document.hidden) return;
+  const classId = currentClassId;
+  const [lateRes, behRes] = await Promise.allSettled([
+    apiGet(`/api/attendance/summary?classId=${encodeURIComponent(classId)}`),
+    apiGet(`/api/behavior/summary?classId=${encodeURIComponent(classId)}`)
+  ]);
+  if(classId !== currentClassId) return;
+  if(lateRes.status === "fulfilled") lateTotals = lateRes.value;
+  if(behRes.status === "fulfilled") statsBehaviorTotals = behRes.value;
+  renderStudentsGrid();
+  renderStatsTable();
+  const openModal = document.getElementById("seatScoreModal");
+  if(openModal) updateSeatScoreModal(openModal.dataset.student);
+}
+setInterval(syncTotalsQuietly, 15000);
+document.addEventListener("visibilitychange", () => { if(!document.hidden) syncTotalsQuietly(); });
 
 /* ---------- Students grid (認識學生) ---------- */
 // 照片下方左側的小標籤：累計請假、遲到次數，以及被扣分的次數（扣一次算一次，不管扣幾分）
