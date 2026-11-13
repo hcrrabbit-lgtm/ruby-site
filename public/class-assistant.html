@@ -459,6 +459,9 @@
   .seat-score-badge.pos{background:var(--sage);left:-4px;}
   .seat-score-badge.neg{background:var(--clay);right:-4px;}
   #seatScoreModal .photo-modal-box img{max-height:140px;}
+  #photoModal .photo-modal-box img{max-height:38vh;}
+  .notes-inline{text-align:left;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;}
+  .notes-inline-title{font-size:14px;font-weight:700;color:var(--ink);}
   .seat-score-controls{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0 10px;}
   .seat-score-controls .beh-btn{min-width:96px;height:46px;font-size:16px;}
   .seat-score-controls .beh-undo-btn{width:42px;height:42px;font-size:18px;}
@@ -2303,11 +2306,11 @@ function openStudentPhoto(studentId){
     <div class="photo-modal-box">
       ${photoInner}
       <div class="photo-modal-name">${st.seat} 號・${st.name}</div>
+      <div class="notes-inline" id="photoModalNotes"></div>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="photoModalCloseBtn">關閉</button>
         <button class="photo-modal-retake" id="photoModalRetakeBtn">📷 拍照/選照片</button>
       </div>
-      <button class="photo-modal-notes" id="photoModalNotesBtn">📋 個人紀錄</button>
       <button class="photo-modal-delete" id="photoModalDeleteBtn">🗑 刪除學生(轉學/退選)</button>
     </div>`;
   document.body.appendChild(modal);
@@ -2320,10 +2323,7 @@ function openStudentPhoto(studentId){
     modal.remove();
     openAvatarCamera(studentId);
   });
-  document.getElementById("photoModalNotesBtn").addEventListener("click", () => {
-    modal.remove();
-    openStudentNotes(studentId);
-  });
+  mountNotesSection(document.getElementById("photoModalNotes"), studentId);
   document.getElementById("photoModalDeleteBtn").addEventListener("click", async () => {
     if(!confirm(`確定要刪除「${st.seat}號・${st.name}」嗎?(轉學/退選時使用)\n\n這會一併刪除該生的出席、加扣分、作品評分等所有紀錄,無法復原。`)) return;
     modal.remove();
@@ -2376,14 +2376,7 @@ function openSeatScore(studentId){
         <button class="att-btn late" id="seatScoreLateBtn" data-state="late"><span class="att-label">⏰ 遲到</span><span class="att-total" id="seatScoreLateTotal"></span></button>
         <button class="att-btn absent" id="seatScoreAbsentBtn" data-state="absent"><span class="att-label">🏠 請假</span><span class="att-total" id="seatScoreAbsentTotal"></span></button>
       </div>
-      <button class="photo-modal-notes" id="seatScoreNotesBtn">📋 個人紀錄</button>
-      <div class="seat-score-notes" id="seatScoreNotesSection" hidden>
-        <div class="student-notes-list" id="seatScoreNotesList">載入中...</div>
-        <div class="student-notes-add">
-          <textarea id="seatScoreNoteInput" rows="2" placeholder="輸入這次的觀察/紀錄..."></textarea>
-          <button type="button" id="seatScoreNoteAddBtn">新增紀錄</button>
-        </div>
-      </div>
+      <div class="notes-inline" id="seatScoreNotesSection"></div>
       <div class="photo-modal-actions">
         <button class="photo-modal-close" id="seatScoreCloseBtn">關閉</button>
       </div>
@@ -2391,53 +2384,9 @@ function openSeatScore(studentId){
   document.body.appendChild(modal);
   updateSeatScoreModal(studentId);
 
-  let notesLoaded = false;
-  async function refreshSeatNotes(){
-    const listEl = document.getElementById("seatScoreNotesList");
-    if(!listEl) return;
-    try{
-      const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
-      listEl.innerHTML = renderNotesHtml(notes);
-      wireNoteEdit(listEl, refreshSeatNotes);
-      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
-          try{
-            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
-            await refreshSeatNotes();
-          }catch(e){
-            alert("刪除失敗,請稍後再試。");
-          }
-        });
-      });
-    }catch(e){
-      listEl.textContent = "載入失敗,請稍後再試";
-    }
-  }
-
   modal.addEventListener("click", (e) => { if(e.target === modal) modal.remove(); });
   document.getElementById("seatScoreCloseBtn").addEventListener("click", () => modal.remove());
-  document.getElementById("seatScoreNotesBtn").addEventListener("click", async () => {
-    const section = document.getElementById("seatScoreNotesSection");
-    const willShow = section.hidden;
-    section.hidden = !willShow;
-    if(willShow && !notesLoaded){
-      notesLoaded = true;
-      await refreshSeatNotes();
-    }
-  });
-  document.getElementById("seatScoreNoteAddBtn").addEventListener("click", async () => {
-    const input = document.getElementById("seatScoreNoteInput");
-    const note = input.value.trim();
-    if(!note) return;
-    try{
-      await apiPost("/api/student-notes", { studentId, note });
-      input.value = "";
-      await refreshSeatNotes();
-    }catch(e){
-      alert("新增失敗,請檢查網路連線後再試一次。");
-    }
-  });
+  const seatNotes = mountNotesSection(document.getElementById("seatScoreNotesSection"), studentId);
   // 每次加/扣分記一筆，復原時才知道要不要連同扣分紀錄一起刪
   const scoreActions = [];
   let pendingMinus = null; // 目前原因方塊對應的那次扣分
@@ -2449,7 +2398,7 @@ function openSeatScore(studentId){
     pendingMinus = null;
   }
   async function refreshNotesIfOpen(){
-    if(notesLoaded) await refreshSeatNotes();
+    await seatNotes.refresh();
   }
   // 原因可複選：每個按鈕可單獨開關，多個原因用「、」串在一起，也保留手打的文字
   const reasonParts = () => reasonInput.value.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
@@ -2624,6 +2573,53 @@ function wireNoteEdit(listEl, reload){
       });
     });
   });
+}
+
+// 個人紀錄直接展開在學生視窗裡（不用再按按鈕），可新增、修改、刪除
+function mountNotesSection(container, studentId){
+  container.innerHTML = `
+    <div class="notes-inline-title">📋 個人紀錄</div>
+    <div class="student-notes-list">載入中...</div>
+    <div class="student-notes-add">
+      <textarea rows="2" placeholder="輸入這次的觀察/紀錄..."></textarea>
+      <button type="button">新增紀錄</button>
+    </div>`;
+  const listEl = container.querySelector(".student-notes-list");
+  const input = container.querySelector("textarea");
+  async function refresh(){
+    if(!container.isConnected) return;
+    try{
+      const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
+      listEl.innerHTML = renderNotesHtml(notes);
+      wireNoteEdit(listEl, refresh);
+      listEl.querySelectorAll(".student-note-remove").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if(!confirm("確定要刪除這筆紀錄嗎?")) return;
+          try{
+            await apiDelete("/api/student-notes", { id: parseInt(btn.dataset.id, 10) });
+            await refresh();
+          }catch(e){
+            alert("刪除失敗,請稍後再試。");
+          }
+        });
+      });
+    }catch(e){
+      listEl.textContent = "載入失敗,請稍後再試";
+    }
+  }
+  container.querySelector(".student-notes-add button").addEventListener("click", async () => {
+    const note = input.value.trim();
+    if(!note) return;
+    try{
+      await apiPost("/api/student-notes", { studentId, note });
+      input.value = "";
+      await refresh();
+    }catch(e){
+      alert("新增失敗,請檢查網路連線後再試一次。");
+    }
+  });
+  refresh();
+  return { refresh };
 }
 
 async function openStudentNotes(studentId){
