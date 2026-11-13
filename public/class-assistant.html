@@ -639,6 +639,12 @@
   .student-note-date{font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
   .student-note-text{white-space:pre-wrap;word-break:break-word;}
   .student-note-remove{background:none;border:none;color:var(--clay);font-size:14px;cursor:pointer;padding:2px;flex-shrink:0;}
+  .student-note-edit{background:none;border:none;font-size:13px;cursor:pointer;padding:2px;flex-shrink:0;}
+  .student-note-editbox textarea{width:100%;box-sizing:border-box;font-size:14px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;resize:vertical;}
+  .student-note-editbtns{display:flex;gap:6px;margin-top:6px;}
+  .student-note-editbtns button{flex:1;padding:7px;border-radius:8px;font-size:13px;cursor:pointer;}
+  .student-note-save{background:var(--sage);border:none;color:#fff;font-weight:700;}
+  .student-note-cancel{background:#fff;border:1px solid var(--line);color:inherit;}
   .student-notes-empty{padding:10px 2px;font-size:13px;color:var(--ink-soft);text-align:center;}
   .student-notes-add{width:100%;margin-top:12px;}
   .student-notes-add textarea{
@@ -2339,9 +2345,11 @@ function openSeatScore(studentId){
                 <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
                 <div class="student-note-text">${escapeHtml(n.note)}</div>
               </div>
+              <button class="student-note-edit" data-id="${n.id}" title="修改">✏️</button>
               <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
             </div>`).join("")
         : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      wireNoteEdit(listEl, refreshSeatNotes);
       listEl.querySelectorAll(".student-note-remove").forEach(btn => {
         btn.addEventListener("click", async () => {
           if(!confirm("確定要刪除這筆紀錄嗎?")) return;
@@ -2498,6 +2506,41 @@ function formatNoteDate(iso){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// 個人紀錄：按 ✏️ 就在原地改成可編輯的文字框，儲存後重新載入清單
+function wireNoteEdit(listEl, reload){
+  listEl.querySelectorAll(".student-note-edit").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const item = btn.closest(".student-note-item");
+      const textEl = item.querySelector(".student-note-text");
+      if(!textEl) return; // 已經在編輯中
+      const original = textEl.textContent;
+      const box = document.createElement("div");
+      box.className = "student-note-editbox";
+      box.innerHTML = `<textarea rows="2"></textarea>
+        <div class="student-note-editbtns">
+          <button type="button" class="student-note-cancel">取消</button>
+          <button type="button" class="student-note-save">儲存</button>
+        </div>`;
+      const ta = box.querySelector("textarea");
+      ta.value = original;
+      textEl.replaceWith(box);
+      item.querySelectorAll(".student-note-edit, .student-note-remove").forEach(b => b.hidden = true);
+      ta.focus();
+      box.querySelector(".student-note-cancel").addEventListener("click", () => reload());
+      box.querySelector(".student-note-save").addEventListener("click", async () => {
+        const note = ta.value.trim();
+        if(!note){ alert("內容不能空白；如果不要這筆，請按 ✕ 刪除。"); return; }
+        try{
+          await apiPost("/api/student-notes/update", { id: parseInt(btn.dataset.id, 10), note });
+          await reload();
+        }catch(e){
+          alert("儲存失敗,請稍後再試。");
+        }
+      });
+    });
+  });
+}
+
 async function openStudentNotes(studentId){
   const st = rosterCache.find(s => s.id === studentId);
   if(!st) return;
@@ -2536,9 +2579,11 @@ async function openStudentNotes(studentId){
                 <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
                 <div class="student-note-text">${escapeHtml(n.note)}</div>
               </div>
+              <button class="student-note-edit" data-id="${n.id}" title="修改">✏️</button>
               <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
             </div>`).join("")
         : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      wireNoteEdit(listEl, refresh);
       listEl.querySelectorAll(".student-note-remove").forEach(btn => {
         btn.addEventListener("click", async () => {
           if(!confirm("確定要刪除這筆紀錄嗎?")) return;
