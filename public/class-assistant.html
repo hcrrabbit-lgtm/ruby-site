@@ -2297,7 +2297,7 @@ function openSeatScore(studentId){
       </div>
       <div class="seat-score-tally" id="seatScoreTally"></div>
       <div class="minus-reason" id="minusReasonBox" hidden>
-        <div class="minus-reason-title">已扣 1 分，補上原因（可略過）</div>
+        <div class="minus-reason-title">已扣 1 分，補上原因（可複選，可略過）</div>
         <div class="minus-reason-chips">
           ${["上課講話","沒帶用具","離開座位","干擾同學","沒收拾桌面"].map(r => `<button type="button" class="minus-reason-chip">${r}</button>`).join("")}
         </div>
@@ -2394,15 +2394,21 @@ function openSeatScore(studentId){
   async function refreshNotesIfOpen(){
     if(notesLoaded) await refreshSeatNotes();
   }
+  // 原因可複選：每個按鈕可單獨開關，多個原因用「、」串在一起，也保留手打的文字
+  const reasonParts = () => reasonInput.value.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
   reasonBox.querySelectorAll(".minus-reason-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.remove("on"));
-      chip.classList.add("on");
-      reasonInput.value = chip.textContent;
+      const r = chip.textContent;
+      let parts = reasonParts();
+      if(parts.includes(r)) parts = parts.filter(p => p !== r);
+      else parts.push(r);
+      reasonInput.value = parts.join("、");
+      chip.classList.toggle("on", parts.includes(r));
     });
   });
   reasonInput.addEventListener("input", () => {
-    reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.toggle("on", c.textContent === reasonInput.value.trim()));
+    const parts = reasonParts();
+    reasonBox.querySelectorAll(".minus-reason-chip").forEach(c => c.classList.toggle("on", parts.includes(c.textContent)));
   });
 
   document.getElementById("seatScorePlus").addEventListener("click", () => {
