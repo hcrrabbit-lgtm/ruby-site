@@ -639,6 +639,10 @@
   .student-note-date{font-size:11px;color:var(--ink-soft);margin-bottom:2px;}
   .student-note-text{white-space:pre-wrap;word-break:break-word;}
   .student-note-remove{background:none;border:none;color:var(--clay);font-size:14px;cursor:pointer;padding:2px;flex-shrink:0;}
+  .student-note-entry{display:flex;gap:6px;align-items:flex-start;padding:3px 0;}
+  .student-note-entry + .student-note-entry{border-top:1px dashed var(--line);}
+  .student-note-entry .student-note-text,.student-note-entry .student-note-editbox{flex:1;min-width:0;}
+  .student-note-time{font-size:11px;color:var(--ink-soft);flex-shrink:0;padding-top:2px;}
   .student-note-edit{background:none;border:none;font-size:13px;cursor:pointer;padding:2px;flex-shrink:0;}
   .student-note-editbox textarea{width:100%;box-sizing:border-box;font-size:14px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);font-family:inherit;resize:vertical;}
   .student-note-editbtns{display:flex;gap:6px;margin-top:6px;}
@@ -2338,17 +2342,7 @@ function openSeatScore(studentId){
     if(!listEl) return;
     try{
       const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
-      listEl.innerHTML = notes.length
-        ? notes.map(n => `
-            <div class="student-note-item">
-              <div class="student-note-body">
-                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
-                <div class="student-note-text">${escapeHtml(n.note)}</div>
-              </div>
-              <button class="student-note-edit" data-id="${n.id}" title="修改">✏️</button>
-              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
-            </div>`).join("")
-        : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      listEl.innerHTML = renderNotesHtml(notes);
       wireNoteEdit(listEl, refreshSeatNotes);
       listEl.querySelectorAll(".student-note-remove").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -2506,11 +2500,47 @@ function formatNoteDate(iso){
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// 個人紀錄：同一天的紀錄放在同一格，格子上方顯示日期，每筆前面顯示時間
+function noteDayKey(iso){
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+}
+function noteTime(iso){
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function groupNotesByDay(notes){
+  const groups = [];
+  notes.forEach(n => {
+    const key = noteDayKey(n.createdAt);
+    const last = groups[groups.length - 1];
+    if(last && last.day === key) last.notes.push(n);
+    else groups.push({ day: key, notes: [n] });
+  });
+  return groups;
+}
+function renderNotesHtml(notes){
+  if(!notes.length) return `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+  return groupNotesByDay(notes).map(g => `
+    <div class="student-note-item">
+      <div class="student-note-body">
+        <div class="student-note-date">${g.day}${g.notes.length > 1 ? `（${g.notes.length} 筆）` : ""}</div>
+        ${g.notes.map(n => `
+          <div class="student-note-entry">
+            <span class="student-note-time">${noteTime(n.createdAt)}</span>
+            <div class="student-note-text">${escapeHtml(n.note)}</div>
+            <button class="student-note-edit" data-id="${n.id}" title="修改">✏️</button>
+            <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
+          </div>`).join("")}
+      </div>
+    </div>`).join("");
+}
+
 // 個人紀錄：按 ✏️ 就在原地改成可編輯的文字框，儲存後重新載入清單
 function wireNoteEdit(listEl, reload){
   listEl.querySelectorAll(".student-note-edit").forEach(btn => {
     btn.addEventListener("click", () => {
-      const item = btn.closest(".student-note-item");
+      const item = btn.closest(".student-note-entry");
       const textEl = item.querySelector(".student-note-text");
       if(!textEl) return; // 已經在編輯中
       const original = textEl.textContent;
@@ -2572,17 +2602,7 @@ async function openStudentNotes(studentId){
     if(!listEl) return;
     try{
       const notes = await apiGet(`/api/student-notes?studentId=${encodeURIComponent(studentId)}`);
-      listEl.innerHTML = notes.length
-        ? notes.map(n => `
-            <div class="student-note-item">
-              <div class="student-note-body">
-                <div class="student-note-date">${formatNoteDate(n.createdAt)}</div>
-                <div class="student-note-text">${escapeHtml(n.note)}</div>
-              </div>
-              <button class="student-note-edit" data-id="${n.id}" title="修改">✏️</button>
-              <button class="student-note-remove" data-id="${n.id}" title="刪除">✕</button>
-            </div>`).join("")
-        : `<div class="student-notes-empty">目前還沒有紀錄</div>`;
+      listEl.innerHTML = renderNotesHtml(notes);
       wireNoteEdit(listEl, refresh);
       listEl.querySelectorAll(".student-note-remove").forEach(btn => {
         btn.addEventListener("click", async () => {
@@ -3240,9 +3260,9 @@ async function downloadStudentNotesText(){
       lines.push(`${st.seat}號・${st.name}`);
       const notes = byStudent[st.id];
       if(notes && notes.length){
-        notes.forEach(n => {
-          lines.push(`  ${formatNoteDate(n.createdAt)}`);
-          lines.push(`  ${n.note}`);
+        groupNotesByDay(notes).forEach(g => {
+          lines.push(`  ${g.day}`);
+          g.notes.forEach(n => lines.push(`  ${noteTime(n.createdAt)} ${n.note}`));
           lines.push("");
         });
       }else{
