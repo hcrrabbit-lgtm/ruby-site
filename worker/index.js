@@ -501,13 +501,14 @@ async function handleBehaviorSummary(env, url) {
   const res = await env.DB.prepare(
     `SELECT b.student_id as studentId,
             SUM(CASE WHEN b.delta > 0 THEN b.delta ELSE 0 END) as plusTotal,
-            SUM(CASE WHEN b.delta < 0 THEN -b.delta ELSE 0 END) as minusTotal
+            SUM(CASE WHEN b.delta < 0 THEN -b.delta ELSE 0 END) as minusTotal,
+            SUM(CASE WHEN b.delta < 0 THEN 1 ELSE 0 END) as minusCount
      FROM behavior_events b JOIN students s ON s.id = b.student_id
      WHERE s.class_id = ?
      GROUP BY b.student_id`
   ).bind(classId).all();
   const map = {};
-  res.results.forEach(r => { map[r.studentId] = { plus: r.plusTotal || 0, minus: r.minusTotal || 0 }; });
+  res.results.forEach(r => { map[r.studentId] = { plus: r.plusTotal || 0, minus: r.minusTotal || 0, minusCount: r.minusCount || 0 }; });
   return json(map);
 }
 
