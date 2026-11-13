@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拆字實驗室 · 家長看板</title>
+<style>
+:root{--paper:#f8f3ea;--ink:#3d3a35;--muted:#857c70;--card:#fffdf8;--coral:#c27a5c;--mint:#8fa37f;--line:#e6dccb;--ok:#6f8f5f;--bad:#c0665a;--warn:#d8a700;--shadow:#e3d7c3}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:23px;margin:4px 0}
+h2{font-size:18px;margin:0 0 10px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px;line-height:1.5}
+.card{background:var(--card);border:1.5px solid var(--ink);border-radius:16px;padding:16px;box-shadow:4px 4px 0 var(--shadow);margin-bottom:16px}
+.big{font-size:22px;font-weight:700}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{border:1.5px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+.stat small{display:block;color:var(--muted);font-size:13px}
+.step{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line);font-size:15px}
+.step:last-child{border-bottom:none}
+.dot{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;font-size:13px;flex:none;background:#fff}
+.done .dot{background:var(--mint);color:#fff}
+.step small{color:var(--muted);margin-left:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{color:var(--muted);font-weight:500;text-align:left;padding:6px 4px;border-bottom:1.5px solid var(--line)}
+td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+.tag{font-size:12px;border-radius:999px;padding:1px 8px;border:1px solid;white-space:nowrap}
+.match{color:var(--ok)}.other{color:#6a8aa0}.trap{color:var(--bad)}.pending{color:#a07b00}
+.item{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#fff}
+textarea{width:100%;font-family:inherit;font-size:15px;padding:8px;border:1.5px solid var(--ink);border-radius:10px;min-height:60px;margin-top:6px}
+button{font-family:inherit;cursor:pointer;background:var(--coral);color:#fff;border:1.5px solid var(--ink);border-radius:10px;padding:7px 14px;font-size:14px;margin-top:6px}
+.note{color:var(--muted);font-size:13px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select{font-family:inherit;font-size:15px;padding:5px 8px;border-radius:8px;border:1.5px solid var(--ink)}
+a{color:var(--coral)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row" style="justify-content:space-between">
+    <h1>拆字實驗室 · 家長看板</h1>
+    <select id="who"><option>Cathy</option><option>Rina</option><option>Lilian</option></select>
+  </div>
+  <p class="sub">第一週試用：port 家族。孩子的頁面：<a id="kidlink" href="open/morphology.html?who=Cathy" target="_blank">open/morphology.html</a></p>
+  <div id="view"><p class="note">載入中…</p></div>
+</div>
+<script>
+const UNIT='port';
+const LESSON_IDS=['L1','L2','L3','L4','L5'];
+const FAM_ITEMS=['reporter','supporter','supportive','transportation','exporter','importance','importantly','portable','rw1','rw2','rw3'];
+const VT={match:'拆對了',other:'拆法不同',trap:'陷阱字',pending:'待確認'};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let WHO=new URLSearchParams(location.search).get('who')||'Cathy';
+document.getElementById('who').value=WHO;
+document.getElementById('who').onchange=e=>{WHO=e.target.value; load();};
+
+async function load(){
+  document.getElementById('kidlink').href='open/morphology.html?who='+WHO;
+  const r=await fetch(`/api/admin/morph?child=${WHO}&unit=${UNIT}`);
+  if(!r.ok){document.getElementById('view').innerHTML='<p class="note">讀取失敗，請重新整理（可能需要重新登入）。</p>';return;}
+  render(await r.json());
+}
+function render(S){
+  const ev=S.events;
+  const passed=(k,i)=>ev.some(e=>e.kind===k&&e.item===i&&e.correct);
+  const lessonDone=LESSON_IDS.filter(i=>passed('check',i)).length;
+  const famDone=FAM_ITEMS.filter(i=>passed('family',i)).length;
+  const rounds=ev.filter(e=>e.kind==='review'&&e.item==='__round').length;
+  const rv=ev.filter(e=>e.kind==='review'&&e.item!=='__round');
+  const acc=rv.length?Math.round(rv.filter(e=>e.correct).length/rv.length*100):null;
+  const miss={}; rv.filter(e=>!e.correct).forEach(e=>miss[e.item]=(miss[e.item]||0)+1);
+  const missList=Object.entries(miss).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const times=[...ev.map(e=>e.createdAt),...S.words.map(w=>w.createdAt),...S.questions.map(q=>q.createdAt)].filter(Boolean).sort();
+  const last=times.length?times[times.length-1]:null;
+  const days=new Set(times.map(t=>t.slice(0,10)));
+  const checked=S.words.filter(w=>w.split).length;
+  const steps=[
+    ['看講解、聽語音',`${lessonDone}/5 段`,lessonDone>=5],
+    ['在自己的書裡找字',`${S.words.length}/5 個`,S.words.length>=5],
+    ['拆開、送出、再確認',`已拆 ${checked} 個`,S.words.length>=5&&checked>=S.words.length],
+    ['詞性轉換',`${famDone}/${FAM_ITEMS.length} 格`,famDone>=FAM_ITEMS.length],
+    ['拆拆看複習',`${rounds} 輪`,rounds>=1],
+    ['提問',`${S.questions.length} 題`,S.questions.length>=1]
+  ];
+  const nDone=steps.filter(s=>s[2]).length;
+  const unanswered=S.questions.filter(q=>!q.answer).length;
+  document.getElementById('view').innerHTML=`
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><small>六件事完成</small><span class="big">${nDone} / 6</span></div>
+      <div class="stat"><small>最後一次使用</small><span class="big" style="font-size:16px">${last||'還沒開始'}</span></div>
+      <div class="stat"><small>有使用的天數</small><span class="big">${days.size} 天</span></div>
+      <div class="stat"><small>複習正確率</small><span class="big">${acc==null?'—':acc+'%'}</span></div>
+      <div class="stat"><small>待回答提問</small><span class="big" style="color:${unanswered?'var(--bad)':'inherit'}">${unanswered}</span></div>
+    </div>
+  </div>
+  <div class="card"><h2>本週進度</h2>
+    ${steps.map((s,i)=>`<div class="step ${s[2]?'done':''}"><span class="dot">${s[2]?'✓':i+1}</span>${s[0]}<small>${s[1]}</small></div>`).join('')}
+  </div>
+  <div class="card"><h2>提問（${S.questions.length}）</h2>
+    <p class="note">寫下回答後按「送出回答」，孩子在「提問」頁就看得到。拿不準的，可以直接貼給 Claude 幫你回答。</p>
+    ${S.questions.map(q=>`<div class="item"><div class="row" style="justify-content:space-between"><b>${esc(q.word||'問題')}</b><span class="note">${esc(q.createdAt)}</span></div>
+      <div style="margin-top:4px;line-height:1.6">${esc(q.question)}</div>
+      <textarea data-q="${q.id}" placeholder="寫下回答">${esc(q.answer)}</textarea>
+      <div class="row"><button data-save="${q.id}">${q.answer?'更新回答':'送出回答'}</button><span class="note" id="s${q.id}">${q.answeredAt?'已回答 '+esc(q.answeredAt):''}</span></div></div>`).join('')||'<p class="note">還沒有提問。</p>'}
+  </div>
+  <div class="card"><h2>收集的字（${S.words.length}）</h2>
+    ${S.words.length?`<table><tr><th>單字</th><th>她的拆法／猜測</th><th>原句</th><th>結果</th></tr>
+    ${S.words.map(w=>`<tr><td><b>${esc(w.word)}</b><div class="note">${esc(w.createdAt)}</div></td><td>${esc(w.split)}<div class="note">${esc(w.guess)}</div></td><td>${esc(w.sentence)}${w.source?`<div class="note">${esc(w.source)}</div>`:''}</td><td><span class="tag ${w.verdict}">${VT[w.verdict]||''}</span></td></tr>`).join('')}</table>
+    <p class="note" style="margin-top:8px">「待確認」是不在本週詞表裡的字，可以看看她的拆法有沒有道理。</p>`:'<p class="note">還沒有收集任何字。</p>'}
+  </div>
+  <div class="card"><h2>複習常錯的字</h2>
+    ${missList.length?missList.map(([w,n])=>`<span class="tag trap" style="margin:3px;display:inline-block">${esc(w)} ×${n}</span>`).join(''):'<p class="note">還沒有答錯紀錄。</p>'}
+  </div>`;
+  document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.save; const answer=document.querySelector(`[data-q="${id}"]`).value.trim();
+    b.disabled=true;
+    const r=await fetch('/api/admin/morph/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:+id,answer})});
+    b.disabled=false;
+    document.getElementById('s'+id).textContent=r.ok?'已儲存':'儲存失敗，請再試一次';
+  });
+}
+load();
+</script>
+</body>
+</html>

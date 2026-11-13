@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>拆字實驗室 · port</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f8f3ea; --ink:#3d3a35; --muted:#857c70; --card:#fffdf8;
+  --coral:#c27a5c; --sun:#e8cf8f; --mint:#8fa37f; --sky:#8aa5b8;
+  --line:#e6dccb; --ok:#6f8f5f; --bad:#c0665a; --shadow:#e3d7c3; --warn:#d8a700;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Fredoka","PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;}
+body{background-image:radial-gradient(#ece3d3 1px,transparent 1px);background-size:18px 18px;min-height:100vh}
+.wrap{max-width:600px;margin:0 auto;padding:18px 16px 80px}
+h1{font-size:25px;margin:6px 0 2px;font-family:"Noto Serif TC",serif;font-weight:700}
+h2{font-size:20px;margin:0 0 10px;font-family:"Noto Serif TC",serif;font-weight:700}
+h3{font-size:17px;margin:14px 0 8px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px;line-height:1.5}
+button{font-family:inherit;cursor:pointer;border:none;color:var(--ink)}
+.card{background:var(--card);border:1.5px solid var(--ink);border-radius:18px;padding:16px;box-shadow:4px 4px 0 var(--shadow);margin-bottom:16px}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
+.tabs button{flex:none;background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:7px 13px;font-size:15px;box-shadow:2px 2px 0 var(--shadow)}
+.tabs button.on{background:var(--coral);color:#fff}
+.primary{background:var(--coral);color:#fff;border:1.5px solid var(--ink);border-radius:14px;padding:11px 18px;font-size:16px;font-weight:600;box-shadow:3px 3px 0 var(--shadow)}
+.primary:active,.ghost:active{transform:translate(2px,2px);box-shadow:none}
+.primary:disabled{opacity:.45}
+.ghost{background:#fff;border:1.5px solid var(--ink);border-radius:14px;padding:8px 13px;font-size:15px;box-shadow:2px 2px 0 var(--shadow)}
+.speak{background:var(--sky);color:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:4px 12px;font-size:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.prog{height:14px;border:1.5px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden;margin:8px 0}
+.prog i{display:block;height:100%;background:var(--mint);transition:width .3s}
+.step{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+.step:last-child{border-bottom:none}
+.step .dot{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;flex:none;background:#fff;font-size:15px}
+.step.done .dot{background:var(--mint);color:#fff}
+.step small{display:block;color:var(--muted);font-size:13px}
+.step .go{margin-left:auto;color:var(--muted)}
+.parts{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.part{border:1.5px solid var(--ink);border-radius:10px;padding:4px 10px;text-align:center;background:#fff;line-height:1.2}
+.part b{display:block;font-size:18px}
+.part small{font-size:12px;color:var(--muted)}
+.part.root{background:#f3e3b8}
+.plus{color:var(--muted)}
+.w{display:inline-block;background:#eef3f6;border-radius:8px;padding:1px 7px;margin:2px 1px;cursor:pointer}
+.tip{background:#fff6dc;border:1.5px dashed var(--warn);border-radius:12px;padding:10px 12px;font-size:15px;line-height:1.6;margin-top:10px}
+.lesson p{line-height:1.75;font-size:16px;margin:8px 0}
+.q{font-size:17px;margin:12px 0 8px;line-height:1.5}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt{background:#fff;border:1.5px solid var(--ink);border-radius:12px;padding:10px 8px;font-size:15px;box-shadow:2px 2px 0 var(--shadow);min-height:48px}
+.opt.ok{background:#d9f5e6;border-color:var(--ok)}
+.opt.bad{background:#fde1df;border-color:var(--bad)}
+.fb{margin-top:10px;border-radius:12px;padding:10px 12px;font-size:15px;line-height:1.6}
+.fb.ok{background:#d9f5e6;border:1.5px solid var(--ok)}
+.fb.bad{background:#fde1df;border:1.5px solid var(--bad)}
+.fb.mid{background:#fff6dc;border:1.5px solid var(--warn)}
+label{display:block;font-size:14px;color:var(--muted);margin:10px 0 4px}
+input,textarea{width:100%;font-family:inherit;font-size:16px;padding:10px;border:1.5px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+input:focus,textarea:focus{box-shadow:0 0 0 3px var(--sun)}
+textarea{min-height:70px;resize:vertical}
+.item{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.item .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.item .top b{font-size:17px}
+.item .sent{color:var(--muted);font-size:14px;margin-top:4px;line-height:1.5}
+.tag{font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid}
+.tag.match{color:var(--ok);border-color:var(--ok)}
+.tag.other{color:var(--sky);border-color:var(--sky)}
+.tag.trap{color:var(--bad);border-color:var(--bad)}
+.tag.pending{color:#a07b00;border-color:var(--warn)}
+.x{background:none;color:var(--muted);font-size:13px;padding:2px 4px}
+table.fam{width:100%;border-collapse:collapse;font-size:14px}
+table.fam th{font-weight:500;color:var(--muted);font-size:12px;padding:4px 2px}
+table.fam td{border:1px solid var(--line);padding:4px;text-align:center;background:#fff;height:40px}
+table.fam td.given{background:#f6f1e6}
+table.fam td input{padding:6px 4px;font-size:14px;border-radius:8px;text-align:center}
+table.fam td.okc{background:#d9f5e6}
+table.fam td.dash{color:#c9bfae}
+.mapwrap{background:#fff;border:1.5px solid var(--line);border-radius:14px}
+.mapwrap svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.ans{background:#eef6ee;border-left:4px solid var(--ok);padding:8px 10px;border-radius:8px;margin-top:8px;font-size:15px;line-height:1.6}
+.note{font-size:13px;color:var(--muted);line-height:1.5}
+.hide{display:none}
+.center{text-align:center}
+.big{font-size:30px;font-weight:700;text-align:center;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>拆字實驗室</h1>
+  <p class="sub" id="who-line"></p>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+</div>
+
+<script>
+/* ================= 本週內容：port 家族 ================= */
+const UNIT = 'port';
+const P = {  // 零件說明
+  port:'搬運、帶著走', re:'回來、再', sup:'在下面（sub 的變形）', im:'進入', ex:'出去', trans:'跨越',
+  de:'離開', able:'可以…的', er:'…的人', ation:'名詞（…這件事）', ance:'名詞（…的程度）',
+  ant:'…的', ive:'形容詞（有…性質的）', ly:'副詞', folio:'紙張',
+  'port²':'港口、大門', air:'空中', pass:'通過', op:'朝向', unity:'名詞字尾'
+};
+// 課程詞表：拆法、意思。anchor = 本週要收集的錨點詞
+const DICT = {
+  report:{split:'re+port',mean:'報告',why:'把消息「帶回來」',anchor:1},
+  support:{split:'sup+port',mean:'支持',why:'從「下面」撐著、扛著',anchor:1},
+  import:{split:'im+port',mean:'進口',why:'把東西「帶進來」',anchor:1},
+  export:{split:'ex+port',mean:'出口',why:'把東西「帶出去」',anchor:1},
+  transport:{split:'trans+port',mean:'運輸',why:'把東西「跨地」搬過去',anchor:1},
+  important:{split:'im+port+ant',mean:'重要的',why:'原本是「帶進來、有份量的」，後來意思變成「重要」',anchor:1},
+  portable:{split:'port+able',mean:'可攜帶的',why:'「可以」帶著走的',anchor:1},
+  porter:{split:'port+er',mean:'搬運工、行李員',why:'搬東西的「人」'},
+  reporter:{split:'re+port+er',mean:'記者',why:'把消息帶回來的「人」'},
+  supporter:{split:'sup+port+er',mean:'支持者',why:'支持別人的「人」'},
+  supportive:{split:'sup+port+ive',mean:'給予支持的',why:'有「支持」性質的'},
+  exporter:{split:'ex+port+er',mean:'出口商',why:'把東西帶出去賣的「人或公司」'},
+  importer:{split:'im+port+er',mean:'進口商',why:'把東西帶進來賣的「人或公司」'},
+  transportation:{split:'trans+port+ation',mean:'運輸、交通工具',why:'跨地搬運「這件事」'},
+  importance:{split:'im+port+ance',mean:'重要性',why:'important 的名詞'},
+  importantly:{split:'im+port+ant+ly',mean:'重要地',why:'important 的副詞'},
+  deport:{split:'de+port',mean:'驅逐出境',why:'把人「帶離開」這個國家'},
+  portfolio:{split:'port+folio',mean:'作品集、資料夾',why:'可以「帶著走」的一疊「紙」'}
+};
+// 陷阱字：看起來有 port，但不是「搬運」
+const TRAPS = {
+  airport:{split:'air+port²',mean:'機場',why:'這個 port 是「港口」：空中的港口。'},
+  passport:{split:'pass+port²',mean:'護照',why:'這個 port 是「港口、大門」：讓你通過港口的文件。'},
+  opportunity:{split:'op+port²+unity',mean:'機會',why:'這個 port 也是「港口」。據說原意是「風把船吹向港口」的好時機。'},
+  portrait:{split:'（不能用 port 拆）',mean:'肖像',why:'它來自「畫出、描繪」的字，和 port 無關，只是拼字剛好像。'},
+  portion:{split:'（不能用 port 拆）',mean:'一部分',why:'它和 part（部分）是親戚，和「搬運」無關。'}
+};
+
+/* ================= 講解（五段，每段一題小檢核） ================= */
+const LESSON = [
+ {id:'L1',title:'一、字是零件組成的',
+  html:`<p>先看四個你一定認得的字：<span class="w">report</span><span class="w">support</span><span class="w">import</span><span class="w">export</span></p>
+  <p>仔細看，它們都藏著同一個零件 <b>port</b>。英文很多長字，其實是幾個小零件組合起來的。這週我們只認識一個零件：<b>port</b>。</p>`,
+  say:'先看四個你一定認得的字：report、support、import、export。它們都藏著同一個零件 port。英文很多長字，其實是幾個小零件組合起來的。',
+  q:'這四個字共同的零件是哪一個？',opts:['port','re','ex','sup'],a:0,
+  fb:'對！port 就是這週的主角。'},
+ {id:'L2',title:'二、port ＝ 搬運、帶著走',
+  html:`<p><b>port</b> 的意思是「搬運、帶著走」。在前面加上不同的字首，搬的方向就不一樣：</p>
+  <div class="parts"><span class="part">re<small>回來</small></span><span class="plus">+</span><span class="part root">port<small>搬運</small></span><span class="plus">→</span><b>report</b>　把消息帶回來 → 報告</div>
+  <div class="parts"><span class="part">im<small>進入</small></span><span class="plus">+</span><span class="part root">port</span><span class="plus">→</span><b>import</b>　帶進來 → 進口</div>
+  <div class="parts"><span class="part">trans<small>跨越</small></span><span class="plus">+</span><span class="part root">port</span><span class="plus">→</span><b>transport</b>　跨地搬過去 → 運輸</div>
+  <div class="parts"><span class="part">sup<small>在下面</small></span><span class="plus">+</span><span class="part root">port</span><span class="plus">→</span><b>support</b>　從下面扛著 → 支持</div>`,
+  say:'port 的意思是搬運、帶著走。re 是回來，report 就是把消息帶回來，所以是報告。im 是進入，import 是帶進來，進口。trans 是跨越，transport 是跨地搬過去，運輸。sup 是在下面，support 是從下面扛著，支持。',
+  q:'ex 的意思是「出去」，那 export 最可能是什麼意思？',opts:['出口','進口','報告','運輸'],a:0,
+  fb:'對！ex（出去）＋ port（帶）＝ 把東西帶出去 → 出口。'},
+ {id:'L3',title:'三、字尾決定詞性',
+  html:`<p>字尾通常不改變「搬運」這個核心意思，而是決定這個字是名詞、形容詞還是「人」：</p>
+  <div class="parts"><span class="part root">port</span><span class="plus">+</span><span class="part">able<small>可以…的</small></span><span class="plus">→</span><b>portable</b>　可攜帶的</div>
+  <div class="parts"><span class="part root">port</span><span class="plus">+</span><span class="part">er<small>…的人</small></span><span class="plus">→</span><b>porter</b>　搬運工</div>
+  <div class="parts"><b>transport</b><span class="plus">+</span><span class="part">ation<small>名詞</small></span><span class="plus">→</span><b>transportation</b>　運輸</div>
+  <div class="parts"><b>support</b><span class="plus">+</span><span class="part">ive<small>形容詞</small></span><span class="plus">→</span><b>supportive</b>　給予支持的</div>
+  <p class="note">寫作時很常用到：把動詞換成名詞，句子會更像書面語。</p>`,
+  say:'字尾通常不改變搬運這個核心意思，而是決定詞性。port 加 able，可以帶著走的，可攜帶的。port 加 er，搬東西的人。transport 加 ation，變成名詞運輸。support 加 ive，變成形容詞，給予支持的。',
+  q:'portable 是哪一種字？',opts:['形容詞：可攜帶的','名詞：搬運工','動詞：搬運','名詞：港口'],a:0,
+  fb:'對！-able 表示「可以…的」，是形容詞。'},
+ {id:'L4',title:'四、小心！不是每個 port 都能拆',
+  html:`<p>英文裡還有<b>另一個 port</b>，意思是「港口、大門」：<span class="w">airport</span>（空中的港口）、<span class="w">passport</span>（通過港口的文件）。這兩個 port 雖然是遠親，但意思不一樣。</p>
+  <p>還有些字只是<b>拼字剛好像</b>：<span class="w">portrait</span>（肖像）、<span class="w">portion</span>（一部分），裡面根本沒有「搬運」。</p>
+  <div class="tip">所以拆字只是「猜」。猜完一定要回到句子裡，看看意思通不通。</div>`,
+  say:'英文裡還有另一個 port，意思是港口、大門，例如 airport 和 passport。還有些字只是拼字剛好像，像 portrait 肖像和 portion 一部分，裡面根本沒有搬運的意思。所以拆字只是猜，猜完一定要回到句子裡驗證。',
+  q:'下面哪一個字裡的 port「不是」搬運的意思？',opts:['airport','export','portable','support'],a:0,
+  fb:'對！airport 的 port 是「港口」。'},
+ {id:'L5',title:'五、拆 → 猜 → 驗證',
+  html:`<p>以後遇到不認識的長字，試試三步驟：</p>
+  <p>① <b>拆</b>：找出認識的零件。② <b>猜</b>：把零件的意思組起來。③ <b>驗證</b>：放回句子，看意思通不通。</p>
+  <div class="tip">The new bridge will make <b>transportation</b> between the two towns much easier.</div>`,
+  say:'以後遇到不認識的長字，試試三步驟：拆、猜、驗證。找出認識的零件，把意思組起來，再放回句子看通不通。',
+  q:'用三步驟想一想，句子裡的 transportation 是什麼意思？',opts:['交通往來','重要性','報告','出口商'],a:0,
+  fb:'對！trans（跨越）＋ port（搬運）＋ ation（名詞）→ 兩個城鎮之間的交通往來。'}
+];
+
+/* ================= 詞性表 ================= */
+const FAM_COLS = ['動詞','名詞（事）','名詞（人）','形容詞','副詞'];
+// 小寫字串＝已給；'?xxx'＝要填；'-'＝沒有常用字
+const FAM = [
+  ['report','report','?reporter','-','-'],
+  ['support','support','?supporter','?supportive','-'],
+  ['transport','?transportation','-','-','-'],
+  ['export','export','?exporter','-','-'],
+  ['-','?importance','-','important','?importantly'],
+  ['-','-','porter','?portable','-']
+];
+const REWRITE = [
+  {id:'rw1',from:'Trains transport goods across the country.',to:'The ___ of goods across the country depends on trains.',a:'transportation'},
+  {id:'rw2',from:'My parents support me a lot.',to:'I am thankful for my parents\' ___.',a:'support'},
+  {id:'rw3',from:'Reading every day is important.',to:'We all know the ___ of reading every day.',a:'importance'}
+];
+
+/* ================= 狀態 ================= */
+const qs = new URLSearchParams(location.search);
+const WHO = ['Cathy','Rina','Lilian'].includes(qs.get('who')) ? qs.get('who') : 'Cathy';
+let S = {words:[],questions:[],events:[]};
+let tab = 'home';
+let lessonIdx = 0;
+let pendingWord = null;   // 找字流程中的暫存
+let review = null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path, method='GET', body){
+  const opt = {method, headers:{'Content-Type':'application/json'}};
+  if (body) opt.body = JSON.stringify(Object.assign({child:WHO, unit:UNIT}, body));
+  const r = await fetch(path, opt);
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok) throw new Error(d.error || '存檔失敗，請再試一次');
+  return d;
+}
+async function load(){
+  try { S = await api(`/api/open/morph?child=${WHO}&unit=${UNIT}`); }
+  catch(e){ console.log(e); }
+  render();
+}
+function logEvent(kind,item,correct){
+  S.events.unshift({kind,item,correct:correct?1:0});
+  api('/api/open/morph/event','POST',{kind,item,correct}).catch(()=>{});
+}
+const passed = (kind,item) => S.events.some(e=>e.kind===kind && e.item===item && e.correct);
+
+/* ================= 語音 ================= */
+function say(text, lang){
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang || (/^[\x00-\x7f]+$/.test(text) ? 'en-US' : 'zh-TW');
+  u.rate = u.lang==='en-US' ? 0.85 : 1;
+  speechSynthesis.speak(u);
+}
+document.addEventListener('click', e=>{
+  const w = e.target.closest('.w'); if (w) say(w.textContent.trim(),'en-US');
+});
+
+/* ================= 進度 ================= */
+function steps(){
+  const lessonDone = LESSON.filter(l=>passed('check',l.id)).length;
+  const words = S.words.length;
+  const checked = S.words.filter(w=>w.split).length;
+  const famItems = FAM.flat().filter(c=>c.startsWith('?')).length + REWRITE.length;
+  const famDone = FAM.flat().filter(c=>c.startsWith('?')&&passed('family',c.slice(1))).length + REWRITE.filter(r=>passed('family',r.id)).length;
+  const rounds = S.events.filter(e=>e.kind==='review' && e.item==='__round').length;
+  const qn = S.questions.length;
+  return [
+    {t:'看講解、聽語音',s:`${lessonDone} / ${LESSON.length} 段小檢核`,done:lessonDone>=LESSON.length,go:'lesson'},
+    {t:'在自己的書裡找字',s:`已收集 ${words} 個（目標 5 個）`,done:words>=5,go:'collect'},
+    {t:'拆開、送出、再確認',s:`已拆 ${checked} 個`,done:words>=5 && checked>=words,go:'collect'},
+    {t:'詞性轉換',s:`${famDone} / ${famItems} 格`,done:famDone>=famItems,go:'family'},
+    {t:'拆拆看複習',s:`完成 ${rounds} 輪`,done:rounds>=1,go:'review'},
+    {t:'提問',s:`已問 ${qn} 題`,done:qn>=1,go:'ask'}
+  ];
+}
+
+/* ================= 版面 ================= */
+const TABS = [['home','本週'],['lesson','講解'],['collect','找字'],['map','地圖'],['family','詞性表'],['review','複習'],['ask','提問']];
+function render(){
+  $('#who-line').innerHTML = `${esc(WHO)} 的第一週：<b>port 家族</b>。<br>媽媽看得到你收集的字、複習結果和提問。`;
+  $('#tabs').innerHTML = TABS.map(([k,v])=>`<button class="${k===tab?'on':''}" data-tab="${k}">${v}</button>`).join('');
+  $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.tab; review=null; render(); scrollTo(0,0);});
+  ({home:viewHome,lesson:viewLesson,collect:viewCollect,map:viewMap,family:viewFamily,review:viewReview,ask:viewAsk})[tab]();
+}
+
+function viewHome(){
+  const st = steps(); const n = st.filter(x=>x.done).length;
+  $('#view').innerHTML = `
+  <div class="card">
+    <h2>這週的六件事</h2>
+    <div class="prog"><i style="width:${n/st.length*100}%"></i></div>
+    <p class="note">完成 ${n} / ${st.length}</p>
+    ${st.map((x,i)=>`<div class="step ${x.done?'done':''}" data-go="${x.go}">
+      <span class="dot">${x.done?'✓':i+1}</span><div>${x.t}<small>${x.s}</small></div><span class="go">›</span></div>`).join('')}
+  </div>
+  <div class="card">
+    <h2>port 是什麼？</h2>
+    <div class="parts"><span class="part">trans<small>跨越</small></span><span class="plus">+</span><span class="part root">port<small>搬運</small></span><span class="plus">+</span><span class="part">ation<small>名詞</small></span><span class="plus">→</span><b>transportation</b></div>
+    <p class="note">從「講解」開始，大約 30 分鐘。之後回到你正在讀的英文書，找出含有 port 的字。</p>
+  </div>`;
+  document.querySelectorAll('.step').forEach(el=>el.onclick=()=>{tab=el.dataset.go; render(); scrollTo(0,0);});
+}
+
+function viewLesson(){
+  const L = LESSON[lessonIdx];
+  const done = passed('check',L.id);
+  $('#view').innerHTML = `
+  <div class="card lesson">
+    <div class="row" style="justify-content:space-between"><span class="note">第 ${lessonIdx+1} / ${LESSON.length} 段</span><button class="speak" id="sayL">🔊 聽講解</button></div>
+    <h2 style="margin-top:8px">${L.title}</h2>
+    ${L.html}
+    <div class="q">✏️ ${L.q}</div>
+    <div class="opts">${L.opts.map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}</div>
+    <div id="lfb"></div>
+  </div>
+  <div class="row" style="justify-content:space-between">
+    <button class="ghost" id="prev" ${lessonIdx===0?'disabled':''}>‹ 上一段</button>
+    <button class="primary" id="next">${lessonIdx===LESSON.length-1?'完成，去找字 ›':'下一段 ›'}</button>
+  </div>
+  <p class="note" style="margin-top:10px">${done?'這段的小檢核已經答對過了。':'答對小檢核就算完成這一段。'}</p>`;
+  $('#sayL').onclick=()=>say(L.say,'zh-TW');
+  document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const ok = +b.dataset.i===L.a;
+    b.classList.add(ok?'ok':'bad');
+    if (ok) document.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+    $('#lfb').innerHTML = `<div class="fb ${ok?'ok':'bad'}">${ok?L.fb:'再想想看，回去看一下上面的講解。'}</div>`;
+    logEvent('check',L.id,ok);
+  });
+  $('#prev').onclick=()=>{lessonIdx--; render(); scrollTo(0,0);};
+  $('#next').onclick=()=>{ if(lessonIdx<LESSON.length-1){lessonIdx++;} else {tab='collect';} render(); scrollTo(0,0); };
+}
+
+/* ---------- 找字 ---------- */
+function norm(s){ return String(s).toLowerCase().replace(/\s/g,'').replace(/²/g,''); }
+function judge(word, split){
+  if (TRAPS[word]) return {verdict:'trap', ...TRAPS[word]};
+  const d = DICT[word];
+  if (!d) return {verdict:'pending'};
+  return {verdict: norm(split)===norm(d.split) ? 'match':'other', ...d};
+}
+function partsHtml(split){
+  return '<div class="parts">'+split.split('+').map(p=>{
+    const k=p.trim(); const root = k==='port';
+    return `<span class="part ${root||k==='port²'?'root':''}"><b>${esc(k.replace('²',''))}</b><small>${esc(P[k]||'')}</small></span>`;
+  }).join('<span class="plus">+</span>')+'</div>';
+}
+const VERDICT_TXT = {match:'拆對了',other:'看參考拆法',trap:'陷阱字',pending:'待確認'};
+
+function viewCollect(){
+  const list = S.words.map(w=>`<div class="item">
+      <div class="top"><b><span class="w">${esc(w.word)}</span></b><span><span class="tag ${w.verdict}">${VERDICT_TXT[w.verdict]||''}</span> <button class="x" data-del="${w.id}">刪除</button></span></div>
+      ${w.split?`<div class="note">我的拆法：${esc(w.split)}　我猜：${esc(w.guess)}</div>`:''}
+      ${w.sentence?`<div class="sent">「${esc(w.sentence)}」${w.source?`<br>— ${esc(w.source)}`:''}</div>`:''}
+    </div>`).join('');
+  $('#view').innerHTML = `
+  <div class="card">
+    <h2>① 在自己的書裡找字</h2>
+    <p class="sub">打開你正在讀的英文書，找出含有 port 的字，把原句抄下來。先別急著查字典。</p>
+    <label>單字</label><input id="fw" placeholder="例如 transportation" autocomplete="off" autocapitalize="off">
+    <label>原句</label><textarea id="fs" placeholder="把書裡的那一句抄下來"></textarea>
+    <label>書名（可不填）</label><input id="fsrc" placeholder="例如 Magic Tree House #5">
+    <div class="row" style="margin-top:12px"><button class="primary" id="fnext">下一步：拆開它 ›</button></div>
+    <div id="fstep2"></div>
+  </div>
+  <div class="card"><h2>我收集的字（${S.words.length}）</h2>${list||'<p class="note">還沒有。找到第一個吧！</p>'}</div>`;
+  $('#fnext').onclick=()=>{
+    const word = $('#fw').value.trim().toLowerCase();
+    if(!/^[a-z][a-z'-]*$/.test(word)){ alertBox('#fstep2','請輸入一個英文單字'); return; }
+    pendingWord = {word, sentence:$('#fs').value.trim(), source:$('#fsrc').value.trim()};
+    const hint = word.includes('port') ? '' : '<div class="fb mid">這個字裡好像沒有 port，確定是這個字嗎？</div>';
+    $('#fstep2').innerHTML = `${hint}
+      <h3>② 自己先拆拆看</h3>
+      <p class="note">用 + 隔開零件，例如 trans+port+ation。不能拆就寫「不能拆」。</p>
+      <label>我的拆法</label><input id="fsp" autocomplete="off" autocapitalize="off">
+      <label>我猜它的意思</label><input id="fg" placeholder="把零件的意思組起來猜猜看">
+      <div class="row" style="margin-top:12px"><button class="primary" id="fsend">送出，看確認結果</button></div>
+      <div id="fres"></div>`;
+    $('#fsp').focus();
+    $('#fsend').onclick=submitWord;
+  };
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('確定刪除這個字？')) return;
+    await api('/api/open/morph/word','DELETE',{id:+b.dataset.del}).catch(()=>{});
+    S.words = S.words.filter(w=>w.id!=b.dataset.del); render();
+  });
+}
+function alertBox(sel,msg){ $(sel).innerHTML = `<div class="fb bad">${msg}</div>`; }
+
+async function submitWord(){
+  const split = $('#fsp').value.trim(), guess = $('#fg').value.trim();
+  if(!split || !guess){ alertBox('#fres','拆法和猜測都要寫喔，寫錯也沒關係。'); return; }
+  const j = judge(pendingWord.word, split);
+  const rec = Object.assign({}, pendingWord, {split, guess, verdict:j.verdict});
+  $('#fsend').disabled = true;
+  try{
+    const d = await api('/api/open/morph/word','POST',rec);
+    S.words.unshift(Object.assign({id:d.id}, rec));
+  }catch(e){ alertBox('#fres',e.message); $('#fsend').disabled=false; return; }
+  let html='';
+  if (j.verdict==='match') html = `<div class="fb ok"><b>拆對了！</b>${partsHtml(j.split)}${j.why} → <b>${j.mean}</b><br>你的猜測「${esc(guess)}」和這個意思接近嗎？回到原句再讀一次確認看看。</div>`;
+  else if (j.verdict==='other') html = `<div class="fb mid"><b>參考拆法和你的不太一樣：</b>${partsHtml(j.split)}${j.why} → <b>${j.mean}</b></div>`;
+  else if (j.verdict==='trap') html = `<div class="fb bad"><b>小心，這是陷阱字！</b><br>${j.why}<br>意思：<b>${j.mean}</b></div>`;
+  else html = `<div class="fb mid"><b>這個字不在本週詞表裡，需要確認。</b><br>回到原句檢查你的猜測說不說得通。如果還是拿不準，送去提問吧！
+     <div class="row" style="margin-top:8px"><button class="ghost" id="toask">把這個字送去提問 ›</button></div></div>`;
+  $('#fres').innerHTML = html + `<div class="row" style="margin-top:10px"><button class="primary" id="again">再找一個</button></div>`;
+  $('#again').onclick=()=>{pendingWord=null; render(); setTimeout(()=>$('#fw').focus(),50);};
+  const ta = $('#toask'); if (ta) ta.onclick=()=>{ tab='ask'; render(); $('#aw').value=rec.word; $('#aq').value=`我在「${rec.sentence||'書裡'}」看到 ${rec.word}，我拆成 ${split}，猜意思是「${guess}」，對嗎？`; };
+}
+
+/* ---------- 地圖 ---------- */
+function viewMap(){
+  const have = new Map(S.words.map(w=>[w.word,w]));
+  const carry = Object.keys(DICT).filter(w=>DICT[w].anchor || have.has(w));
+  S.words.forEach(w=>{ if(!DICT[w.word] && !TRAPS[w.word] && !carry.includes(w.word)) carry.push(w.word); });
+  const W=640,H=460,cx=320,cy=230;
+  const n=carry.length, R= n>10?175:155;
+  let lines='',nodes='';
+  carry.forEach((w,i)=>{
+    const a = -Math.PI/2 + i*2*Math.PI/n;
+    const x = cx+R*Math.cos(a)*1.15, y = cy+R*Math.sin(a);
+    const got = have.has(w); const pend = got && have.get(w).verdict==='pending';
+    lines += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${got?'#8fa37f':'#cfc6b5'}" stroke-width="${got?2:1.5}" ${got?'':'stroke-dasharray="5 5"'}/>`;
+    const tw = w.length*11+24;
+    nodes += `<g data-w="${w}" style="cursor:pointer"><rect x="${x-tw/2}" y="${y-19}" width="${tw}" height="38" rx="19" fill="${got?(pend?'#fff6dc':'#e3eedb'):'#fff'}" stroke="${got?'#3d3a35':'#bdb3a2'}" stroke-width="1.5" ${got?'':'stroke-dasharray="4 4"'}/>
+      <text x="${x}" y="${y+7}" text-anchor="middle" font-size="20" fill="${got?'#3d3a35':'#a59c8c'}" font-family="Fredoka, sans-serif">${w}</text></g>`;
+  });
+  const trapRows = Object.keys(TRAPS).map(w=>`<span class="w" data-trap="${w}">${w}${have.has(w)?' ✓':''}</span>`).join(' ');
+  const got = carry.filter(w=>have.has(w)).length;
+  $('#view').innerHTML = `
+  <div class="card">
+    <h2>我的 port 詞族地圖</h2>
+    <p class="note">實線是你從書裡找到的字，虛線是還沒找到的錨點詞。點一下字可以看拆法。</p>
+    <div class="mapwrap"><svg viewBox="0 0 ${W} ${H}">${lines}
+      <circle cx="${cx}" cy="${cy}" r="54" fill="#f3e3b8" stroke="#3d3a35" stroke-width="2"/>
+      <text x="${cx}" y="${cy-2}" text-anchor="middle" font-size="28" font-weight="600" fill="#3d3a35" font-family="Fredoka, sans-serif">port</text>
+      <text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="16" fill="#857c70">搬運</text>${nodes}</svg></div>
+    <div class="legend"><span>已收集 ${got} / ${carry.length}</span><span>🟩 拆對或已確認</span><span>🟨 待確認</span><span>⬜ 還沒找到</span></div>
+    <div id="mapinfo"></div>
+  </div>
+  <div class="card">
+    <h2>另一個 port ＆ 陷阱字</h2>
+    <p class="note">這些字的 port 不是「搬運」。點一下看看為什麼。</p>
+    <div>${trapRows}</div><div id="trapinfo"></div>
+  </div>`;
+  document.querySelectorAll('[data-w]').forEach(g=>g.onclick=()=>{
+    const w=g.dataset.w, d=DICT[w], mine=have.get(w);
+    say(w,'en-US');
+    $('#mapinfo').innerHTML = `<div class="item" style="margin-top:10px"><div class="top"><b>${w}</b>${mine?`<span class="tag ${mine.verdict}">${VERDICT_TXT[mine.verdict]}</span>`:'<span class="tag pending">還沒找到</span>'}</div>
+      ${d?partsHtml(d.split)+`<div class="note">${d.why} → <b>${d.mean}</b></div>`:'<div class="note">不在本週詞表裡，等待確認。</div>'}
+      ${mine&&mine.sentence?`<div class="sent">「${esc(mine.sentence)}」</div>`:''}</div>`;
+  });
+  document.querySelectorAll('[data-trap]').forEach(s=>s.onclick=()=>{
+    const t=TRAPS[s.dataset.trap];
+    $('#trapinfo').innerHTML = `<div class="fb mid" style="margin-top:10px"><b>${s.dataset.trap}</b>：${t.mean}<br>${t.why}</div>`;
+  });
+}
+
+/* ---------- 詞性表 ---------- */
+function viewFamily(){
+  const rows = FAM.map((r,ri)=>`<tr>${r.map((c,ci)=>{
+    if(c==='-') return '<td class="dash">—</td>';
+    if(!c.startsWith('?')) return `<td class="given"><span class="w">${c}</span></td>`;
+    const ans=c.slice(1), done=passed('family',ans);
+    return done ? `<td class="okc"><span class="w">${ans}</span></td>` : `<td><input data-ans="${ans}" autocomplete="off" autocapitalize="off" placeholder="?"></td>`;
+  }).join('')}</tr>`).join('');
+  $('#view').innerHTML = `
+  <div class="card">
+    <h2>詞性表</h2>
+    <p class="sub">同一家族的字排成一列。填空格：想想要加哪個字尾（-er、-ive、-ation、-ance、-ly、-able）。輸入後按 Enter 或點別的地方就會檢查。</p>
+    <div style="overflow-x:auto"><table class="fam"><tr>${FAM_COLS.map(c=>`<th>${c}</th>`).join('')}</tr>${rows}</table></div>
+    <div id="famfb"></div>
+  </div>
+  <div class="card">
+    <h2>換句話說</h2>
+    <p class="sub">把動詞或形容詞換成名詞，句子會更像書面語。</p>
+    ${REWRITE.map(r=>{const done=passed('family',r.id);return `<div class="item">
+      <div class="note">${esc(r.from)}</div>
+      <div style="margin:6px 0">→ ${esc(r.to).replace('___', done?`<b>${r.a}</b>`:`<input data-rw="${r.id}" style="width:150px;display:inline-block;padding:4px 8px" autocomplete="off" autocapitalize="off">`)}</div>
+      ${done?'<span class="tag match">完成</span>':''}</div>`;}).join('')}
+    <div id="rwfb"></div>
+  </div>`;
+  document.querySelectorAll('[data-ans]').forEach(inp=>{
+    const check=()=>{
+      const v=inp.value.trim().toLowerCase(); if(!v) return;
+      const ok = v===inp.dataset.ans;
+      logEvent('family',inp.dataset.ans,ok);
+      if(ok){ render(); $('#famfb').innerHTML='<div class="fb ok">對了！</div>'; }
+      else { inp.parentElement.style.background='#fde1df'; $('#famfb').innerHTML=`<div class="fb bad">「${esc(v)}」不太對，注意拼字（例如 -ance 還是 -ence）。</div>`; }
+    };
+    inp.addEventListener('change',check);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter') inp.blur();});
+  });
+  document.querySelectorAll('[data-rw]').forEach(inp=>{
+    const r=REWRITE.find(x=>x.id===inp.dataset.rw);
+    const check=()=>{
+      const v=inp.value.trim().toLowerCase(); if(!v) return;
+      const ok=v===r.a; logEvent('family',r.id,ok);
+      if(ok) render(); else $('#rwfb').innerHTML=`<div class="fb bad">再想想：空格前面有 the 或 's，所以要放<b>名詞</b>。</div>`;
+    };
+    inp.addEventListener('change',check);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter') inp.blur();});
+  });
+}
+
+/* ---------- 複習 ---------- */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function buildRound(){
+  const wrong = {};
+  S.events.filter(e=>e.kind==='review'&&e.item!=='__round').forEach(e=>{ wrong[e.item]=(wrong[e.item]||0)+(e.correct?-1:2); });
+  const mine = S.words.map(w=>w.word).filter(w=>DICT[w]||TRAPS[w]);
+  let pool = [...new Set([...mine, ...Object.keys(DICT).filter(w=>DICT[w].anchor), ...Object.keys(TRAPS)])];
+  pool.sort((a,b)=>(wrong[b]||0)-(wrong[a]||0) + (Math.random()-.5));   // 錯過的字先出現
+  pool = pool.slice(0,10);
+  const all = Object.keys(DICT);
+  return shuffle(pool).map(w=>{
+    if (TRAPS[w]) return {w, type:'trap', q:`<b>${w}</b> 裡的 port 是「搬運」的意思嗎？`, opts:['不是','是'], a:0, exp:TRAPS[w].why+' 意思：'+TRAPS[w].mean};
+    const d=DICT[w];
+    if (Math.random()<.5){
+      const wrongs = shuffle(all.filter(x=>x!==w && DICT[x].mean!==d.mean)).slice(0,3).map(x=>DICT[x].mean);
+      const opts = shuffle([d.mean,...wrongs]);
+      return {w,type:'mean', q:`先在心裡拆拆看：<b>${w}</b> 是什麼意思？`, opts, a:opts.indexOf(d.mean), exp:`${d.split} → ${d.why}`};
+    }
+    const fake = [d.split.replace('port','por+t'), d.split.split('+').reverse().join('+'), w.slice(0,2)+'+'+w.slice(2)].filter(x=>x!==d.split);
+    const opts = shuffle([d.split,...[...new Set(fake)].slice(0,3)]);
+    return {w,type:'split', q:`<b>${w}</b> 正確的拆法是？`, opts, a:opts.indexOf(d.split), exp:`${d.why} → ${d.mean}`};
+  });
+}
+function viewReview(){
+  if(!review){
+    const mine = S.words.filter(w=>DICT[w.word]||TRAPS[w.word]).length;
+    $('#view').innerHTML = `<div class="card center"><h2>拆拆看複習</h2>
+      <p class="sub">一輪 10 題，題目來自你收集的字（${mine} 個）和本週錨點詞。<br>答錯的字，下一輪會先出現。</p>
+      <button class="primary" id="start">開始一輪</button></div>`;
+    $('#start').onclick=()=>{review={qs:buildRound(),i:0,score:0}; render();};
+    return;
+  }
+  const R=review;
+  if(R.i>=R.qs.length){
+    logEvent('review','__round',1);
+    $('#view').innerHTML = `<div class="card center"><h2>這一輪完成！</h2><div class="big">${R.score} / ${R.qs.length}</div>
+      <p class="sub">${R.score>=8?'很棒，port 家族已經很熟了。':'答錯的字下一輪會先出現，再來一輪吧！'}</p>
+      <div class="row" style="justify-content:center"><button class="primary" id="again">再一輪</button><button class="ghost" id="home">回本週</button></div></div>`;
+    $('#again').onclick=()=>{review={qs:buildRound(),i:0,score:0}; render();};
+    $('#home').onclick=()=>{review=null; tab='home'; render();};
+    return;
+  }
+  const q=R.qs[R.i];
+  $('#view').innerHTML = `<div class="card">
+    <div class="row" style="justify-content:space-between"><span class="note">第 ${R.i+1} / ${R.qs.length} 題</span><button class="speak" id="sw">🔊 ${q.w}</button></div>
+    <div class="prog"><i style="width:${R.i/R.qs.length*100}%"></i></div>
+    <div class="q">${q.q}</div>
+    <div class="opts">${q.opts.map((o,i)=>`<button class="opt" data-i="${i}">${esc(o)}</button>`).join('')}</div>
+    <div id="rfb"></div></div>`;
+  $('#sw').onclick=()=>say(q.w,'en-US');
+  document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const ok=+b.dataset.i===q.a;
+    document.querySelectorAll('.opt').forEach((x,i)=>{x.disabled=true; if(i===q.a) x.classList.add('ok');});
+    if(!ok) b.classList.add('bad');
+    if(ok) R.score++;
+    logEvent('review',q.w,ok);
+    $('#rfb').innerHTML=`<div class="fb ${ok?'ok':'bad'}">${ok?'答對了！':'沒關係，記住它：'} ${esc(q.exp)}</div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="rn">下一題 ›</button></div>`;
+    $('#rn').onclick=()=>{R.i++; render();};
+  });
+}
+
+/* ---------- 提問 ---------- */
+function viewAsk(){
+  const list = S.questions.map(q=>`<div class="item">
+    <div class="top"><b>${q.word?esc(q.word):'問題'}</b><span class="note">${esc(q.createdAt||'')}</span></div>
+    <div style="margin-top:4px;line-height:1.6">${esc(q.question)}</div>
+    ${q.answer?`<div class="ans"><b>回答：</b>${esc(q.answer)}</div>`:'<div class="note" style="margin-top:6px">等待回答中…</div>'}</div>`).join('');
+  $('#view').innerHTML = `<div class="card">
+    <h2>提問</h2>
+    <p class="sub">挑一個你最拿不準的字，寫下哪裡不確定：拆法？意思？為什麼對不上句子？</p>
+    <label>哪個字（可不填）</label><input id="aw" autocomplete="off" autocapitalize="off">
+    <label>我的問題</label><textarea id="aq"></textarea>
+    <div class="row" style="margin-top:12px"><button class="primary" id="asend">送出提問</button></div><div id="afb"></div>
+  </div>
+  <div class="card"><h2>我的提問（${S.questions.length}）</h2>${list||'<p class="note">還沒有提問。</p>'}</div>`;
+  $('#asend').onclick=async()=>{
+    const question=$('#aq').value.trim(), word=$('#aw').value.trim();
+    if(!question){ alertBox('#afb','請寫下你的問題'); return; }
+    $('#asend').disabled=true;
+    try{
+      await api('/api/open/morph/question','POST',{word,question});
+      S.questions.unshift({word,question,answer:'',createdAt:'剛剛'});
+      render();
+    }catch(e){ alertBox('#afb',e.message); $('#asend').disabled=false; }
+  };
+}
+
+load();
+</script>
+<script src="/open/refresh-button.js" defer></script>
+</body>
+</html>
