@@ -39,9 +39,6 @@ CREATE TABLE IF NOT EXISTS bm_growth (id INTEGER PRIMARY KEY AUTOINCREMENT, chil
 CREATE TABLE IF NOT EXISTS go_items (id INTEGER PRIMARY KEY AUTOINCREMENT, kid TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL, r2_key TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', content_type TEXT, size INTEGER, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS bm_cycle (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT, flow TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, UNIQUE(child, start_date));
 INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VALUES ('https://wsnps.ntct.edu.tw/p/403-1167-1646-1.php?Lang=zh-tw', '南投縣草屯鎮虎山國小・校務公告（機器人保護擋自動讀取，需人工查看）', 'school', '2026-07-19T00:00:00Z');
-CREATE TABLE IF NOT EXISTS morph_words (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, word TEXT NOT NULL, sentence TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', split TEXT NOT NULL DEFAULT '', guess TEXT NOT NULL DEFAULT '', verdict TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS morph_events (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, correct INTEGER NOT NULL, created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS morph_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, word TEXT NOT NULL DEFAULT '', question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, answered_at TEXT);
 `;
 
 // cheap non-cryptographic hash so the bootstrap flag below automatically
@@ -1723,83 +1720,6 @@ async function handleGrades(env, url) {
   return json({ assignments: assignments.map(a => a.name), behaviorWeight, results });
 }
 
-
-// ---- 拆字實驗室（詞素自學，給 Cathy；頁面在 /open/morphology.html）----
-// 孩子端放 /api/open/（不用登入）；家長看板與回答提問放 /api/admin/（要登入）
-const MORPH_CHILDREN = new Set(["Cathy", "Rina", "Lilian"]);
-const MORPH_UNIT_RE = /^[a-z0-9-]{1,20}$/;
-const MORPH_VERDICTS = new Set(["match", "trap", "pending", "other"]);
-const MORPH_KINDS = new Set(["check", "review", "family"]);
-
-function morphNowStr() {
-  const d = taipeiNow();
-  return `${taipeiDateStr(d)} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-}
-function morphChildUnit(child, unit) {
-  if (!MORPH_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
-  if (!MORPH_UNIT_RE.test(String(unit || ""))) return json({ error: "unit 不正確" }, { status: 400 });
-  return null;
-}
-
-async function morphGet(env, url) {
-  const child = url.searchParams.get("child"), unit = url.searchParams.get("unit");
-  const bad = morphChildUnit(child, unit); if (bad) return bad;
-  const [words, questions, events] = await Promise.all([
-    env.DB.prepare("SELECT id, word, sentence, source, split, guess, verdict, created_at as createdAt FROM morph_words WHERE child = ? AND unit = ? ORDER BY id DESC").bind(child, unit).all(),
-    env.DB.prepare("SELECT id, word, question, answer, created_at as createdAt, answered_at as answeredAt FROM morph_questions WHERE child = ? AND unit = ? ORDER BY id DESC").bind(child, unit).all(),
-    env.DB.prepare("SELECT kind, item, correct, created_at as createdAt FROM morph_events WHERE child = ? AND unit = ? ORDER BY id DESC LIMIT 500").bind(child, unit).all()
-  ]);
-  return json({ words: words.results, questions: questions.results, events: events.results });
-}
-
-async function morphWordPost(env, request) {
-  const b = await request.json();
-  const bad = morphChildUnit(b.child, b.unit); if (bad) return bad;
-  const word = bmClean(b.word, 40).toLowerCase();
-  if (!/^[a-z][a-z'-]*$/.test(word)) return json({ error: "請輸入英文單字" }, { status: 400 });
-  const verdict = MORPH_VERDICTS.has(b.verdict) ? b.verdict : "pending";
-  const r = await env.DB.prepare(
-    "INSERT INTO morph_words (child, unit, word, sentence, source, split, guess, verdict, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  ).bind(b.child, b.unit, word, bmClean(b.sentence, 400), bmClean(b.source, 80), bmClean(b.split, 80), bmClean(b.guess, 120), verdict, morphNowStr()).run();
-  return json({ ok: true, id: r.meta && r.meta.last_row_id });
-}
-
-async function morphWordDelete(env, request) {
-  const b = await request.json();
-  if (!MORPH_CHILDREN.has(b.child)) return json({ error: "child 不正確" }, { status: 400 });
-  await env.DB.prepare("DELETE FROM morph_words WHERE id = ? AND child = ?").bind(Number(b.id), b.child).run();
-  return json({ ok: true });
-}
-
-async function morphEventPost(env, request) {
-  const b = await request.json();
-  const bad = morphChildUnit(b.child, b.unit); if (bad) return bad;
-  if (!MORPH_KINDS.has(b.kind)) return json({ error: "kind 不正確" }, { status: 400 });
-  await env.DB.prepare("INSERT INTO morph_events (child, unit, kind, item, correct, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(b.child, b.unit, b.kind, bmClean(b.item, 60), b.correct ? 1 : 0, morphNowStr()).run();
-  return json({ ok: true });
-}
-
-async function morphQuestionPost(env, request) {
-  const b = await request.json();
-  const bad = morphChildUnit(b.child, b.unit); if (bad) return bad;
-  const q = bmClean(b.question, 500);
-  if (!q) return json({ error: "請寫下你的問題" }, { status: 400 });
-  await env.DB.prepare("INSERT INTO morph_questions (child, unit, word, question, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(b.child, b.unit, bmClean(b.word, 40).toLowerCase(), q, morphNowStr()).run();
-  return json({ ok: true });
-}
-
-async function morphAdminAnswer(env, request) {
-  const b = await request.json();
-  const id = Number(b.id);
-  if (!Number.isInteger(id)) return json({ error: "id 不正確" }, { status: 400 });
-  const answer = bmClean(b.answer, 1000);
-  await env.DB.prepare("UPDATE morph_questions SET answer = ?, answered_at = ? WHERE id = ?")
-    .bind(answer, answer ? morphNowStr() : null, id).run();
-  return json({ ok: true });
-}
-
 // ---- Better Me 里程碑／比賽／成長紀錄 (served under /api/open/, no login) ----
 const BM_CHILDREN = new Set(["Cathy", "Rina", "Lilian"]);
 const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美術", "鋼琴", "其他"]);
@@ -2248,14 +2168,6 @@ export default {
       if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
       if (path === "/api/open/study-habits/bank/withdraw" && request.method === "POST") return await bankHandlers.withdraw(env, request);
-
-      if (path === "/api/open/morph" && request.method === "GET") return await morphGet(env, url);
-      if (path === "/api/open/morph/word" && request.method === "POST") return await morphWordPost(env, request);
-      if (path === "/api/open/morph/word" && request.method === "DELETE") return await morphWordDelete(env, request);
-      if (path === "/api/open/morph/event" && request.method === "POST") return await morphEventPost(env, request);
-      if (path === "/api/open/morph/question" && request.method === "POST") return await morphQuestionPost(env, request);
-      if (path === "/api/admin/morph" && request.method === "GET") return await morphGet(env, url);
-      if (path === "/api/admin/morph/answer" && request.method === "POST") return await morphAdminAnswer(env, request);
 
       if (path === "/api/open/better-me/records" && request.method === "GET") return await bmRecordsGet(env, url);
       if (path === "/api/open/better-me/levels" && request.method === "POST") return await bmLevelPost(env, request);
