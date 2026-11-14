@@ -42,6 +42,8 @@ INSERT OR IGNORE INTO community_sources (url, note, source_type, created_at) VAL
 CREATE TABLE IF NOT EXISTS morph_words (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, word TEXT NOT NULL, sentence TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', split TEXT NOT NULL DEFAULT '', guess TEXT NOT NULL DEFAULT '', verdict TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS morph_events (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, correct INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS morph_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, word TEXT NOT NULL DEFAULT '', question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, answered_at TEXT);
+CREATE TABLE IF NOT EXISTS wugong_words (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, cat TEXT NOT NULL, sub TEXT NOT NULL, word TEXT NOT NULL, sentence TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', mine TEXT NOT NULL DEFAULT '', used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS wugong_subs (child TEXT NOT NULL, cat TEXT NOT NULL, sub TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(child, cat, sub));
 `;
 
 // cheap non-cryptographic hash so the bootstrap flag below automatically
@@ -1806,6 +1808,62 @@ const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美�
 const BM_TRACKS = new Set(["ienglish", "yehu"]);
 const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// ---- 武功秘笈（Rina 讀報收集的詞語、四字語詞、成語；頁面在 /open/wugong.html）----
+// 孩子端不用登入，放 /api/open/
+const WG_CHILDREN = new Set(["Rina", "Cathy"]);
+function wgCheck(b) {
+  if (!WG_CHILDREN.has(b.child)) return json({ error: "child 不正確" }, { status: 400 });
+  if (!bmClean(b.cat, 20) || !bmClean(b.sub, 20)) return json({ error: "分類不正確" }, { status: 400 });
+  return null;
+}
+async function wgGet(env, url) {
+  const child = url.searchParams.get("child");
+  if (!WG_CHILDREN.has(child)) return json({ error: "child 不正確" }, { status: 400 });
+  const [words, subs] = await Promise.all([
+    env.DB.prepare("SELECT id, cat, sub, word, sentence, source, mine, used, created_at as createdAt FROM wugong_words WHERE child = ? ORDER BY id DESC").bind(child).all(),
+    env.DB.prepare("SELECT cat, sub FROM wugong_subs WHERE child = ? ORDER BY created_at").bind(child).all()
+  ]);
+  return json({ words: words.results, subs: subs.results });
+}
+async function wgWordPost(env, request) {
+  const b = await request.json();
+  const bad = wgCheck(b); if (bad) return bad;
+  const word = bmClean(b.word, 30);
+  if (!word) return json({ error: "請寫下詞語" }, { status: 400 });
+  const vals = [bmClean(b.cat, 20), bmClean(b.sub, 20), word, bmClean(b.sentence, 300), bmClean(b.source, 80), bmClean(b.mine, 300)];
+  const id = bmEditId(b);
+  if (id != null) {
+    await env.DB.prepare("UPDATE wugong_words SET cat = ?, sub = ?, word = ?, sentence = ?, source = ?, mine = ? WHERE id = ? AND child = ?")
+      .bind(...vals, id, b.child).run();
+    return json({ ok: true, id });
+  }
+  const r = await env.DB.prepare("INSERT INTO wugong_words (child, cat, sub, word, sentence, source, mine, used, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)")
+    .bind(b.child, ...vals, morphNowStr()).run();
+  return json({ ok: true, id: r.meta && r.meta.last_row_id });
+}
+async function wgWordDelete(env, request) {
+  const b = await request.json();
+  if (!WG_CHILDREN.has(b.child)) return json({ error: "child 不正確" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM wugong_words WHERE id = ? AND child = ?").bind(Number(b.id), b.child).run();
+  return json({ ok: true });
+}
+async function wgUsedPost(env, request) {
+  const b = await request.json();
+  if (!WG_CHILDREN.has(b.child)) return json({ error: "child 不正確" }, { status: 400 });
+  await env.DB.prepare("UPDATE wugong_words SET used = ? WHERE id = ? AND child = ?").bind(b.used ? 1 : 0, Number(b.id), b.child).run();
+  return json({ ok: true });
+}
+async function wgSubPost(env, request) {
+  const b = await request.json();
+  const bad = wgCheck(b); if (bad) return bad;
+  if (b.remove) {
+    await env.DB.prepare("DELETE FROM wugong_subs WHERE child = ? AND cat = ? AND sub = ?").bind(b.child, bmClean(b.cat, 20), bmClean(b.sub, 20)).run();
+  } else {
+    await env.DB.prepare("INSERT OR IGNORE INTO wugong_subs (child, cat, sub, created_at) VALUES (?, ?, ?, ?)").bind(b.child, bmClean(b.cat, 20), bmClean(b.sub, 20), morphNowStr()).run();
+  }
+  return json({ ok: true });
+}
+
 function bmClean(s, max) {
   return String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, max);
 }
@@ -2248,6 +2306,12 @@ export default {
       if (path === "/api/open/study-habits/bank" && request.method === "GET") return await bankHandlers.get(env, url);
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
       if (path === "/api/open/study-habits/bank/withdraw" && request.method === "POST") return await bankHandlers.withdraw(env, request);
+
+      if (path === "/api/open/wugong" && request.method === "GET") return await wgGet(env, url);
+      if (path === "/api/open/wugong/word" && request.method === "POST") return await wgWordPost(env, request);
+      if (path === "/api/open/wugong/word" && request.method === "DELETE") return await wgWordDelete(env, request);
+      if (path === "/api/open/wugong/used" && request.method === "POST") return await wgUsedPost(env, request);
+      if (path === "/api/open/wugong/sub" && request.method === "POST") return await wgSubPost(env, request);
 
       if (path === "/api/open/morph" && request.method === "GET") return await morphGet(env, url);
       if (path === "/api/open/morph/word" && request.method === "POST") return await morphWordPost(env, request);

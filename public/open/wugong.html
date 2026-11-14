@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rina 的武功秘笈</title>
+<meta name="theme-color" content="#C4863A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --rina:#C4863A; --rina-bg:#FBF0DE; --ok:#5F8955; --ok-bg:#EBF2E6; --bad:#B85C4B;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px;margin:0 auto;padding:22px 16px 80px;}
+  a.back{display:inline-block;margin-bottom:8px;font-size:14px;color:var(--ink-soft);text-decoration:none;}
+  h1{font-family:'Noto Serif TC',serif;font-size:28px;margin:4px 0 4px;}
+  h1 span{color:var(--rina);}
+  .sub{color:var(--ink-soft);font-size:15px;margin:0 0 16px;line-height:1.6;}
+  .hidden{display:none !important;}
+  button{font:inherit;cursor:pointer;}
+
+  .stats{display:flex;gap:10px;margin-bottom:14px;}
+  .stat{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;}
+  .stat b{display:block;font-size:24px;color:var(--rina);}
+  .stat small{color:var(--ink-soft);font-size:13px;}
+
+  .search{width:100%;font:inherit;font-size:16px;padding:12px 16px;border:1.5px solid var(--line);border-radius:99px;background:#fff;margin-bottom:16px;}
+  .search:focus{outline:none;border-color:var(--rina);}
+
+  .cats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .cat{text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 10px rgba(46,42,37,.05);}
+  .cat:active{transform:scale(.98);}
+  .cat .ic{font-size:24px;}
+  .cat b{display:block;font-size:17px;margin:4px 0 2px;}
+  .cat small{color:var(--ink-soft);font-size:13px;}
+
+  .cathead{display:flex;align-items:center;gap:10px;margin:4px 0 14px;}
+  .cathead h2{font-family:'Noto Serif TC',serif;font-size:22px;margin:0;flex:1;}
+  .ghost{font-size:14px;padding:7px 14px;border-radius:99px;border:1.5px solid var(--rina);background:#fff;color:var(--rina);font-weight:700;}
+
+  .subbox{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;}
+  .subtop{display:flex;align-items:center;gap:8px;}
+  .subtop h3{margin:0;font-size:17px;flex:1;}
+  .subtop .n{font-size:13px;color:var(--ink-soft);}
+  .add{font-size:14px;padding:5px 12px;border-radius:99px;border:none;background:var(--rina);color:#fff;font-weight:700;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .chips:empty{display:none;}
+  .chip{font-size:16px;padding:6px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);}
+  .chip.used{border-color:var(--ok);background:var(--ok-bg);}
+  .chip.used::after{content:" ✓";color:var(--ok);font-weight:700;}
+  .empty{font-size:13px;color:var(--ink-soft);margin-top:6px;}
+  .newsub{width:100%;margin-top:6px;padding:12px;border:1.5px dashed var(--line);border-radius:16px;background:none;color:var(--ink-soft);}
+  .delsub{font-size:12px;border:none;background:none;color:var(--ink-soft);padding:2px 4px;}
+
+  .result{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:center;}
+  .result .w{font-size:18px;font-weight:700;}
+  .result small{color:var(--ink-soft);}
+
+  /* 彈出視窗 */
+  .mask{position:fixed;inset:0;background:rgba(46,42,37,.4);display:flex;align-items:flex-end;justify-content:center;z-index:10;}
+  .sheet{background:var(--paper);width:100%;max-width:680px;border-radius:22px 22px 0 0;padding:20px 18px 28px;max-height:90vh;overflow:auto;}
+  .sheet h3{margin:0 0 4px;font-family:'Noto Serif TC',serif;font-size:21px;}
+  .sheet .where{font-size:13px;color:var(--rina);font-weight:700;margin-bottom:12px;}
+  label{display:block;font-size:14px;font-weight:700;margin:12px 0 5px;}
+  label small{font-weight:400;color:var(--ink-soft);}
+  input[type=text],textarea,select{width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;}
+  textarea{min-height:64px;resize:vertical;}
+  .row{display:flex;gap:10px;margin-top:18px;}
+  .row button{flex:1;padding:12px;border-radius:99px;font-weight:700;font-size:16px;}
+  .primary{border:none;background:var(--rina);color:#fff;}
+  .plain{border:1.5px solid var(--line);background:#fff;color:var(--ink);}
+  .danger{border:1.5px solid var(--bad);background:#fff;color:var(--bad);}
+  .big{font-size:34px;font-weight:900;letter-spacing:3px;margin:6px 0;}
+  .field{background:#fff;border-radius:12px;padding:10px 12px;margin-top:8px;font-size:16px;line-height:1.7;}
+  .field i{display:block;font-style:normal;font-size:13px;color:var(--ink-soft);}
+  .usedbtn{width:100%;margin-top:14px;padding:12px;border-radius:14px;border:1.5px solid var(--ok);background:#fff;color:var(--ok);font-weight:700;font-size:16px;}
+  .usedbtn.on{background:var(--ok);color:#fff;}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:15px;z-index:20;}
+  .note{margin-top:22px;font-size:13px;color:var(--ink-soft);line-height:1.8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html#study">← 回學習規劃</a>
+  <h1>🥋 Rina 的<span>武功秘笈</span></h1>
+  <p class="sub">讀報時看到好詞、四字語詞、成語，就收進對的分類裡。寫作文時來這裡找招式！</p>
+
+  <div class="stats">
+    <div class="stat"><b id="sTotal">0</b><small>收集的詞</small></div>
+    <div class="stat"><b id="sUsed">0</b><small>寫進作文了</small></div>
+    <div class="stat"><b id="sWeek">0</b><small>這 7 天新收集</small></div>
+  </div>
+
+  <input class="search" id="search" type="search" placeholder="🔍 找找看，例如：開心、綠、雨">
+
+  <div id="searchView" class="hidden"></div>
+  <div id="home"><div class="cats" id="cats"></div>
+    <div class="note">小提醒：收集的詞旁邊打勾 ✓，代表已經寫進作文用過了。用過的才是真正學會的招式！</div>
+  </div>
+  <div id="catView" class="hidden">
+    <div class="cathead"><button class="ghost" id="backCats">← 分類</button><h2 id="catTitle"></h2></div>
+    <div id="subs"></div>
+    <button class="newsub" id="newSub">＋ 自己加一個小標題</button>
+  </div>
+</div>
+
+<div class="mask hidden" id="mask"><div class="sheet" id="sheet"></div></div>
+
+<script>
+const CHILD = new URLSearchParams(location.search).get("who") || "Rina";
+const API = "/api/open/wugong";
+
+const CATS = [
+  { id:"心情", ic:"😊", subs:["開心","生氣","難過","害怕","緊張","驚訝","感動","害羞","後悔","無聊","擔心","失望","得意","輕鬆"] },
+  { id:"顏色", ic:"🎨", subs:["紅","橙","黃","綠","藍","紫","白","黑","灰","很多顏色"] },
+  { id:"聲音", ic:"🔔", subs:["人說話","笑聲","哭聲","動物叫聲","風雨聲","熱鬧吵雜","安靜"] },
+  { id:"氣味和味道", ic:"👃", subs:["香","臭","甜","酸","苦","辣","鹹"] },
+  { id:"觸感", ic:"✋", subs:["軟","硬","冷","熱","粗糙","光滑"] },
+  { id:"天氣和季節", ic:"🌦️", subs:["晴天","下雨","颳風","打雷","春","夏","秋","冬"] },
+  { id:"自然景物", ic:"🏞️", subs:["山","水","海","花","草","樹","天空","雲","太陽","月亮","星星"] },
+  { id:"人物", ic:"🧑", subs:["外貌","表情","動作","說話的樣子","個性好的","個性不好的"] },
+  { id:"動作", ic:"🏃", subs:["走","跑","跳","看","說","吃","笑","哭"] },
+  { id:"多少大小", ic:"📏", subs:["人很多","東西很多","很少","很大","很小"] },
+  { id:"時間", ic:"⏳", subs:["很快","很慢","從前","未來"] },
+  { id:"做事", ic:"💪", subs:["努力","合作","成功","失敗","學習","幫助別人"] },
+  { id:"成語", ic:"📜", subs:["動物成語","數字成語","有故事的成語"] },
+  { id:"寫作小工具", ic:"🧰", subs:["疊字詞","連接詞","好開頭","好結尾","譬喻句","名言佳句"] }
+];
+
+let words = [], extraSubs = [], curCat = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+async function call(path, method, body){
+  const r = await fetch(API+path, { method, headers:{"Content-Type":"application/json"}, body: body?JSON.stringify({child:CHILD,...body}):undefined });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||"存檔失敗，請再試一次");
+  return d;
+}
+async function load(){
+  try{
+    const r = await fetch(`${API}?child=${encodeURIComponent(CHILD)}`); const d = await r.json();
+    words = d.words||[]; extraSubs = d.subs||[];
+  }catch(e){ toast("讀取失敗，請檢查網路"); }
+  render();
+}
+function subsOf(cat){
+  const base = CATS.find(c=>c.id===cat).subs;
+  const extra = extraSubs.filter(s=>s.cat===cat).map(s=>s.sub).filter(s=>!base.includes(s));
+  const fromWords = [...new Set(words.filter(w=>w.cat===cat).map(w=>w.sub))].filter(s=>!base.includes(s)&&!extra.includes(s));
+  return { base, extra:[...extra, ...fromWords] };
+}
+
+function render(){
+  $("sTotal").textContent = words.length;
+  $("sUsed").textContent = words.filter(w=>w.used).length;
+  const wk = new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+  $("sWeek").textContent = words.filter(w=>(w.createdAt||"")>=wk).length;
+
+  $("cats").innerHTML = CATS.map(c=>{
+    const n = words.filter(w=>w.cat===c.id).length;
+    return `<button class="cat" data-cat="${esc(c.id)}"><div class="ic">${c.ic}</div><b>${esc(c.id)}</b><small>${n ? n+" 個詞" : "還沒收集"}</small></button>`;
+  }).join("");
+  if(curCat) renderCat();
+  if($("search").value.trim()) renderSearch();
+}
+
+function chip(w){ return `<button class="chip${w.used?" used":""}" data-id="${w.id}">${esc(w.word)}</button>`; }
+
+function renderCat(){
+  const c = CATS.find(x=>x.id===curCat);
+  $("catTitle").textContent = c.ic+" "+c.id;
+  const { base, extra } = subsOf(curCat);
+  const box = (s, mine) => {
+    const list = words.filter(w=>w.cat===curCat && w.sub===s);
+    return `<div class="subbox"><div class="subtop"><h3>${esc(s)}</h3><span class="n">${list.length||""}</span>
+      ${mine && !list.length ? `<button class="delsub" data-delsub="${esc(s)}">刪除標題</button>`:""}
+      <button class="add" data-add="${esc(s)}">＋ 收集</button></div>
+      <div class="chips">${list.map(chip).join("")}</div>
+      ${list.length?"":`<div class="empty">讀報時找找看，有哪些詞可以放這裡？</div>`}</div>`;
+  };
+  $("subs").innerHTML = base.map(s=>box(s,false)).join("") + extra.map(s=>box(s,true)).join("");
+}
+
+function renderSearch(){
+  const q = $("search").value.trim();
+  const hit = words.filter(w=>[w.word,w.sub,w.cat,w.sentence,w.mine].some(x=>(x||"").includes(q)));
+  $("searchView").innerHTML = hit.length
+    ? hit.map(w=>`<div class="result"><button class="chip${w.used?" used":""}" data-id="${w.id}">${esc(w.word)}</button><small>${esc(w.cat)} › ${esc(w.sub)}</small></div>`).join("")
+    : `<p class="sub">還沒有收集到「${esc(q)}」相關的詞。</p>`;
+}
+
+function openSheet(html){ $("sheet").innerHTML = html; $("mask").classList.remove("hidden"); }
+function closeSheet(){ $("mask").classList.add("hidden"); }
+
+function catOptions(sel){ return CATS.map(c=>`<option ${c.id===sel?"selected":""}>${esc(c.id)}</option>`).join(""); }
+function subOptions(cat, sel){ const {base,extra}=subsOf(cat); return [...base,...extra].map(s=>`<option ${s===sel?"selected":""}>${esc(s)}</option>`).join(""); }
+
+function openForm(w, cat, sub){
+  const e = w || { cat, sub, word:"", sentence:"", source:"", mine:"" };
+  openSheet(`<h3>${w?"修改招式":"收集新招式"}</h3>
+    <label>放在哪裡</label>
+    <div style="display:flex;gap:8px;"><select id="fCat">${catOptions(e.cat)}</select><select id="fSub">${subOptions(e.cat,e.sub)}</select></div>
+    <label>詞語 <small>（必填）</small></label><input type="text" id="fWord" value="${esc(e.word)}" placeholder="例如：翠綠、欣喜若狂">
+    <label>報紙上的原句 <small>（抄下來，才知道怎麼用）</small></label><textarea id="fSentence">${esc(e.sentence)}</textarea>
+    <label>出處 <small>（哪一天、哪一篇）</small></label><input type="text" id="fSource" value="${esc(e.source)}" placeholder="例如：11/14 國語日報 綠色版">
+    <label>我自己造的句子</label><textarea id="fMine">${esc(e.mine)}</textarea>
+    <div class="row"><button class="plain" id="fCancel">取消</button><button class="primary" id="fSave">收進秘笈</button></div>`);
+  $("fCat").onchange = ()=>{ $("fSub").innerHTML = subOptions($("fCat").value); };
+  $("fCancel").onclick = closeSheet;
+  $("fSave").onclick = async ()=>{
+    const body = { id: w?w.id:undefined, cat:$("fCat").value, sub:$("fSub").value, word:$("fWord").value.trim(),
+      sentence:$("fSentence").value, source:$("fSource").value, mine:$("fMine").value };
+    if(!body.word){ toast("先寫下詞語喔"); return; }
+    try{ await call("/word","POST",body); closeSheet(); toast(w?"改好了":"收進秘笈了！"); load(); }
+    catch(err){ toast(err.message); }
+  };
+}
+
+function openWord(id){
+  const w = words.find(x=>String(x.id)===String(id)); if(!w) return;
+  openSheet(`<div class="where">${esc(w.cat)} › ${esc(w.sub)}</div>
+    <div class="big">${esc(w.word)}</div>
+    ${w.sentence?`<div class="field"><i>報紙上的原句</i>${esc(w.sentence)}</div>`:""}
+    ${w.mine?`<div class="field"><i>我造的句子</i>${esc(w.mine)}</div>`:""}
+    ${w.source?`<div class="field"><i>出處</i>${esc(w.source)}</div>`:""}
+    <div class="field"><i>收集日期</i>${esc((w.createdAt||"").slice(0,10))}</div>
+    <button class="usedbtn${w.used?" on":""}" id="wUsed">${w.used?"✓ 已經寫進作文了":"我在作文裡用過了！"}</button>
+    <div class="row"><button class="danger" id="wDel">刪除</button><button class="plain" id="wEdit">修改</button><button class="primary" id="wClose">關閉</button></div>`);
+  $("wClose").onclick = closeSheet;
+  $("wEdit").onclick = ()=>openForm(w);
+  $("wUsed").onclick = async ()=>{ try{ await call("/used","POST",{id:w.id,used:!w.used}); w.used=w.used?0:1; toast(w.used?"太棒了，學會一招！":"取消打勾"); openWord(w.id); render(); }catch(e){toast(e.message);} };
+  $("wDel").onclick = ()=>{
+    const b=$("wDel"); if(b.dataset.sure){ call("/word","DELETE",{id:w.id}).then(()=>{closeSheet();toast("刪掉了");load();}).catch(e=>toast(e.message)); }
+    else { b.dataset.sure="1"; b.textContent="確定刪除？"; }
+  };
+}
+
+function openNewSub(){
+  openSheet(`<h3>自己加一個小標題</h3><div class="where">放在「${esc(curCat)}」裡</div>
+    <label>小標題名字</label><input type="text" id="nsName" maxlength="20" placeholder="例如：自豪、溫暖">
+    <div class="row"><button class="plain" id="nsCancel">取消</button><button class="primary" id="nsSave">新增</button></div>`);
+  $("nsCancel").onclick = closeSheet;
+  $("nsSave").onclick = async ()=>{
+    const sub = $("nsName").value.trim(); if(!sub){ toast("先寫名字喔"); return; }
+    try{ await call("/sub","POST",{cat:curCat,sub}); closeSheet(); load(); }catch(e){ toast(e.message); }
+  };
+}
+
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if(!t) return;
+  if(t.dataset.cat){ curCat=t.dataset.cat; $("home").classList.add("hidden"); $("catView").classList.remove("hidden"); renderCat(); scrollTo(0,0); }
+  else if(t.dataset.add) openForm(null, curCat, t.dataset.add);
+  else if(t.dataset.id) openWord(t.dataset.id);
+  else if(t.dataset.delsub){ call("/sub","POST",{cat:curCat,sub:t.dataset.delsub,remove:true}).then(load).catch(err=>toast(err.message)); }
+});
+$("backCats").onclick = ()=>{ curCat=null; $("catView").classList.add("hidden"); $("home").classList.remove("hidden"); };
+$("newSub").onclick = openNewSub;
+$("mask").onclick = e=>{ if(e.target.id==="mask") closeSheet(); };
+$("search").oninput = ()=>{
+  const q = $("search").value.trim();
+  $("searchView").classList.toggle("hidden", !q);
+  $("home").classList.toggle("hidden", !!q || !!curCat);
+  $("catView").classList.toggle("hidden", !!q || !curCat);
+  if(q) renderSearch();
+};
+load();
+</script>
+</body>
+</html>
