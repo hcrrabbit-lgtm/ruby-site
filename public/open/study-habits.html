@@ -1515,6 +1515,16 @@
       </div>
       ${bodyHtml}
     </div>`;
+    // 補勾後表格會重畫：把左右捲動的位置記下來、重畫後捲回原處，不要跳回第1天
+    const scrollKey = activeChild + '|' + month;
+    const wrap = container.querySelector('.habit-table-wrap');
+    if (wrap) {
+      if (habitState.scrollPos && habitState.scrollPos[scrollKey] != null) wrap.scrollLeft = habitState.scrollPos[scrollKey];
+      wrap.addEventListener('scroll', () => {
+        habitState.scrollPos = habitState.scrollPos || {};
+        habitState.scrollPos[scrollKey] = wrap.scrollLeft;
+      }, { passive: true });
+    }
     container.querySelector('.habit-prev-month').addEventListener('click', () => {
       habitState.viewDate.setMonth(habitState.viewDate.getMonth() - 1);
       loadHabitMonth();
