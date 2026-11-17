@@ -58,6 +58,20 @@
   .seg.on{border-color:var(--rina);background:var(--rina-bg);}
   .seg.done{border-color:var(--ok);}
 
+  /* 講稿 */
+  .part{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;}
+  .part .ph{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;}
+  .part .ph b{font-size:13px;color:#fff;background:var(--rina);border-radius:99px;padding:2px 10px;}
+  .part .ph span{font-size:14px;color:var(--ink-soft);}
+  .line{margin:0 0 10px;}
+  .line .en{font-size:19px;line-height:1.6;font-family:Georgia,'Times New Roman',serif;}
+  .line .en.name{color:var(--rina);font-weight:700;}
+  .line .tip{font-size:13px;color:var(--ok);background:var(--ok-bg);border-radius:10px;padding:5px 10px;margin-top:4px;line-height:1.6;}
+  .notips .tip{display:none;}
+  .raps{display:grid;gap:8px;margin-top:8px;}
+  .raps div{background:var(--rina-bg);border-radius:12px;padding:10px 12px;font-size:19px;font-family:Georgia,serif;font-weight:700;}
+  .raps i{font-style:normal;display:inline-block;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--rina);color:#fff;font-size:13px;margin-right:10px;font-family:'Noto Sans TC',sans-serif;}
+
   /* 計時 */
   .clock{font-size:64px;font-weight:900;text-align:center;letter-spacing:2px;margin:6px 0 2px;font-variant-numeric:tabular-nums;}
   .zone{text-align:center;font-weight:700;font-size:15px;min-height:22px;}
@@ -95,18 +109,56 @@
 
   <div class="story">
     <span class="tag">Rina 比賽故事</span>
-    <h2>Tikki Tikki Tembo</h2>
+    <h2>The Boy with the Long Name</h2>
+    <p style="margin-bottom:4px;">（Tikki Tikki Tembo）</p>
     <p>規定 1 分 30 秒～2 分鐘，目標落在 <b>1 分 45 秒～1 分 52 秒</b>。</p>
   </div>
 
   <div class="tabs">
-    <button class="tab on" data-t="listen">🎧 聽＋跟讀</button>
+    <button class="tab on" data-t="script">📖 講稿</button>
+    <button class="tab" data-t="listen">🎧 聽＋跟讀</button>
     <button class="tab" data-t="timer">⏱️ 計時練習</button>
     <button class="tab" data-t="guide">📋 評審建議</button>
   </div>
 
+  <!-- 講稿 -->
+  <section id="t-script">
+    <div class="row" style="margin:0 0 12px;">
+      <button class="btn plain" id="tipToggle" style="font-size:14px;padding:7px 14px;">隱藏動作提示</button>
+      <a class="btn ghost" href="story/rina-script.pdf" target="_blank" rel="noopener" style="text-decoration:none;font-size:14px;padding:7px 14px;">📄 講稿 PDF</a>
+    </div>
+    <div id="scriptBox"></div>
+
+    <div class="box">
+      <h3>🎵 長名字「四拍 RAP」</h3>
+      <p>不要死背字母，照四段打拍子念，每天打節拍練 5 次。</p>
+      <div class="raps">
+        <div><i>1</i>Tik-ki tik-ki tem-bo</div>
+        <div><i>2</i>no sa rem-bo</div>
+        <div><i>3</i>cha-ri ba-ri ru-chi</div>
+        <div><i>4</i>pip pe-ri pem-bo!</div>
+      </div>
+    </div>
+    <div class="box">
+      <h3>🎭 三次長名字，三種情緒</h3>
+      <ul class="tips">
+        <li><em>媽媽介紹</em>：優雅、驕傲、拉長。雙手叉腰或在胸前畫圓，下巴微抬。</li>
+        <li><em>弟弟焦急</em>：上氣不接下氣、快哭出來。扶膝喘氣，雙手慌張比畫。</li>
+        <li><em>極速爆發</em>：全場最快、最大聲、一口氣念完。挺胸站直，雙手向前伸。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>👀 老人 vs 弟弟：轉不同方向</h3>
+      <ul class="tips">
+        <li><em>演老人</em>：身體和眼神轉向<b>左邊 45 度</b>，微駝背、聲音低、慢慢說、摸鬍子。</li>
+        <li><em>演弟弟</em>：身體和眼神轉向<b>右邊 45 度</b>，聲音高、說得快、動作大。</li>
+        <li>旁白時面向評審。左右分清楚，台風分數會拉開差距。</li>
+      </ul>
+    </div>
+  </section>
+
   <!-- 一、聽＋跟讀 -->
-  <section id="t-listen">
+  <section id="t-listen" class="hidden">
     <div class="box">
       <h3>示範音檔（整段）</h3>
       <audio id="full" controls preload="metadata" src="story/tikki-demo.mp3"></audio>
@@ -222,6 +274,9 @@
       <label class="check"><input type="checkbox" data-k="c3">開場：鞠躬起身，微笑停 1 秒、看評審，再說 Good morning everyone</label>
       <label class="check"><input type="checkbox" data-k="c4">結尾：講完 very, very short names 微笑停 1～2 秒，再說 Thank you 鞠躬</label>
       <label class="check"><input type="checkbox" data-k="c5">全程雙腳站定不晃</label>
+      <label class="check"><input type="checkbox" data-k="c6">眼神有跟台下 3 位評審都交流，不看地上</label>
+      <label class="check"><input type="checkbox" data-k="c7">What a close call! 有拍胸口、鬆一口氣的感覺</label>
+      <label class="check"><input type="checkbox" data-k="c8">全文不提自己的名字和學校</label>
       <div class="row"><button class="btn plain" id="clearChk" style="font-size:13px;padding:6px 12px;">清除勾選</button></div>
     </div>
     <div class="row">
@@ -231,11 +286,54 @@
 </div>
 
 <script>
+// ---------- 講稿 ----------
+const NAME = 'Tikki tikki tembo-no sa rembo-chari bari ruchi-pip peri pembo';
+const SCRIPT = [
+  ['開場', '自信亮相', [
+    ['Good morning, everyone! Today, I’ll tell you about a boy with a VERY long name!', '眼神大方掃視評審，面帶親切微笑打招呼。'],
+    ['Once upon a time, a mother had two sons. The little one was named Chang, which meant “little or nothing.”', '介紹 Chang 時語氣輕鬆自然。'],
+    ['But the first-born son was named…'],
+    ['“' + NAME + '!”', '雙手叉腰、抬頭挺胸、驕傲大笑，字音清楚拉長，像大明星！', 1],
+    ['It meant: “The most wonderful thing in the whole wide world!”']
+  ]],
+  ['意外', '危機降臨', [
+    ['One day, they were playing near the well.', '語氣放輕，營造平靜玩耍的感覺。'],
+    ['Suddenly… SPLASH!', '雙手突然向外拍開或捂嘴，眼睛瞪大！（停 1 秒）'],
+    ['Oh no! Tikki Tikki Tembo fell right into the deep, cold water!', '伸長脖子往下看，做出水又深又冷的驚嚇感。']
+  ]],
+  ['求救', '弟弟 vs 老人', [
+    ['Chang ran as fast as he could to find the Old Man with the Ladder.', '這句可以說快一點。'],
+    ['“Old Man! Help! My brother fell into the well!”', '弟弟（轉右邊）：雙手扶膝蓋，彎腰大口喘氣，聲音急得快哭出來！'],
+    ['The Old Man stroked his beard slowly, “Which brother, little one?”', '老人（轉左邊）：微駝背、一手摸鬍子，說慢一點、聲音低沉。'],
+    ['“' + NAME + ' has fallen into the well!”', '雙手慌張比畫，說得飛快但咬字乾淨。', 1],
+    ['“What? Speak up!” the Old Man cupped his ear. “I cannot hear you!”', '老人單手遮耳朵，裝作聽不清楚。緊接弟弟的尾音說。']
+  ]],
+  ['解圍', '極速爆發', [
+    ['Chang screamed with all his might:', '弟弟深深吸一大口氣，身體挺直！'],
+    ['“TIKKI TIKKI TEMBO-NO SA REMBO-CHARI BARI RUCHI-PIP PERI PEMBO IS DROWNING!”', '全場最亮點：一口氣最快念完全部名字，響亮震撼！', 1],
+    ['The Old Man jumped up, grabbed his ladder, and fished the poor boy out — just in time!', '模仿老人跳起來、扛梯子、拉人上來。這句可以說快一點。']
+  ]],
+  ['結尾', '溫馨幽默', [
+    ['Phew! What a close call!', '拍拍胸口，吐一大口氣（好險救到了）！（停 1 秒）'],
+    ['And from that day on, wise mothers always gave their children very… very short names.', '站好，雙手自然放在身前，微笑。講 very… very short names 時語氣放輕，看著評審會心一笑。'],
+    ['Thank you!', '心裡默數 1、2，再優雅鞠躬 1～2 秒，自信退場。']
+  ]]
+];
+document.getElementById('scriptBox').innerHTML = SCRIPT.map(([t, sub, lines]) =>
+  `<div class="part"><div class="ph"><b>${t}</b><span>${sub}</span></div>` +
+  lines.map(([en, tip, isName]) => `<div class="line"><div class="en${isName ? ' name' : ''}">${en}</div>${tip ? `<div class="tip">${tip}</div>` : ''}</div>`).join('') +
+  `</div>`).join('');
+const tipBtn = document.getElementById('tipToggle');
+tipBtn.onclick = () => {
+  const off = document.getElementById('scriptBox').classList.toggle('notips');
+  tipBtn.textContent = off ? '顯示動作提示' : '隱藏動作提示';
+};
+
 // ---------- 分頁 ----------
 const tabs = document.querySelectorAll('.tab');
 tabs.forEach(b => b.onclick = () => {
   tabs.forEach(x => x.classList.toggle('on', x === b));
-  ['listen','timer','guide'].forEach(t => document.getElementById('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
+  ['script','listen','timer','guide'].forEach(t => document.getElementById('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
 });
 
 function store(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
@@ -388,7 +486,7 @@ $('dl').onclick = () => {
   w(36, 'data'); dv.setUint32(40, pcm.byteLength, true);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([head, pcm], { type: 'audio/wav' }));
-  a.download = 'TikkiTikkiTembo-留白跟讀練習.wav';
+  a.download = 'TheBoyWithTheLongName-留白跟讀練習.wav';
   document.body.appendChild(a); a.click(); a.remove();
 };
 
