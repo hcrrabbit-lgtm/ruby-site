@@ -63,6 +63,13 @@
   .oil .tg{ display:flex; flex-wrap:wrap; gap:4px; }
   .oil .tg span{ font-size:11px; background:var(--sage-bg); color:var(--sage); border-radius:6px; padding:1px 6px; }
   .oil a{ font-size:12px; text-decoration:none; }
+  .oil details{ margin:8px 0 4px; border-top:1px dashed var(--line); padding-top:6px; }
+  .oil summary{ font-size:12.5px; color:var(--rose); cursor:pointer; }
+  .oil h4{ font-size:12.5px; margin:8px 0 2px; color:var(--soft); font-weight:500; }
+  .oil ul{ margin:2px 0; padding-left:18px; }
+  .oil li{ font-size:12.5px; line-height:1.6; color:#4A443C; }
+  mark{ background:#F6E2A8; color:inherit; padding:0 1px; border-radius:2px; }
+  .oils{ align-items:start; }
   table{ width:100%; border-collapse:collapse; font-size:14px; }
   th,td{ border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; }
   th{ font-weight:500; color:var(--soft); font-size:13px; }
@@ -107,17 +114,17 @@
         <li><b>想看配方</b> → 資料夾導覽裡的「07 好用配方 DIY」有 30 天新手指南和各家整理的小妙方。</li>
       </ul>
     </div>
-    <p class="note">提醒：資料庫裡不少文件把精油寫得像能治病（例如寫可以處理癌症、糖尿病、血壓），那是業者或網路轉貼的說法，文件自己也註明「僅供參考，不做為醫療用途，未經衛福部評估」。整理時我只留下香氣、情緒、日常保養這類用途，健康問題還是以醫生為準。</p>
+    <p class="note">提醒：精油小百科每一項都可以展開「資料庫原文說法」，裡面照原文件收錄了所有功效（包含治病相關的說法）和配方。這些是業者或網路轉貼的說法，原文件也註明「僅供參考，不做為醫療用途，未經衛福部評估」，當參考用就好，健康問題還是以醫生為準。</p>
   </section>
 
   <!-- 精油小百科 -->
   <section class="panel" id="pOils">
-    <input class="search" id="q" placeholder="搜尋精油名稱，例如：薰衣草、lemon、盜賊" autocomplete="off">
+    <input class="search" id="q" placeholder="搜尋名稱或症狀，例如：薰衣草、失眠、頭皮屑、經痛" autocomplete="off">
     <div class="chips" id="kindChips"></div>
     <div class="chips" id="tagChips"></div>
     <div class="count" id="count"></div>
     <div class="oils" id="oilList"></div>
-    <p class="note" style="margin-top:14px">說明是我依原文件整理的白話重點，不是原文；想看完整內容（含配方、產地故事）請點「看原文」。</p>
+    <p class="note" style="margin-top:14px">卡片上的一句話是我整理的白話重點；「資料庫原文說法」是照原文件收錄的功效與配方（只略去產地故事和每份都一樣的注意事項）。搜尋症狀時，會自動打開有提到的那幾張，並把關鍵字標出來。原文說法未經醫學證實，僅供參考。</p>
   </section>
 
   <!-- 安全守則 -->
@@ -158,6 +165,7 @@
     <div class="folders" id="folderList"></div>
   </section>
 
+<script src="essential-oils-data.js"></script>
 <script>
 const DRIVE = 'https://drive.google.com/drive/folders/';
 const FOLDERS = [
@@ -381,16 +389,29 @@ tc.addEventListener('click', e => { const b = e.target.closest('.chip'); if(!b) 
   tag = tag === b.dataset.t ? '' : b.dataset.t; tc.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.t === tag)); render(); });
 document.getElementById('q').addEventListener('input', render);
 
+function esc(t){ return t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function hl(t, q){ t = esc(t); if (!q) return t; const i = t.toLowerCase().indexOf(q); return i < 0 ? t : t.slice(0,i) + '<mark>' + t.slice(i, i+q.length) + '</mark>' + t.slice(i+q.length); }
 function render(){
   const q = document.getElementById('q').value.trim().toLowerCase();
-  const list = OILS.filter(o => (!kind || o[2] === kind) && (!tag || o[3].includes(tag)) &&
-    (!q || (o[0] + ' ' + o[1] + ' ' + o[4]).toLowerCase().includes(q)));
+  const list = OILS.filter(o => {
+    if (kind && o[2] !== kind) return false;
+    if (tag && !o[3].includes(tag)) return false;
+    if (!q) return true;
+    const doc = (window.EO_DOCS || {})[o[0]] || {f:[],u:[]};
+    return (o[0] + ' ' + o[1] + ' ' + o[4] + ' ' + doc.f.join(' ') + ' ' + doc.u.join(' ')).toLowerCase().includes(q);
+  });
   document.getElementById('count').textContent = `共 ${list.length} 項`;
   document.getElementById('oilList').innerHTML = list.map(o => {
     const search = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(o[0].replace(/[（(].*$/,'').replace(/^KidScents |^Ortho \w+ |^V6 /,''));
-    return `<div class="oil"><div class="nm"><b>${o[0]}</b><span class="kind">${KINDS[o[2]]}</span></div>
+    const doc = (window.EO_DOCS || {})[o[0]] || {f:[],u:[]};
+    const hit = q && (doc.f.concat(doc.u).join(' ').toLowerCase().includes(q));
+    const det = (doc.f.length || doc.u.length) ? `<details${hit ? ' open' : ''}><summary>資料庫原文說法（${doc.f.length} 項功效${doc.u.length ? '・' + doc.u.length + ' 則用法配方' : ''}）</summary>
+      ${doc.f.length ? '<h4>功效</h4><ul>' + doc.f.map(x => `<li>${hl(x,q)}</li>`).join('') + '</ul>' : ''}
+      ${doc.u.length ? '<h4>用法與配方</h4><ul>' + doc.u.map(x => `<li>${hl(x,q)}</li>`).join('') + '</ul>' : ''}</details>` : '';
+    return `<div class="oil"><div class="nm"><b>${hl(o[0],q)}</b><span class="kind">${KINDS[o[2]]}</span></div>
       <div class="en">${o[1]}</div><div class="d">${o[4]}</div>
       <div class="tg">${[...o[3]].map(t => `<span>${TAGS[t]}</span>`).join('')}</div>
+      ${det}
       <a href="${search}" target="_blank" rel="noopener">看原文 →</a></div>`;
   }).join('') || '<p class="note">找不到，換個關鍵字試試。</p>';
 }
