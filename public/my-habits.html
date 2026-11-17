@@ -51,7 +51,7 @@
   .habit-section > h3, .habit-section > h3 + .section-desc{ display:none; }
   .section-desc{ color:var(--ink-soft); font-size:14px; }
   /* ---------- Ruby 進化中：上方四格切換，一次只顯示一區 ---------- */
-  .ev-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:0 0 20px; }
+  .ev-tabs{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:0 0 20px; }
   .ev-tabs button{
     display:flex; flex-direction:row; align-items:center; justify-content:center; gap:7px;
     border:1px solid #E3DACB; background:#FBF8F2; color:#8C8274; border-radius:12px;
@@ -291,6 +291,7 @@
       <button type="button" data-panel="evMonth"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-4"/><path d="M12 16V8"/><path d="M17 16v-6"/></svg></span>本月統計</button>
       <button type="button" data-panel="evGratitude"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20v-8"/><path d="M12 12c0-3.5-2.5-6-6.5-6 0 3.8 2.6 6 6.5 6z"/><path d="M12 14.5c0-3 2.2-5 5.8-5 0 3.2-2.3 5-5.8 5z"/></svg></span>感恩日記</button>
       <button type="button" data-panel="evEnglish"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7c-2-1.6-4.6-2.2-8-2v12.5c3.4-.2 6 .4 8 2 2-1.6 4.6-2.2 8-2V5c-3.4-.2-6 .4-8 2z"/><path d="M12 7v12.5"/></svg></span>英語練習</button>
+      <button type="button" data-panel="evOil"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c3 3.6 5.5 6.9 5.5 10a5.5 5.5 0 0 1-11 0c0-3.1 2.5-6.4 5.5-10z"/><path d="M9.4 14.6a2.7 2.7 0 0 0 2.6 2.2"/></svg></span>精油資料</button>
     </nav>
 
     <!-- 1. 今日打卡 -->
@@ -344,6 +345,14 @@
       <a class="ev-card" href="open/english-vocab.html">
         <b>英語單字遊樂場 →</b>
         <p>看圖聽音、翻牌配對、闖關、60 秒快閃，會依程度自動變難。</p>
+      </a>
+    </div>
+    <!-- 5. 精油資料 -->
+    <div class="ev-block" id="evOil">
+      <div class="ev-head"><div><p class="ev-desc">朋友分享的精油雲端資料庫，整理成可搜尋的小百科。原檔不動，只做整理與連結。</p></div></div>
+      <a class="ev-card" href="essential-oils.html">
+        <b>精油資料庫整理 →</b>
+        <p>178 支精油與產品白話重點、按用途篩選、稀釋安全守則、17 個資料夾導覽。</p>
       </a>
     </div>
   </div>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F7F3EB">
+<title>精油資料庫整理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --card:#FBF8F2; --ink:#2E2A25; --soft:#8C8274; --line:#E3DACB;
+    --sage:#7E9172; --sage-bg:#EEF2E8; --rose:#B96B77; --rose-bg:#F6E9EA;
+    --ochre:#C4863A; --ochre-bg:#FBF0DE; --blue:#3F6672; --blue-bg:#E7EFF0;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:var(--paper); color:var(--ink); }
+  body{ font-family:'Noto Sans TC',sans-serif; max-width:920px; margin:0 auto;
+    padding:calc(16px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom)); }
+  a{ color:var(--blue); }
+  .top{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .back{ text-decoration:none; color:var(--soft); font-size:14px; border:1px solid var(--line); background:var(--card); border-radius:10px; padding:6px 10px; }
+  h1{ font-family:'Noto Serif TC',serif; font-size:24px; letter-spacing:.06em; margin:10px 0 2px; color:#3B352D; }
+  .sub{ color:var(--soft); font-size:13.5px; margin:0 0 16px; line-height:1.7; }
+  .tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 18px; }
+  .tabs button{ border:1px solid var(--line); background:var(--card); color:var(--soft); border-radius:12px; padding:9px 4px;
+    font-family:'Noto Serif TC',serif; font-size:14px; letter-spacing:.06em; cursor:pointer; }
+  .tabs button.active{ background:#fff; border-color:var(--sage); color:var(--sage); font-weight:700; }
+  .panel{ display:none; } .panel.active{ display:block; }
+  .box{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:14px; }
+  .box h2{ font-family:'Noto Serif TC',serif; font-size:17px; margin:0 0 8px; letter-spacing:.04em; color:#3B352D; }
+  .box p, .box li{ font-size:14px; line-height:1.75; color:#4A443C; }
+  .box ul{ padding-left:20px; margin:6px 0; }
+  .note{ font-size:12.5px; color:var(--soft); line-height:1.7; }
+  .stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px; }
+  .stat{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .stat b{ display:block; font-family:'Noto Serif TC',serif; font-size:24px; color:var(--sage); }
+  .stat span{ font-size:12.5px; color:var(--soft); }
+  /* 資料夾 */
+  .folders{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+  .folder{ display:block; text-decoration:none; color:inherit; background:#fff; border:1px solid var(--line); border-radius:14px; padding:13px 14px; }
+  .folder .tag{ display:inline-block; font-size:11.5px; border-radius:999px; padding:1px 8px; margin-bottom:5px; }
+  .folder b{ display:block; font-family:'Noto Serif TC',serif; font-size:15px; color:#3B352D; }
+  .folder p{ margin:5px 0 0; font-size:13px; color:var(--soft); line-height:1.6; }
+  .t-start{ background:var(--ochre-bg); color:var(--ochre); }
+  .t-prod{ background:var(--sage-bg); color:var(--sage); }
+  .t-use{ background:var(--rose-bg); color:var(--rose); }
+  .t-biz{ background:var(--blue-bg); color:var(--blue); }
+  /* 百科 */
+  .search{ width:100%; font-size:16px; padding:11px 14px; border:1px solid var(--line); border-radius:12px; background:#fff; font-family:inherit; }
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .chip{ border:1px solid var(--line); background:#fff; color:var(--soft); border-radius:999px; padding:4px 11px; font-size:13px; cursor:pointer; font-family:inherit; }
+  .chip.on{ background:var(--sage); border-color:var(--sage); color:#fff; }
+  .count{ font-size:12.5px; color:var(--soft); margin:4px 0 10px; }
+  .oils{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
+  .oil{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .oil .nm{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+  .oil .nm b{ font-family:'Noto Serif TC',serif; font-size:15px; color:#3B352D; }
+  .oil .kind{ font-size:11px; color:var(--soft); white-space:nowrap; }
+  .oil .en{ font-size:11.5px; color:#A79D8F; }
+  .oil .d{ font-size:13px; color:#4A443C; margin:4px 0 6px; line-height:1.55; }
+  .oil .tg{ display:flex; flex-wrap:wrap; gap:4px; }
+  .oil .tg span{ font-size:11px; background:var(--sage-bg); color:var(--sage); border-radius:6px; padding:1px 6px; }
+  .oil a{ font-size:12px; text-decoration:none; }
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  th,td{ border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; }
+  th{ font-weight:500; color:var(--soft); font-size:13px; }
+  @media (max-width:520px){ .tabs button{ font-size:12.5px; } .stat b{ font-size:20px; } }
+</style>
+</head>
+<body>
+  <div class="top"><a class="back" href="index.html#health">← 回 Ruby 進化中</a></div>
+  <h1>精油資料庫整理</h1>
+  <p class="sub">把朋友分享的「精油雲端資料庫」整理成好查的樣子。原始資料是別人的，這裡只做整理與連結，不會動到原檔。<br>
+    點任何資料夾或「看原文」都會開回 Google 雲端硬碟。</p>
+
+  <nav class="tabs">
+    <button data-p="pOverview" class="active">總覽</button>
+    <button data-p="pOils">精油小百科</button>
+    <button data-p="pSafe">安全守則</button>
+    <button data-p="pFolders">資料夾導覽</button>
+  </nav>
+
+  <!-- 總覽 -->
+  <section class="panel active" id="pOverview">
+    <div class="stats">
+      <div class="stat"><b>17</b><span>主題資料夾</span></div>
+      <div class="stat"><b id="statOils">—</b><span>每日一分享文件</span></div>
+      <div class="stat"><b>300+</b><span>圖卡與 DM</span></div>
+    </div>
+    <div class="box">
+      <h2>重點先說</h2>
+      <ul>
+        <li>這是 <b>Young Living（悠樂芳）</b>會員之間流傳的共享資料庫，內容以產品介紹、使用配方和入會方案為主。</li>
+        <li><b>最有用的是「精油每日一分享（文字檔）」</b>：約 180 份文件，一份介紹一支精油或一項產品，格式都一樣——來源與香氣、功效、使用方法、注意事項。我把它們整理成「精油小百科」，可以搜尋、按用途篩選。</li>
+        <li><b>其他資料夾幾乎都是圖片</b>（產品圖卡、DM、簡報截圖），適合要轉傳或看細節時再點進去。</li>
+        <li>資料夾 01、09、11 偏向入會與經營，跟自己使用比較無關，可以先略過。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>建議怎麼用</h2>
+      <ul>
+        <li><b>想找某支油</b> → 精油小百科，直接打名字（中英文都可以）。</li>
+        <li><b>想解決某個狀況</b>（睡不好、肩頸緊、居家清潔）→ 精油小百科，點上方的用途標籤。</li>
+        <li><b>要給孩子用</b> → 先看「安全守則」的稀釋比例，再點「寶寶兒童」標籤找溫和的油。</li>
+        <li><b>想看配方</b> → 資料夾導覽裡的「07 好用配方 DIY」有 30 天新手指南和各家整理的小妙方。</li>
+      </ul>
+    </div>
+    <p class="note">提醒：資料庫裡不少文件把精油寫得像能治病（例如寫可以處理癌症、糖尿病、血壓），那是業者或網路轉貼的說法，文件自己也註明「僅供參考，不做為醫療用途，未經衛福部評估」。整理時我只留下香氣、情緒、日常保養這類用途，健康問題還是以醫生為準。</p>
+  </section>
+
+  <!-- 精油小百科 -->
+  <section class="panel" id="pOils">
+    <input class="search" id="q" placeholder="搜尋精油名稱，例如：薰衣草、lemon、盜賊" autocomplete="off">
+    <div class="chips" id="kindChips"></div>
+    <div class="chips" id="tagChips"></div>
+    <div class="count" id="count"></div>
+    <div class="oils" id="oilList"></div>
+    <p class="note" style="margin-top:14px">說明是我依原文件整理的白話重點，不是原文；想看完整內容（含配方、產地故事）請點「看原文」。</p>
+  </section>
+
+  <!-- 安全守則 -->
+  <section class="panel" id="pSafe">
+    <div class="box">
+      <h2>稀釋比例（資料庫每份文件都附的共同守則）</h2>
+      <table>
+        <tr><th>對象</th><th>濃度</th><th>大約怎麼調</th></tr>
+        <tr><td>大人日常保養</td><td>2–3%</td><td>10ml 植物油 + 精油 4–6 滴</td></tr>
+        <tr><td>嬰幼兒、孕婦、長輩</td><td>0.5–1%</td><td>10ml 植物油 + 精油 1–2 滴</td></tr>
+      </table>
+      <p class="note">「1 滴 ≈ 0.05ml」是常用的估算；植物油資料庫裡多用 V6 綜合植物油，一般食用級橄欖油、荷荷芭油也可。</p>
+    </div>
+    <div class="box">
+      <h2>使用時記得</h2>
+      <ul>
+        <li>遠離眼睛、耳道和黏膜；放在孩子拿不到的地方。</li>
+        <li>第一次用先在手肘內側試一點，隔天沒有紅癢再用。</li>
+        <li>懷孕、哺乳、正在看病或吃藥時，先問醫生。</li>
+        <li><b>刺激性強的油要更稀</b>：肉桂、丁香、牛至、百里香、冬季香薄荷、冬青、黑胡椒。資料庫也特別註明這幾支「少量使用」。</li>
+        <li><b>柑橘類擦皮膚後避免曬太陽</b>：檸檬、萊姆、佛手柑、葡萄柚、甜橙等，擦在會曬到的地方容易反黑。</li>
+        <li>冬青含水楊酸甲酯，小孩和對阿斯匹靈過敏的人避免。</li>
+        <li>資料庫有寫「口服請用膠囊」，但吃精油風險比擦或聞高很多，不建議自己嘗試，特別是孩子。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h2>常見三種用法</h2>
+      <ul>
+        <li><b>擴香</b>：擴香機每次約 30 分鐘到 1 小時，一天幾次即可，不必整天開。</li>
+        <li><b>塗抹</b>：先用植物油稀釋，擦在手腕、肩頸、腳底或需要的部位。</li>
+        <li><b>泡澡</b>：精油先跟海鹽或沐浴乳混勻再倒進水裡，直接滴進水會浮在表面刺激皮膚。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 資料夾導覽 -->
+  <section class="panel" id="pFolders">
+    <div class="folders" id="folderList"></div>
+  </section>
+
+<script>
+const DRIVE = 'https://drive.google.com/drive/folders/';
+const FOLDERS = [
+  ['1CBPUFQeNVSDrw3SPqmq0VA1qmBIxQQl9','01','入會相關','t-biz','入會','入會 SOP、外籍人士與公司戶入會、忠誠獎勵計劃、新手 Q&A，加上約 30 張入會套組與優惠方案海報（呼吸順暢組、放鬆舒壓組、完美體態組、各款擴香機入門套裝等）。'],
+  ['1CBULKoTy1vqw8zHQJH0pDrlDN4DKWRVG','02','精油系列','t-prod','產品','依類別分 10 個子資料夾：單方、複方、活力系列、滾珠、Simplified by Jacob + Kait、精油套裝、按摩油、擴香機、週邊商品、美容護膚。'],
+  ['1D1qOOg8S5xQE68uD2QwIxWVCmaF3-lUS','03','盜賊系列','t-prod','產品','約 45 張圖卡：盜賊家居清潔液（含新版與稀釋用法）、洗衣精、蔬果清潔、碗盤清潔、噴霧、牙膏、漱口水，以及 5 張使用小 Tips。'],
+  ['1KwPbOo2my92ZuD7a8i9ue4g-xja1c5x4','04','勁捷 Sulfurzyme','t-prod','產品','MSM 營養補充品的簡介圖卡，也提到兒童維他命咀嚼片。'],
+  ['1CmKnujba_1tb8qwTYpzkYaMMC9e6xkP4','04','寧夏紅 NingXia Red','t-prod','產品','產品介紹資料夾＋《認識寧夏紅》小冊子。'],
+  ['1xeXRSFCtVAA8CYdUoNFgBFFN69JZBDum','04','Balance & Burn 體重管理','t-prod','產品','體重管理系統的介紹圖卡 6 張。'],
+  ['1JqWuchGcbA_icPRyOAZ2LeI0LUI3X45X','04','BLOOM 膠原亮膚飲','t-prod','產品','「聰明補充膠原蛋白」說明與產品圖 5 張。'],
+  ['1v5lBaYWVrebLmzkx0eVhnM_q28QLvPck','04','DeepSpectra 加倍悠魚油','t-prod','產品','年會簡報 7 張、新品上市、「為何天天吃魚油」等圖卡共 17 張。'],
+  ['11q3czxptwAE_RQUaBxn1C6QkgEcw6TSR','04','DeepSpectra 植粹精華','t-prod','產品','產品介紹圖 12 張。'],
+  ['1CCB7mDepzkZHZK4hlcX5orEAidNju-H3','05','營養保健','t-prod','產品','依整理者分的營養補充品介紹（欣嬡、油樂人生、精油世界、精油萬花筒等）、營養補充品指南、Life9 益生菌相簿。'],
+  ['1DCKUPymMGn1alG0Gq-VXpuGN6EsRHwdC','06','護膚護髮系列','t-prod','產品','Savvy 礦物彩妝、肌膚護理、美容精油運用、兒童使用、BLOOM 系列，以及月桃保濕噴霧／凝露、薰衣草護手霜、潤唇膏。'],
+  ['1CGp2wgLPoF52CudRLSfUiz7V1SxSp-DT','07','好用配方 DIY','t-use','實用','★ 最實用的資料夾之一：30 天新手指南，以及 7 個來源整理的「產品小妙方」（欣嬡工作坊、油樂人生、喵喵健康愛家人、精油世界、精油萬花筒、YL 公司等）。'],
+  ['1CKkGh0G0XqlEn0Zw4DyOsLdOyxnm_JHJ','08','見證分享','t-use','實用','使用心得圖文：頭髮、蚊蟲叮咬、鼻子過敏、跌倒撞傷、皮膚、經痛、瘀青、「呼吸道四姊妹」等主題，各列出搭配的精油。'],
+  ['1Bkj_Xj9O1PYV4jM739HoaQKnowVgerYB','09','經營分享','t-biz','經營','公司介紹、農場、制度課程、海外會員註冊、九十天上銀級挑戰等經營者資料。'],
+  ['1DEc3kH3RqhquOvrdKScMsUNjL_U5hAqD','10','公司篇：農場、基金會','t-biz','經營','目前是空資料夾。'],
+  ['1QITtDox1z-YsU8-KzGaewdutFgj-GJbJ','11','成功者思維','t-biz','經營','約 45 張激勵圖卡（經營者心態、成功三部曲、創辦人語錄）。'],
+  ['1LVw3JLVh6NriZ4-FEIszWeu8XQMKeTpW','★','精油每日一分享（文字檔）','t-use','實用','約 180 份文件，一支油一份，內容都整理在「精油小百科」。'],
+  ['1XOYZk505it-qJI9cwX9jqxZH3WkDCEoQ','＋','資料庫首頁','t-start','總目錄','另有一張「Pink Champagne 粉紅泡泡滾珠」圖卡放在最外層。'],
+];
+document.getElementById('folderList').innerHTML = FOLDERS.map(f =>
+  `<a class="folder" href="${DRIVE}${f[0]}" target="_blank" rel="noopener">
+     <span class="tag ${f[3]}">${f[1]}・${f[4]}</span><b>${f[2]}</b><p>${f[5]}</p></a>`).join('');
+
+// 用途標籤
+const TAGS = {放:'放鬆紓壓',眠:'好眠',神:'提神專注',膚:'肌膚保養',髮:'頭髮頭皮',呼:'呼吸順暢',胃:'腸胃消化',肌:'肌肉痠痛',潔:'居家清潔驅蚊',女:'女性生理期',寶:'寶寶兒童',心:'心靈能量'};
+const KINDS = {S:'單方',B:'複方',P:'產品'};
+// [中文名, 英文名, 類型, 用途, 白話重點]
+const OILS = [
+['一枝黃花','Goldenrod','S','膚心','清新草本香，常用於調理肌膚、穩定心神；也是「常識」複方的成分。'],
+['一顆心','One Heart','B','心放','鼓勵與人連結、打開心胸的情緒複方。'],
+['丁香','Clove','S','神潔胃','辛辣溫暖的香氣，常用於口腔清新、驅蟲；刺激性強，務必少量稀釋。'],
+['三智者','3 Wise Men','B','心放','含乳香、沒藥的木質複方，冥想、安定情緒時使用。'],
+['小荳蔻','Cardamom','S','胃放','香料系香氣，飯後按摩肚子幫助舒緩脹氣。'],
+['山香','Dorado Azul','S','呼','厄瓜多爾草本精油，擴香讓呼吸感覺順暢。'],
+['內在小孩','Inner Child','B','心放','幫助安撫情緒、找回信心的複方。'],
+['天竺葵','Geranium','S','膚女放','玫瑰般花香，平衡油脂、照顧膚況，也常用於生理期按摩。'],
+['尤加利','Eucalyptus Radiata','S','呼膚潔','清涼通透，擴香讓呼吸舒暢；滴 1 滴在洗臉水裡可清潔肌膚。'],
+['心觸動','Sensation','B','膚心','浪漫花香複方，營造放鬆、愉悅的氛圍。'],
+['月輕鬆','Dragon Time','B','女放','生理期前後舒緩情緒與不適的女性複方。'],
+['牛至','Oregano','S','潔','強效潔淨型精油，資料庫用於指甲周圍保養；非常刺激，要高度稀釋。'],
+['牛膝草','Hyssop','S','呼','草本香氣，擴香幫助呼吸感覺順暢。'],
+['冬季香薄荷','Mountain Savory','S','髮潔','溫熱型精油，用於頭皮保養；刺激性強要稀釋。'],
+['冬青','Wintergreen','S','肌','清涼感，按摩痠痛部位；小孩與對阿斯匹靈過敏者避免。'],
+['加倍悠魚油','OmegaGize','P','','魚油營養補充品。'],
+['北非雪松','Cedarwood','S','髮膚眠放','溫暖木質香，常用於頭皮、油性肌和睡前放鬆。'],
+['北極光黑雲杉','Northern Lights Black Spruce','S','膚心放','森林木質香，擦腳底或背部帶來沉穩感。'],
+['去角質潔面薄荷磨砂膏','Mint Satin Scrub','P','膚','臉部去角質產品。'],
+['玉檸檬','Jade Lemon','S','神潔','比一般檸檬更甜的柑橘香，擴香提振心情。'],
+['白使者','White Angelica','B','心','保護、淨化負面能量的情緒複方。'],
+['白馬鞭草','Mastrante','S','放眠','帶來安穩、鎮定的感覺，適合紓壓。'],
+['先生','Mister','B','放','男性向複方，幫助放鬆、提振精神。'],
+['印蒿','Davana','S','放心','果香帶甜，常用於調香和平衡情緒。'],
+['安內','EndoFlex','B','神','含鼠尾草、天竺葵等的複方，用於支持身體代謝與活力。'],
+['百里香','Thyme','S','潔髮','強效草本精油，資料庫用於頭皮與膚況保養；刺激性強要稀釋。'],
+['肉桂','Cinnamon Bark','S','神潔','溫暖香甜，擴香營造愉悅氣氛；擦皮膚很刺激，要高度稀釋。'],
+['肉荳蔻','Nutmeg','S','胃神','溫暖香料味，用於腸胃按摩、提振精神。'],
+['臣服','Surrender','B','心放','幫助放下控制欲、讓思緒清晰的情緒複方。'],
+['佛手柑','Bergamot','S','放膚','清甜柑橘花香，紓壓好用；擦後避免日曬。'],
+['希望','Hope','B','心放','緩解低落、重拾希望感的情緒複方。'],
+['快樂鼠尾草','Clary Sage','S','女放髮','女性常用油，生理期按摩、放鬆情緒，也用於頭皮保養。'],
+['杜松','Juniper','S','胃膚','清新木質香，按摩用於水腫感、腸胃舒緩。'],
+['杜香','Ledum','S','胃放','用於身體淨化、放鬆腸胃緊繃。'],
+['沒藥','Myrrh','S','膚心','樹脂香氣，常搭配乳香做肌膚保養，改善乾裂。'],
+['肝膽清','GLF','P','胃','保健膠囊產品。'],
+['乳香','Frankincense','S','膚心放','最常用的油之一：肌膚保養、冥想、安定情緒都適合。'],
+['依蘭依蘭','Ylang Ylang','S','放膚髮','濃郁花香，放鬆心情、平衡油脂，也用於護髮。'],
+['兒童護理潔白牙膏','KidScents Slique Toothpaste','P','寶','兒童牙膏。'],
+['和諧・樂容','Harmony','B','心放','平衡情緒、釋放壓力的花香複方。'],
+['岩玫瑰','Cistus','S','膚','樹脂花香，用於緊緻肌膚、眼周保養。'],
+['岩蘭草','Vetiver','S','眠放','厚重泥土香，讓人沉靜；加海鹽泡澡幫助入睡。'],
+['放大你的目標','Magnify Your Purpose','B','心神','激發動力、專注目標的複方。'],
+['昆士亞','Kunzea','S','肌放','澳洲木質香，擴香營造活力空間，也用於按摩舒緩。'],
+['松樹','Pine','S','呼潔','森林清香，擴香讓呼吸順暢，也可加入清潔用品。'],
+['玫瑰草','Palmarosa','S','膚放','玫瑰般香氣，保濕護膚、穩定情緒。'],
+['玫瑰','Rose','S','膚女放','高級花香，用於肌膚按摩、生理期熱敷、安撫情緒。'],
+['芫荽','Cilantro','S','胃','香菜葉精油，飯後按摩腹部。'],
+['芬活','Aroma Life','B','肌','用於循環保養按摩的複方。'],
+['芬護精油防蚊液','Insect Repellent','P','潔寶','精油防蚊液。'],
+['長壽','Longevity','B','膚','含丁香、百里香的抗氧化複方。'],
+['勇氣','Valor','B','心放眠','最受歡迎的情緒複方之一：早上增加勇氣、睡前幫助放鬆，常擦腳底或脊椎。'],
+['弭化（悠暢）','DiGize','B','胃','腸胃用複方，飯後擦肚子順時針按摩。'],
+['扁柏','Hinoki','S','放心','日本檜木香，安撫激動情緒、建立自信。'],
+['柑橘','Tangerine','S','放胃寶','甜美果香，溫和適合孩子，安撫情緒、幫助消化。'],
+['柔喚','KidScents Refresh','B','寶呼眠','兒童用複方，睡前擴香讓呼吸舒緩。'],
+['柔暢','KidScents TummyGize','B','寶胃','兒童腸胃按摩複方。'],
+['柔靜','KidScents GeneYus','B','寶神','兒童專注力複方，讀書時擴香。'],
+['柔寶','KidScents KidCare','B','寶膚','兒童肌膚照護複方。'],
+['柔纖美人茶','Slique Tea','P','','茶飲產品。'],
+['活在當下','Present Time','B','心','幫助專注當下、恢復信心的複方。'],
+['活性炭香氛皂','Charcoal Bar Soap','P','膚','清潔香皂。'],
+['皇家夏威夷檀香','Royal Hawaiian Sandalwood','S','膚心放','溫潤木香，保濕抗老、冥想；刮鬍後加入化妝水可安撫肌膚。'],
+['相信','Believe','B','心','提升正向思考、放下挫折的複方。'],
+['紅檜','Hong Kuai','S','眠放','台灣紅檜木香，枕頭兩側各滴 2 滴幫助入睡。'],
+['美適特綜合維他命飲品','MultiGreens','P','','營養補充飲品。'],
+['胡蘿蔔籽','Carrot Seed','S','膚','肌膚保養用，搭配玫瑰、薰衣草提亮膚色。'],
+['苦配巴','Copaiba','S','肌膚','溫和樹脂香，常搭配其他油一起按摩舒緩。'],
+['苦橙葉','Petitgrain','S','放眠','清新帶苦的柑橘葉香，安撫憤怒與焦躁。'],
+['茉莉','Jasmine','S','膚心放','濃郁花香，提振自信、保養肌膚。'],
+['香茅','Citronella','S','潔','知名的防蚊精油，擴香驅蚊、清新空氣。'],
+['香茅（台灣）','Xiang Mao','S','潔膚','台灣香茅，清潔、驅蟲，也用於調理油脂。'],
+['香桃木','Myrtle','S','呼神','溫和清新，穩定情緒、幫助集中精神。'],
+['香蜂草','Melissa','S','放膚潔','珍貴的檸檬花香，安撫敏感膚況與情緒，也可防蚊蟲。'],
+['展望','Envision','B','心','重拾對未來信心、激發創意的複方。'],
+['悅幸福','Joy','B','心放','愉悅花香複方，出門前擦手腕和頸後當香水。'],
+['悅聖誕','Christmas Spirit','B','放','柑橘肉桂的節慶香氣，冬天擴香。'],
+['祕魯聖木','Palo Santo','S','放心膚','甜木香，平靜思緒、淨化空間。'],
+['神聖乳香','Sacred Frankincense','S','膚心肌','乳香的另一品種，肌膚保養、冥想、運動後按摩。'],
+['神聖檀香','Sacred Sandalwood','S','膚心','加 1–2 滴到保濕霜讓肌膚有光澤；適合瑜珈冥想。'],
+['秘亞賦活卸妝油','Mirah Cleansing Oil','P','膚','卸妝油。'],
+['秘亞賦活護髮油','Mirah Hair Oil','P','髮','護髮油。'],
+['紓解','Relieve It','B','肌','運動後擦痠痛處的複方。'],
+['茴香','Fennel','S','胃膚','甜甜的大茴香味，幫助消化、舒緩乾癢。'],
+['茶樹','Tea Tree','S','膚髮潔','萬用清潔型油：頭皮屑、香港腳、蚊蟲叮咬、痘痘局部都常用。'],
+['衷愛','Loyalty','B','心膚','強化關係連結的情緒複方。'],
+['迷迭香','Rosemary','S','髮神膚','提神醒腦、頭皮保養（生髮、去屑）、收斂油性肌。'],
+['馬鬱蘭','Marjoram','S','肌女放','溫暖草本，肌肉按摩、生理期熱敷都適合。'],
+['常識','Common Sense','B','神','提升判斷力、思路清晰的複方。'],
+['悠活9益生菌','Life 9','P','胃','益生菌營養補充品。'],
+['接地','Grounding','B','放心','讓人穩定、腳踏實地的木質複方。'],
+['接納','Acceptance','B','心','幫助接受新事物、與人相處的複方。'],
+['啟程','Journey On','B','心','激勵前進、冥想時使用的複方。'],
+['淑魅','Progessence Plus','P','女','女性保養精華。'],
+['淨化','Purification','B','潔呼','空氣淨化、除臭、防蚊蟲的經典複方。'],
+['深舒','Deep Relief','B','肌','肩頸、肌肉痠痛的滾珠複方。'],
+['甜橙','Orange','S','放膚寶','開心的果香，溫和適合孩子，安撫情緒；擦後避免日曬。'],
+['麥蘆卡','Manuka','S','膚','紐西蘭松紅梅，淡化痘疤、保養腳與指甲。'],
+['最高潛能','Highest Potential','B','心神','釋放煩惱、發揮潛能的複方。'],
+['提升免疫','ImmuPower','B','潔','季節交替時擴香的保護型複方。'],
+['提昇女性能量','Lady Sclareol','B','女放','女性保養複方，放鬆並平衡情緒。'],
+['甦活','Awaken','B','心','喚醒內在動力的情緒複方。'],
+['盜賊','Thieves','B','潔','招牌複方：丁香、肉桂、檸檬、尤加利、迷迭香，用於居家清潔、季節保護。'],
+['盜賊倍加清新漱口水','Thieves Mouthwash','P','潔','漱口水。'],
+['盜賊清香潔亮牙膏','Thieves Toothpaste','P','潔','牙膏。'],
+['盜賊舒緩膏','Thieves Chest Rub','P','呼寶','擦胸口的舒緩膏，標示適用 4 歲以上。'],
+['盜賊碗盤清潔液','Thieves Dish Soap','P','潔','洗碗精。'],
+['絲柏','Cypress','S','女肌','促進循環，下腹或腿部按摩。'],
+['舒肌','Aroma Siez','B','肌','肌肉放鬆按摩複方。'],
+['舒神','AromaEase','B','胃放','舟車勞頓、腸胃不適時聞一聞。'],
+['舒靜','Peace & Calming','B','放眠寶','睡前擴香、安撫孩子情緒的人氣複方。'],
+['舒靜 II','Peace & Calming II','B','放眠寶','舒靜的新配方，同樣用於好眠與放鬆。'],
+['萊姆','Lime','S','神潔','清新柑橘香，提神、清潔；擦後避免日曬。'],
+['黑胡椒','Black Pepper','S','肌胃','溫熱型精油，按摩促進循環；刺激性強要稀釋。'],
+['奧寇梯木','Ocotea','S','放','擴香舒緩焦慮，資料庫說能降低想吃甜食的念頭。'],
+['愛達荷藍雲杉','Idaho Blue Spruce','S','肌放','森林木香，擴香帶來平衡踏實感，也用於按摩。'],
+['感恩','Gratitude','B','心','培養感恩與滿足的情緒複方。'],
+['溫和寶貝','Gentle Baby','B','寶膚放','溫和花香，寶寶按摩、孕婦保養常用。'],
+['聖經精油套裝','12 Oils of Ancient Scripture','P','心','聖經中提到的 12 支精油套組。'],
+['葡萄柚護唇膏','Grapefruit Lip Balm','P','膚','護唇膏。'],
+['葡萄柚','Grapefruit','S','神膚','明亮果香，常用於身體曲線按摩；擦後避免日曬。'],
+['鼠尾草','Sage','S','女神','草本香，女性保養與提神；孕期避免。'],
+['夢寶貝','Seedlings Calm','B','寶眠','嬰幼兒睡前用的溫和複方。'],
+['寧夏杞子紅','NingXia Red','P','','枸杞果汁營養飲品。'],
+['綠花白千層','Niaouli','S','膚呼潔','清新潔淨，膚況保養、提振思緒。'],
+['綠薄荷','Spearmint','S','胃神','比薄荷溫和的清涼感，幫助消化、提神。'],
+['聚合','Gathering','B','心','幫助凝聚專注、整理思緒的複方。'],
+['蒔蘿','Dill','S','胃','香料香，幫助消化、舒緩脹氣。'],
+['輕肌','M-Grain','B','放眠','頭部緊繃時按摩太陽穴、頸後。'],
+['酷舒','Cool Azul','B','肌','清涼型運動按摩複方，舒緩痠痛、扭傷。'],
+['寬恕','Forgiveness','B','心','幫助放下、釋放怨氣的複方。'],
+['廣藿香','Patchouli','S','膚潔','深沉木質香，緊緻肌膚；加 1 滴可讓複方香味更持久。'],
+['德國洋甘菊','German Chamomile','S','膚肌','藍色精油，舒緩敏感肌膚。'],
+['樂自在','Stress Away','B','放眠','香草萊姆香，忙碌一天後紓壓的人氣滾珠。'],
+['樂抒','Raven','B','呼','清涼型呼吸複方，擦胸口或擴香。'],
+['樂吸','R.C.','B','呼肌','運動前擦胸口、頸背，讓呼吸更順暢。'],
+['歐白芷','Angelica','S','胃心','草本香，安撫情緒、幫助消化。'],
+['歐芹','Parsley','S','胃','稀釋後按摩肚臍周圍，舒緩脹氣。'],
+['澄思','Clarity','B','神','提升專注、思路清晰的複方。'],
+['駐容','Melrose','B','膚髮','含茶樹的肌膚照護複方，也用於頭髮護理。'],
+['橙花','Neroli','S','膚放眠','高雅花香，保濕淡斑、安撫神經、幫助入睡。'],
+['澳大利亞藍','Australian Blue','B','心肌','啟發心智、按摩舒緩的澳洲複方。'],
+['澳洲白千層','Australian Ericifolia','S','神膚','清新提神，搭配迷迭香做臉部按摩。'],
+['澳洲彩虹','Australian Kuranya','B','膚','潤澤肌膚、提升光澤。'],
+['激發','Motivation','B','心神','克服恐懼、完成困難任務的鼓勵型複方。'],
+['築夢者','Build Your Dream','B','心','激勵實現夢想的複方。'],
+['優橘','Citrus Fresh','B','神放寶','多種柑橘混合，擴香清新空氣、提振心情。'],
+['嬰兒油','Seedlings Baby Oil','P','寶膚','嬰兒按摩油。'],
+['嬰兒柔膚濕巾','Seedlings Baby Wipes','P','寶','嬰兒濕巾。'],
+['嬰兒紗衣噴霧','Seedlings Linen Spray','P','寶','寶寶衣物噴霧。'],
+['嬰兒潤膚乳','Seedlings Baby Lotion','P','寶膚','嬰兒乳液。'],
+['薄荷','Peppermint','S','神胃呼肌','最常用的油之一：提神、頭部清涼、呼吸順暢、飯後舒緩；嬰幼兒避免擦臉部。'],
+['薑','Ginger','S','胃肌髮','溫熱辛香，按摩肚子或痠痛處，也用於頭皮保養。'],
+['邁向未來','Into the Future','B','心','帶來安全感、鼓勵向前的複方。'],
+['檸檬','Lemon','S','潔神膚','清潔、提神、空氣清新的萬用油；擦後避免日曬。'],
+['檸檬香茅','Lemongrass','S','潔肌神','加海鹽泡澡消除疲勞；也常用於清潔。'],
+['檸檬香桃木','Lemon Myrtle','S','潔神','強烈檸檬香，清潔、提振活力。'],
+['薰衣草','Lavender','S','放眠膚寶','最萬用的油：睡前放鬆、小擦傷、蚊蟲叮咬後、肌膚保養，溫和可給孩子用。'],
+['薰衣草沐浴及淋浴露','Lavender Bath & Shower Gel','P','膚放','沐浴露。'],
+['薰衣草輕盈滋潤乳液','Lavender Lotion','P','膚','身體乳液。'],
+['藍艾菊','Blue Tansy','S','膚呼心','藍色精油，舒緩敏感，資料庫也用於增加自信的配方。'],
+['藍桉','Eucalyptus Blue','S','呼潔肌','草本平靜的尤加利，擴香淨化空氣、驅蚊。'],
+['藍膠尤加利','Eucalyptus Globulus','S','呼潔','最常見的尤加利，清涼感強，擴香讓呼吸順暢。'],
+['豐碩','Abundance','B','心','提升正能量、吸引好運的複方。'],
+['羅文莎葉','Ravintsara','S','呼肌','清涼溫和，季節交替時擴香，也用於按摩。'],
+['羅馬洋甘菊','Roman Chamomile','S','寶眠放膚','溫柔蘋果香，安撫孩子情緒、幫助入睡。'],
+['羅勒','Basil','S','神膚','草本香，提神；搭配迷迭香、玫瑰做肌膚按摩。'],
+['釋放','Release','B','心放','釋放憤怒、挫折的情緒複方。'],
+['纈草','Valerian','S','眠放','氣味重但很能放鬆，睡前使用。'],
+['蠟菊','Helichrysum','S','膚','珍貴的修護型精油，撞傷瘀青、肌膚修護常用。'],
+['鐵杉','Tsuga','S','呼肌','針葉木香，擴香清新、按摩舒緩。'],
+['欖香脂','Elemi','S','膚','樹脂香，適合熟齡肌、減少細紋。'],
+['謙卑','Humility','B','心','幫助放下自我批評、接納自己的複方。'],
+['KidScents 兒童潤澤洗髮乳','KidScents Shampoo','P','寶髮','兒童洗髮乳。'],
+['KidScents 兒童滋養乳液','KidScents Lotion','P','寶膚','兒童乳液。'],
+['Ortho Ease 舒緩按摩油','Ortho Ease','P','肌','肌肉按摩油。'],
+['Ortho Sport 加強型舒緩按摩油','Ortho Sport','P','肌','加強型運動按摩油。'],
+['V6 綜合純植物油','V-6 Vegetable Oil Complex','P','膚','稀釋精油用的基底油，資料庫配方幾乎都用它。'],
+];
+document.getElementById('statOils').textContent = OILS.length;
+
+let kind = '', tag = '';
+const kc = document.getElementById('kindChips'), tc = document.getElementById('tagChips');
+kc.innerHTML = `<button class="chip on" data-k="">全部</button>` + Object.entries(KINDS).map(([k,v]) =>
+  `<button class="chip" data-k="${k}">${v}</button>`).join('');
+tc.innerHTML = Object.entries(TAGS).map(([k,v]) => `<button class="chip" data-t="${k}">${v}</button>`).join('');
+kc.addEventListener('click', e => { const b = e.target.closest('.chip'); if(!b) return;
+  kind = b.dataset.k; kc.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); render(); });
+tc.addEventListener('click', e => { const b = e.target.closest('.chip'); if(!b) return;
+  tag = tag === b.dataset.t ? '' : b.dataset.t; tc.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.t === tag)); render(); });
+document.getElementById('q').addEventListener('input', render);
+
+function render(){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const list = OILS.filter(o => (!kind || o[2] === kind) && (!tag || o[3].includes(tag)) &&
+    (!q || (o[0] + ' ' + o[1] + ' ' + o[4]).toLowerCase().includes(q)));
+  document.getElementById('count').textContent = `共 ${list.length} 項`;
+  document.getElementById('oilList').innerHTML = list.map(o => {
+    const search = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(o[0].replace(/[（(].*$/,'').replace(/^KidScents |^Ortho \w+ |^V6 /,''));
+    return `<div class="oil"><div class="nm"><b>${o[0]}</b><span class="kind">${KINDS[o[2]]}</span></div>
+      <div class="en">${o[1]}</div><div class="d">${o[4]}</div>
+      <div class="tg">${[...o[3]].map(t => `<span>${TAGS[t]}</span>`).join('')}</div>
+      <a href="${search}" target="_blank" rel="noopener">看原文 →</a></div>`;
+  }).join('') || '<p class="note">找不到，換個關鍵字試試。</p>';
+}
+render();
+
+// 上方分頁，記住上次看的
+function show(id){
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('active', b.dataset.p === id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+  try { localStorage.setItem('eoPanel', id); } catch(e) {}
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => show(b.dataset.p)));
+try { const s = localStorage.getItem('eoPanel'); if (s && document.getElementById(s)) show(s); } catch(e) {}
+</script>
+</body>
+</html>
