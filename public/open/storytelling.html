@@ -103,7 +103,7 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="../index.html#study">← 回學習規劃</a>
+  <a class="back" id="backLink" href="../index.html#study">← 回學習規劃</a>
   <h1>🎙️ 英語<span>說故事</span>專區</h1>
   <p class="sub">聽示範、一句一句跟著說、計時練習，再對照評審建議調整。</p>
 
@@ -287,6 +287,11 @@
 </div>
 
 <script>
+// 從 Better Me 點進來的，返回鍵就回 Better Me
+if (/study-habits/.test(document.referrer)) {
+  const b = document.getElementById('backLink'); b.href = 'study-habits.html?who=Rina'; b.textContent = '← 回 Better Me';
+}
+
 // ---------- 講稿 ----------
 const NAME = 'Tikki tikki tembo-no sa rembo-chari bari ruchi-pip peri pembo';
 const SCRIPT = [

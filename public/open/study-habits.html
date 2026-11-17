@@ -517,6 +517,8 @@
   .title-links{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
   .video-link.go-link{ color:#8A6A3B; background:#F3E9D6; border-color:#E2CFAB; }
   .video-link.go-link:hover{ background:#ECDDC2; }
+  .video-link.story-link{ color:#B0673A; background:#FBEADC; border-color:#EBC9AE; }
+  .video-link.story-link:hover{ background:#F6DDC8; }
   .child-tabs{ gap:6px; margin-bottom:10px; }
   .child-btn{ padding:7px 10px; font-size:14px; border-radius:9px; }
   .view-tabs{ margin:0 0 12px; padding:3px; border-radius:10px; }
@@ -638,6 +640,7 @@
     <div class="title-links">
       <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
       <a class="video-link go-link" id="goLink" href="go-review.html">⚫️ 復盤室 →</a>
+      <a class="video-link story-link" id="storyLink" href="storytelling.html" style="display:none">🎙️ 說故事 →</a>
     </div>
   </div>
 
@@ -1009,6 +1012,9 @@
     const groups = groupByChild(habitState.habits);
     const tabs = CHILD_GROUPS.filter(name => name !== '其他' || groups[name].length > 0);
     if (!tabs.includes(activeChild)) activeChild = tabs[0] || (SOLO ? 'Lilian' : 'Cathy');
+    // 英語說故事專區目前是 Rina 的比賽故事，只在 Rina 分頁顯示按鈕
+    const storyLink = document.getElementById('storyLink');
+    if (storyLink) storyLink.style.display = activeChild === 'Rina' ? '' : 'none';
     const container = document.getElementById('childTabs');
     container.innerHTML = tabs.map(name =>
       `<button type="button" class="child-btn ${CHILD_SLUG[name]} ${name === activeChild ? 'active' : ''}" data-child="${name}">${escapeHtml(name)}</button>`
