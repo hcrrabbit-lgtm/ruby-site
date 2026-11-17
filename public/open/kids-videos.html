@@ -111,8 +111,17 @@
       const whoTag = v.who ? `<span class="tag ${v.who==='both'?'':esc(v.who)}">${esc(WHO[v.who]||v.who)}</span>` : '';
       return `<div class="v">${player}<div class="body">
         <div class="tags"><span class="tag">${esc(v.cat)}</span>${whoTag}</div>
-        <div class="head">${av}<h3>${esc(v.title)}</h3></div><p>${esc(v.note)}</p>${btn}</div></div>`;
+        <div class="head">${av}<h3${!v.title && id ? ` data-yt="${id}"` : ''}>${esc(v.title || '載入中…')}</h3></div>${v.note ? `<p>${esc(v.note)}</p>` : `<p${id ? ` data-yt-by="${id}"` : ''}></p>`}${btn}</div></div>`;
     }).join('');
+    // 沒填標題的影片：自動抓 YouTube 標題和頻道名
+    list.querySelectorAll('h3[data-yt]').forEach(h => {
+      const id = h.dataset.yt;
+      fetch('/api/open/yt-title?id=' + id).then(r => r.ok ? r.json() : null).then(d => {
+        h.textContent = (d && d.title) || 'YouTube 影片';
+        const by = list.querySelector(`p[data-yt-by="${id}"]`);
+        if (by && d && d.author) by.textContent = '頻道：' + d.author;
+      }).catch(() => { h.textContent = 'YouTube 影片'; });
+    });
   }
 
   document.getElementById('whoFilter').addEventListener('click', e => {

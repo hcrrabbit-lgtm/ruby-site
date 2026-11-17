@@ -2285,6 +2285,7 @@ export default {
 
       if (path === "/api/open/vocab-done" && request.method === "POST") return await vocabDonePost(env);
       if (path === "/api/open/yt-avatar" && request.method === "GET") return await handleYtAvatar(url);
+      if (path === "/api/open/yt-title" && request.method === "GET") return await handleYtTitle(url);
       if (path === "/api/open/study-habits" && request.method === "GET") return await studyHabitHandlers.get(env);
       if (path === "/api/open/study-habits" && request.method === "POST") return await studyHabitHandlers.post(env, request);
       if (path === "/api/open/study-habits" && request.method === "DELETE") return await studyHabitHandlers.del(env, request);
@@ -2387,6 +2388,27 @@ export default {
 
 // ---- 放映室：抓 YouTube 頻道大頭照（公開頁面用，放 /api/open/）----
 // c = "@handle" 或 "channel/UC..."；成功就轉址到頻道大頭照，失敗回 404（頁面會自動藏起圖片）
+async function handleYtTitle(url) {
+  const id = url.searchParams.get("id") || "";
+  if (!/^[\w-]{11}$/.test(id)) return new Response("bad id", { status: 400 });
+  const cache = caches.default;
+  const key = new Request("https://yt-title.cache/" + id);
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  try {
+    const r = await fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id));
+    if (!r.ok) return new Response("not found", { status: 404 });
+    const d = await r.json();
+    const res = new Response(JSON.stringify({ title: d.title || "", author: d.author_name || "" }), {
+      headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" },
+    });
+    await cache.put(key, res.clone());
+    return res;
+  } catch (e) {
+    return new Response("error", { status: 502 });
+  }
+}
+
 async function handleYtAvatar(url) {
   const c = url.searchParams.get("c") || "";
   if (!/^(@[\w.-]{3,40}|channel\/UC[\w-]{22})$/.test(c)) return new Response("bad channel", { status: 400 });
