@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英語說故事專區</title>
+<meta name="theme-color" content="#C4863A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --rina:#C4863A; --rina-bg:#FBF0DE; --ok:#5F8955; --ok-bg:#EBF2E6; --bad:#B85C4B; --bad-bg:#F6E4DF; --blue:#4F6D8F;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px;margin:0 auto;padding:22px 16px 80px;}
+  a.back{display:inline-block;margin-bottom:8px;font-size:14px;color:var(--ink-soft);text-decoration:none;}
+  h1{font-family:'Noto Serif TC',serif;font-size:28px;margin:4px 0 4px;}
+  h1 span{color:var(--rina);}
+  .sub{color:var(--ink-soft);font-size:15px;margin:0 0 16px;line-height:1.6;}
+  button{font:inherit;cursor:pointer;}
+  .hidden{display:none !important;}
+
+  .tabs{display:flex;gap:6px;margin:0 0 16px;overflow-x:auto;}
+  .tab{flex:1;white-space:nowrap;padding:10px 12px;border-radius:99px;border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);font-weight:700;font-size:15px;}
+  .tab.on{background:var(--rina);border-color:var(--rina);color:#fff;}
+
+  .story{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(46,42,37,.05);}
+  .story .tag{display:inline-block;font-size:12px;font-weight:700;color:var(--rina);background:var(--rina-bg);border-radius:99px;padding:3px 10px;}
+  .story h2{font-family:'Noto Serif TC',serif;font-size:23px;margin:8px 0 4px;}
+  .story p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.7;}
+
+  .box{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;}
+  .box h3{margin:0 0 8px;font-size:17px;}
+  .box p{margin:4px 0;font-size:14px;line-height:1.7;color:var(--ink-soft);}
+  audio{width:100%;margin-top:6px;}
+
+  .btn{padding:10px 16px;border-radius:99px;font-weight:700;font-size:15px;border:none;background:var(--rina);color:#fff;}
+  .btn.ghost{background:#fff;border:1.5px solid var(--rina);color:var(--rina);}
+  .btn.plain{background:#fff;border:1.5px solid var(--line);color:var(--ink);}
+  .btn:disabled{opacity:.45;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .opt{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--ink-soft);}
+  select{font:inherit;font-size:15px;padding:6px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff;}
+
+  .now{margin-top:12px;background:var(--rina-bg);border-radius:14px;padding:14px;text-align:center;}
+  .now b{display:block;font-size:22px;}
+  .now small{color:var(--ink-soft);font-size:14px;}
+  .now.yours{background:var(--ok-bg);}
+  .now.yours b{color:var(--ok);}
+
+  .segs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+  .seg{padding:10px 4px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);text-align:center;}
+  .seg b{display:block;font-size:16px;}
+  .seg small{color:var(--ink-soft);font-size:11px;}
+  .seg.on{border-color:var(--rina);background:var(--rina-bg);}
+  .seg.done{border-color:var(--ok);}
+
+  /* 計時 */
+  .clock{font-size:64px;font-weight:900;text-align:center;letter-spacing:2px;margin:6px 0 2px;font-variant-numeric:tabular-nums;}
+  .zone{text-align:center;font-weight:700;font-size:15px;min-height:22px;}
+  .bar{position:relative;height:16px;border-radius:99px;background:var(--paper-deep);margin:14px 0 4px;overflow:hidden;}
+  .bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--rina);width:0;}
+  .bar .goal{position:absolute;top:0;bottom:0;background:rgba(95,137,85,.35);}
+  .marks{position:relative;height:18px;font-size:11px;color:var(--ink-soft);}
+  .marks span{position:absolute;transform:translateX(-50%);}
+  .log{list-style:none;padding:0;margin:8px 0 0;}
+  .log li{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px dashed var(--line);font-size:15px;}
+  .pill{font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;}
+  .pill.good{background:var(--ok-bg);color:var(--ok);}
+  .pill.slow{background:var(--bad-bg);color:var(--bad);}
+  .pill.fast{background:#E6ECF3;color:var(--blue);}
+  .pill.near{background:var(--rina-bg);color:var(--rina);}
+
+  /* 評審手冊 */
+  .score{display:flex;gap:10px;margin-bottom:12px;}
+  .score div{flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;}
+  .score b{display:block;font-size:26px;color:var(--rina);}
+  .score small{color:var(--ink-soft);font-size:13px;}
+  ul.tips{margin:6px 0 0;padding-left:20px;font-size:15px;line-height:1.8;}
+  ul.tips em{font-style:normal;font-weight:700;color:var(--rina);}
+  .check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line);font-size:15px;line-height:1.6;}
+  .check input{width:20px;height:20px;margin-top:3px;accent-color:var(--ok);}
+  .note{margin-top:22px;font-size:13px;color:var(--ink-soft);line-height:1.8;}
+  a.link{color:var(--rina);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../index.html#study">← 回學習規劃</a>
+  <h1>🎙️ 英語<span>說故事</span>專區</h1>
+  <p class="sub">聽示範、一句一句跟著說、計時練習，再對照評審建議調整。</p>
+
+  <div class="story">
+    <span class="tag">Rina 比賽故事</span>
+    <h2>Tikki Tikki Tembo</h2>
+    <p>規定 1 分 30 秒～2 分鐘，目標落在 <b>1 分 45 秒～1 分 52 秒</b>。</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-t="listen">🎧 聽＋跟讀</button>
+    <button class="tab" data-t="timer">⏱️ 計時練習</button>
+    <button class="tab" data-t="guide">📋 評審建議</button>
+  </div>
+
+  <!-- 一、聽＋跟讀 -->
+  <section id="t-listen">
+    <div class="box">
+      <h3>示範音檔（整段）</h3>
+      <audio id="full" controls preload="metadata" src="story/tikki-demo.mp3"></audio>
+    </div>
+
+    <div class="box">
+      <h3>一句一句跟讀</h3>
+      <p>系統會自動在停頓的地方把故事切成一句一句。先聽一句，換你說，再接下一句。</p>
+      <div class="row">
+        <label class="opt">每句聽
+          <select id="rep"><option value="1">1 次</option><option value="2">2 次</option></select>
+        </label>
+        <label class="opt">換你說的時間
+          <select id="gap"><option value="1">一樣長</option><option value="1.5" selected>1.5 倍</option><option value="2">2 倍</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <button class="btn" id="auto" disabled>▶ 全自動跟讀</button>
+        <button class="btn plain hidden" id="stop">■ 停</button>
+        <button class="btn ghost" id="dl" disabled>⬇ 下載留白練習檔</button>
+      </div>
+      <div class="now hidden" id="now"><b id="nowB"></b><small id="nowS"></small></div>
+      <div class="segs" id="segs"><div style="grid-column:1/-1;color:var(--ink-soft);font-size:14px;">正在切句子…</div></div>
+      <p style="margin-top:10px;">點任何一句可以單獨重聽。</p>
+      <div class="row">
+        <label class="btn plain" style="font-weight:500;font-size:14px;">換別的 MP3
+          <input type="file" id="pick" accept="audio/*" class="hidden">
+        </label>
+        <label class="opt">斷句靈敏度
+          <select id="sens"><option value="0.3">句子切短一點</option><option value="0.4" selected>標準</option><option value="0.6">句子切長一點</option></select>
+        </label>
+      </div>
+    </div>
+    <p class="note">這個跟讀功能是照 Gemini 上的〈<a class="link" href="https://share.gemini.google/xNsn1B60YLUC" target="_blank" rel="noopener">說故事自動斷句跟讀神器</a>〉做的，示範音檔已經放好，不用每次再選檔案。</p>
+  </section>
+
+  <!-- 二、計時練習 -->
+  <section id="t-timer" class="hidden">
+    <div class="box">
+      <h3>上台計時</h3>
+      <p>跟比賽一樣：<b>1:30 響一聲、2:00 響兩聲</b>。從鞠躬開始按，說完 Thank you 鞠躬後按停。</p>
+      <div class="clock" id="clock">0:00</div>
+      <div class="zone" id="zone">&nbsp;</div>
+      <div class="bar"><div class="goal" id="goal"></div><div class="fill" id="fill"></div></div>
+      <div class="marks" id="marks"></div>
+      <div class="row" style="justify-content:center;">
+        <button class="btn" id="go" style="min-width:140px;">開始</button>
+        <button class="btn plain" id="reset">重來</button>
+      </div>
+    </div>
+    <div class="box">
+      <h3>練習紀錄 <small style="font-weight:400;color:var(--ink-soft);font-size:13px;">（存在這台裝置）</small></h3>
+      <ul class="log" id="log"></ul>
+      <p id="logEmpty">還沒有紀錄。評審建議：用計時器連跑 3 遍，都落在 1:45～1:52。</p>
+    </div>
+  </section>
+
+  <!-- 三、評審建議 -->
+  <section id="t-guide" class="hidden">
+    <div class="score">
+      <div><b>90.5</b><small>目前預估分數</small></div>
+      <div><b>93+</b><small>縮短 8～10 秒後</small></div>
+    </div>
+    <div class="box">
+      <h3>總評</h3>
+      <p>背得很熟、很流利，旁白、弟弟和老爺爺的聲音分得很清楚，已經有得獎水準。目前練習影片約 2 分 03～05 秒，<b>超過 2 分鐘會扣 1 分</b>，要省下 8～10 秒，再把腳站穩。</p>
+    </div>
+    <div class="box">
+      <h3>🦶 站穩</h3>
+      <ul class="tips">
+        <li>雙腳與肩同寬站好（或一前一後的丁字步），不要晃、不要交叉腳。</li>
+        <li>力氣放在上半身：手勢和表情。只有跑步、拿梯子這種動作才動腳。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>🗣️ 發音小修</h3>
+      <ul class="tips">
+        <li><em>ladder</em>：嘴巴張大的 /æ/，不要聽起來像 leather。</li>
+        <li><em>Once upon a time</em>：time 最後嘴唇要閉起來（/m/），不要變 tine。</li>
+        <li><em>fish</em>：說短一點、清楚一點。</li>
+        <li>長名字講快時，<em>chari bari ruchi</em> 要「快而不糊」，每個母音都要飽滿。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>⏩ 四個省秒點</h3>
+      <ul class="tips">
+        <li>開場白講完，只停 1 秒就接 Once upon a time。（省 2 秒）</li>
+        <li>第一次介紹哥哥全名，驕傲地一口氣念完，換氣半秒就接下一句。（省 2～3 秒）</li>
+        <li>弟弟跑去找人、老爺爺跳起來拿梯子這兩句，速度加快一點。（省 3 秒）</li>
+        <li>老爺爺的 “What? Speak up, little one!” 緊接弟弟的尾音。（省 2 秒）</li>
+      </ul>
+      <p style="margin-top:8px;">不要整篇趕快講，只在這幾個地方省。</p>
+    </div>
+    <div class="box">
+      <h3>⏸️ 一定要留的三個停頓（各停 1 秒）</h3>
+      <ul class="tips">
+        <li>“Suddenly… SPLASH!” 掉進井裡的那一刻。</li>
+        <li>老爺爺慢慢出場：摸鬍子、聲音低沉。</li>
+        <li>“Just in time. Phew!” 鬆一口氣。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>🔔 聽鈴聲調整</h3>
+      <ul class="tips">
+        <li>第一聲鈴響時，正講到老爺爺問 <em>Which brother?</em> 或弟弟第二次喊名字 → 時間剛好，照平常講完。</li>
+        <li>第一聲鈴響時，還在 <em>I cannot hear you</em> → 後面救人和結尾稍微加快一點。</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>✅ 賽前檢核</h3>
+      <label class="check"><input type="checkbox" data-k="c1">在家計時連跑 3 遍，含鞠躬都在 1:45～1:52</label>
+      <label class="check"><input type="checkbox" data-k="c2">比賽穿整齊正式的衣服，空手上台</label>
+      <label class="check"><input type="checkbox" data-k="c3">開場：鞠躬起身，微笑停 1 秒、看評審，再說 Good morning everyone</label>
+      <label class="check"><input type="checkbox" data-k="c4">結尾：講完 very, very short names 微笑停 1～2 秒，再說 Thank you 鞠躬</label>
+      <label class="check"><input type="checkbox" data-k="c5">全程雙腳站定不晃</label>
+      <div class="row"><button class="btn plain" id="clearChk" style="font-size:13px;padding:6px 12px;">清除勾選</button></div>
+    </div>
+    <div class="row">
+      <a class="btn" href="story/tikki-judge-guide.pdf" target="_blank" rel="noopener" style="text-decoration:none;">📄 打開完整評審手冊（PDF）</a>
+    </div>
+  </section>
+</div>
+
+<script>
+// ---------- 分頁 ----------
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(b => b.onclick = () => {
+  tabs.forEach(x => x.classList.toggle('on', x === b));
+  ['listen','timer','guide'].forEach(t => document.getElementById('t-' + t).classList.toggle('hidden', t !== b.dataset.t));
+});
+
+function store(k, v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); }catch(e){ return null; } }
+const fmt = s => { s = Math.max(0, s); const m = Math.floor(s / 60), r = Math.floor(s % 60); return m + ':' + String(r).padStart(2, '0'); };
+
+// ---------- 跟讀：解碼、切句 ----------
+let ctx = null, buffer = null, segs = [], src = null, running = false, timers = [];
+const $ = id => document.getElementById(id);
+
+function getCtx(){ if(!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+
+async function loadArrayBuffer(ab){
+  $('segs').innerHTML = '<div style="grid-column:1/-1;color:var(--ink-soft);font-size:14px;">正在切句子…</div>';
+  $('auto').disabled = $('dl').disabled = true;
+  try{
+    buffer = await getCtx().decodeAudioData(ab);
+    split();
+  }catch(e){
+    $('segs').innerHTML = '<div style="grid-column:1/-1;color:var(--bad);font-size:14px;">音檔讀不出來，換一個試試看。</div>';
+  }
+}
+
+function split(){
+  const minSil = parseFloat($('sens').value);           // 停頓多長才算一句結束（秒）
+  const data = buffer.getChannelData(0), sr = buffer.sampleRate;
+  const hop = Math.round(sr * 0.02);                     // 20ms 一格
+  const rms = [];
+  for(let i = 0; i < data.length; i += hop){
+    let s = 0, n = Math.min(hop, data.length - i);
+    for(let j = 0; j < n; j++) s += data[i + j] * data[i + j];
+    rms.push(Math.sqrt(s / n));
+  }
+  const sorted = [...rms].sort((a, b) => a - b);
+  const loud = sorted[Math.floor(sorted.length * 0.95)] || 0.1;
+  const thr = Math.max(0.008, loud * 0.06);
+  const minFrames = Math.round(minSil / 0.02);
+  const out = []; let start = null, quiet = 0;
+  for(let i = 0; i < rms.length; i++){
+    if(rms[i] > thr){
+      if(start === null) start = i;
+      quiet = 0;
+    }else if(start !== null){
+      quiet++;
+      if(quiet >= minFrames){ out.push([start, i - quiet + 1]); start = null; quiet = 0; }
+    }
+  }
+  if(start !== null) out.push([start, rms.length]);
+  // 太短的併到前一句
+  const merged = [];
+  out.forEach(([a, b]) => {
+    if(merged.length && (b - a) * 0.02 < 0.5) merged[merged.length - 1][1] = b;
+    else merged.push([a, b]);
+  });
+  const pad = 0.12, dur = buffer.duration;
+  segs = merged.map(([a, b]) => ({ s: Math.max(0, a * 0.02 - pad), e: Math.min(dur, b * 0.02 + pad) }));
+  drawSegs();
+  $('auto').disabled = $('dl').disabled = segs.length === 0;
+}
+
+function drawSegs(){
+  $('segs').innerHTML = segs.map((g, i) =>
+    `<button class="seg" data-i="${i}"><b>${i + 1}</b><small>${fmt(g.s)}・${(g.e - g.s).toFixed(1)}秒</small></button>`).join('');
+  $('segs').querySelectorAll('.seg').forEach(b => b.onclick = () => { stopAll(); playSeg(+b.dataset.i); });
+}
+
+function mark(i, cls){ const el = $('segs').querySelector(`[data-i="${i}"]`); if(el) el.classList.add(cls); }
+function clearMarks(){ $('segs').querySelectorAll('.seg').forEach(b => b.classList.remove('on', 'done')); }
+
+function playSeg(i, onEnd){
+  const g = segs[i]; if(!g) return;
+  getCtx().resume();
+  $('full').pause();
+  if(src){ try{ src.onended = null; src.stop(); }catch(e){} }
+  clearMarks(); mark(i, 'on');
+  src = ctx.createBufferSource(); src.buffer = buffer; src.connect(ctx.destination);
+  src.onended = () => { src = null; if(onEnd) onEnd(); };
+  src.start(0, g.s, g.e - g.s);
+}
+
+function stopAll(){
+  running = false; timers.forEach(clearTimeout); timers = []; clearInterval(window._cd);
+  if(src){ try{ src.onended = null; src.stop(); }catch(e){} src = null; }
+  $('stop').classList.add('hidden'); $('auto').classList.remove('hidden'); $('now').classList.add('hidden');
+}
+
+function showNow(title, sub, yours){
+  $('now').classList.remove('hidden'); $('now').classList.toggle('yours', !!yours);
+  $('nowB').textContent = title; $('nowS').textContent = sub;
+}
+
+function autoRun(){
+  stopAll(); running = true;
+  $('auto').classList.add('hidden'); $('stop').classList.remove('hidden');
+  const reps = +$('rep').value, factor = +$('gap').value;
+  let i = 0, r = 0;
+  const step = () => {
+    if(!running) return;
+    if(i >= segs.length){ stopAll(); showNow('🎉 全部說完了！', '再來一次，或去計時練習'); $('now').classList.remove('hidden'); return; }
+    showNow(`🎧 聽第 ${i + 1} 句`, `共 ${segs.length} 句`);
+    playSeg(i, () => {
+      if(!running) return;
+      r++;
+      if(r < reps){ timers.push(setTimeout(step, 400)); return; }
+      const wait = Math.max(1.2, (segs[i].e - segs[i].s) * factor);
+      let left = Math.ceil(wait);
+      showNow(`🗣️ 換你說！`, `還有 ${left} 秒`, true);
+      clearInterval(window._cd);
+      window._cd = setInterval(() => { left--; if(left > 0) $('nowS').textContent = `還有 ${left} 秒`; }, 1000);
+      timers.push(setTimeout(() => { clearInterval(window._cd); mark(i, 'done'); i++; r = 0; step(); }, wait * 1000));
+    });
+  };
+  step();
+}
+
+$('auto').onclick = () => { getCtx().resume(); autoRun(); };
+$('stop').onclick = stopAll;
+$('sens').onchange = () => { if(buffer){ stopAll(); split(); } };
+$('full').onplay = () => stopAll();
+
+$('pick').onchange = async e => {
+  const f = e.target.files[0]; if(!f) return;
+  stopAll();
+  $('full').src = URL.createObjectURL(f);
+  loadArrayBuffer(await f.arrayBuffer());
+};
+
+// ---------- 下載留白練習檔（WAV） ----------
+$('dl').onclick = () => {
+  const factor = +$('gap').value, outRate = 22050, inRate = buffer.sampleRate, ch0 = buffer.getChannelData(0);
+  const ch1 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+  const parts = []; let total = 0;
+  segs.forEach(g => {
+    const n = Math.floor((g.e - g.s) * outRate), gap = Math.floor(Math.max(1.2, (g.e - g.s) * factor) * outRate);
+    parts.push([g, n, gap]); total += n + gap;
+  });
+  const pcm = new Int16Array(total); let o = 0;
+  parts.forEach(([g, n, gap]) => {
+    for(let k = 0; k < n; k++){
+      const idx = Math.floor((g.s + k / outRate) * inRate);
+      let v = ch1 ? (ch0[idx] + ch1[idx]) / 2 : ch0[idx];
+      v = Math.max(-1, Math.min(1, v || 0));
+      pcm[o++] = v * 32767;
+    }
+    o += gap;
+  });
+  const head = new ArrayBuffer(44), dv = new DataView(head), w = (p, s) => { for(let i = 0; i < s.length; i++) dv.setUint8(p + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + pcm.byteLength, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, outRate, true); dv.setUint32(28, outRate * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  w(36, 'data'); dv.setUint32(40, pcm.byteLength, true);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([head, pcm], { type: 'audio/wav' }));
+  a.download = 'TikkiTikkiTembo-留白跟讀練習.wav';
+  document.body.appendChild(a); a.click(); a.remove();
+};
+
+// 預先載入示範音檔
+fetch('story/tikki-demo.mp3').then(r => r.arrayBuffer()).then(ab => {
+  // 有些瀏覽器要先有 AudioContext 才能解碼，這裡用離線方式先解
+  const Off = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const tmp = Off ? new Off(1, 1, 44100) : getCtx();
+  return tmp.decodeAudioData(ab);
+}).then(b => { buffer = b; split(); })
+  .catch(() => { $('segs').innerHTML = '<div style="grid-column:1/-1;color:var(--bad);font-size:14px;">示範音檔載入失敗，請重新整理。</div>'; });
+
+// ---------- 計時 ----------
+const LIMIT = 150; // 進度條顯示到 2:30
+const pct = s => (s / LIMIT * 100) + '%';
+$('goal').style.left = pct(105); $('goal').style.width = pct(7);
+$('marks').innerHTML = [[90, '1:30 🔔'], [108, '目標'], [120, '2:00 🔔🔔']].map(([s, t]) => `<span style="left:${pct(s)}">${t}</span>`).join('');
+
+let t0 = null, tick = null, rang1 = false, rang2 = false;
+function ding(times){
+  const c = getCtx(); c.resume();
+  for(let k = 0; k < times; k++){
+    const at = c.currentTime + k * 0.45, o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.value = 1320; o.connect(g); g.connect(c.destination);
+    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.5, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.4);
+    o.start(at); o.stop(at + 0.42);
+  }
+}
+function judge(s){
+  if(s < 90) return ['fast', '不到 1:30'];
+  if(s > 120) return ['slow', '超過 2:00 會扣分'];
+  if(s >= 105 && s <= 112) return ['good', '剛剛好 👍'];
+  return ['near', s < 105 ? '可以再慢一點點' : '有點接近 2:00'];
+}
+function render(s){
+  $('clock').textContent = fmt(s);
+  $('fill').style.width = pct(Math.min(s, LIMIT));
+  $('fill').style.background = s > 120 ? 'var(--bad)' : (s >= 105 ? 'var(--ok)' : 'var(--rina)');
+}
+$('go').onclick = () => {
+  if(t0 === null){
+    getCtx().resume();
+    t0 = performance.now(); rang1 = rang2 = false; $('zone').innerHTML = '&nbsp;';
+    $('go').textContent = '停'; $('go').style.background = 'var(--bad)';
+    tick = setInterval(() => {
+      const s = (performance.now() - t0) / 1000; render(s);
+      if(s >= 90 && !rang1){ rang1 = true; ding(1); }
+      if(s >= 120 && !rang2){ rang2 = true; ding(2); }
+    }, 100);
+  }else{
+    clearInterval(tick);
+    const s = (performance.now() - t0) / 1000; t0 = null; render(s);
+    $('go').textContent = '開始'; $('go').style.background = '';
+    const [cls, txt] = judge(s);
+    $('zone').innerHTML = `<span class="pill ${cls}">${txt}</span>`;
+    const log = store('story-tikki-log') || [];
+    log.unshift({ s: Math.round(s * 10) / 10, d: new Date().toISOString() });
+    store('story-tikki-log', log.slice(0, 30)); drawLog();
+  }
+};
+$('reset').onclick = () => { clearInterval(tick); t0 = null; render(0); $('zone').innerHTML = '&nbsp;'; $('go').textContent = '開始'; $('go').style.background = ''; };
+function drawLog(){
+  const log = store('story-tikki-log') || [];
+  $('logEmpty').classList.toggle('hidden', log.length > 0);
+  $('log').innerHTML = log.map(x => {
+    const d = new Date(x.d), [cls, txt] = judge(x.s);
+    return `<li><span>${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}　<b>${fmt(x.s)}</b></span><span class="pill ${cls}">${txt}</span></li>`;
+  }).join('');
+}
+drawLog();
+
+// ---------- 賽前檢核勾選 ----------
+const chk = store('story-tikki-check') || {};
+document.querySelectorAll('.check input').forEach(c => {
+  c.checked = !!chk[c.dataset.k];
+  c.onchange = () => { chk[c.dataset.k] = c.checked; store('story-tikki-check', chk); };
+});
+$('clearChk').onclick = () => { document.querySelectorAll('.check input').forEach(c => { c.checked = false; chk[c.dataset.k] = false; }); store('story-tikki-check', chk); };
+</script>
+</body>
+</html>
