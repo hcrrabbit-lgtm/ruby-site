@@ -35,7 +35,20 @@
   .act-title a{color:var(--study);font-weight:700;text-decoration:none;}
   .act-title a:hover{text-decoration:underline;}
   .act-region{display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--ink-soft);padding:1px 6px;border-radius:5px;margin-right:4px;}
-  .act-date{white-space:nowrap;font-size:12.5px;color:var(--ink-soft);}
+  .act-date{font-size:12.5px;color:var(--ink-soft);}
+  /* 手機：每個活動改成一張卡片，不再擠成四欄 */
+  @media (max-width:640px){
+    table.activity-table, table.activity-table tbody, table.activity-table tr, table.activity-table td{display:block;width:auto !important;}
+    table.activity-table tr:first-child{display:none;}
+    table.activity-table tr{padding:12px 14px;border-bottom:1px solid var(--line);}
+    table.activity-table tr:last-child{border-bottom:none;}
+    table.activity-table td{padding:0;border:none;}
+    table.activity-table td.act-title{font-size:14.5px;margin-bottom:6px;}
+        table.activity-table td.act-date::before{content:"📅 ";}
+    table.activity-table td.act-date + td{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+    table.activity-table td.act-date + td::before{content:"📍 ";}
+    table.activity-table td:last-child{margin-top:6px;}
+  }
   .free-tag{color:var(--study);font-weight:700;}
 
   .note-box{
@@ -62,7 +75,7 @@
   </div>
 
   <table class="activity-table">
-    <tr><th style="width:34%;">活動</th><th style="width:14%;">日期</th><th style="width:14%;">主辦/地點</th><th>摘要</th></tr>
+    <tr><th style="width:26%;">活動</th><th style="width:16%;">日期</th><th style="width:18%;">主辦/地點</th><th>摘要</th></tr>
 
     <tr>
       <td class="act-title"><span class="act-region">南投</span><a href="https://www.accupass.com/event/2607220534341519899370" target="_blank">南投市 親子台語講故事（南投台語家庭計畫）</a></td>
