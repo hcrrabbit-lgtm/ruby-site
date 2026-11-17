@@ -102,6 +102,16 @@
   .check input{width:20px;height:20px;margin-top:3px;accent-color:var(--ok);}
   .note{margin-top:22px;font-size:13px;color:var(--ink-soft);line-height:1.8;}
   a.link{color:var(--rina);font-weight:700;}
+
+  /* PDF 檢視（在本頁內開，不跳走） */
+  #pdfView{position:fixed;inset:0;z-index:999;background:var(--paper-deep);display:flex;flex-direction:column;}
+  #pdfView .bar{display:flex;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#fff;border-bottom:1px solid var(--line);}
+  #pdfView .bar button{border:0;background:var(--rina);color:#fff;font-weight:700;font-size:16px;padding:9px 16px;border-radius:99px;}
+  #pdfView .bar b{flex:1;font-size:16px;}
+  #pdfView .bar a{font-size:13px;color:var(--ink-soft);}
+  #pdfPages{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:12px;}
+  #pdfPages canvas{display:block;width:100%;max-width:820px;margin:0 auto 12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);border-radius:4px;}
+  #pdfPages .msg{text-align:center;color:var(--ink-soft);padding:40px 0;}
 </style>
 </head>
 <body>
@@ -128,7 +138,7 @@
   <section id="t-script">
     <div class="row" style="margin:0 0 12px;">
       <button class="btn plain" id="tipToggle" style="font-size:14px;padding:7px 14px;">隱藏動作提示</button>
-      <a class="btn ghost" href="story/rina-script.pdf" target="_blank" rel="noopener" style="text-decoration:none;font-size:14px;padding:7px 14px;">📄 講稿 PDF</a>
+      <a class="btn ghost" href="story/rina-script.pdf" data-pdf="講稿" style="text-decoration:none;font-size:14px;padding:7px 14px;">📄 講稿 PDF</a>
     </div>
     <div id="scriptBox"></div>
 
@@ -289,7 +299,7 @@
       <div class="row"><button class="btn plain" id="clearChk" style="font-size:13px;padding:6px 12px;">清除勾選</button></div>
     </div>
     <div class="row">
-      <a class="btn" href="story/tikki-judge-guide.pdf" target="_blank" rel="noopener" style="text-decoration:none;">📄 打開完整評審手冊（PDF）</a>
+      <a class="btn" href="story/tikki-judge-guide.pdf" data-pdf="評審手冊" style="text-decoration:none;">📄 打開完整評審手冊（PDF）</a>
     </div>
   </section>
 </div>
@@ -650,6 +660,45 @@ document.querySelectorAll('.check input').forEach(c => {
   c.onchange = () => { chk[c.dataset.k] = c.checked; store('story-tikki-check', chk); };
 });
 $('clearChk').onclick = () => { document.querySelectorAll('.check input').forEach(c => { c.checked = false; chk[c.dataset.k] = false; }); store('story-tikki-check', chk); };
+</script>
+<div id="pdfView" class="hidden">
+  <div class="bar"><button type="button" id="pdfClose">← 返回</button><b id="pdfTitle"></b></div>
+  <div id="pdfPages"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+  var view=document.getElementById('pdfView'), pages=document.getElementById('pdfPages');
+  var opened=false;
+  function close(){ view.classList.add('hidden'); pages.innerHTML=''; document.body.style.overflow=''; opened=false; }
+  function open(url,title){
+    document.getElementById('pdfTitle').textContent=title;
+    pages.innerHTML='<div class="msg">載入中…</div>';
+    view.classList.remove('hidden'); document.body.style.overflow='hidden';
+    if(!opened){ history.pushState({pdf:1},''); opened=true; }
+    if(!window.pdfjsLib){ pages.innerHTML='<div class="msg">載入失敗，請按「← 返回」再試一次</div>'; return; }
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    pdfjsLib.getDocument(url).promise.then(function(pdf){
+      pages.innerHTML='';
+      var w=Math.min(pages.clientWidth-24,820), dpr=Math.min(window.devicePixelRatio||1,2.5);
+      var chain=Promise.resolve();
+      for(var i=1;i<=pdf.numPages;i++)(function(n){
+        chain=chain.then(function(){ return pdf.getPage(n).then(function(pg){
+          if(!opened) return;
+          var v=pg.getViewport({scale:1}), sc=w/v.width*dpr, vp=pg.getViewport({scale:sc});
+          var c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height; pages.appendChild(c);
+          return pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+        });});
+      })(i);
+    }).catch(function(){ pages.innerHTML='<div class="msg">載入失敗，請按「← 返回」再試一次</div>'; });
+  }
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[data-pdf]'); if(!a) return;
+    e.preventDefault(); open(a.getAttribute('href'),a.getAttribute('data-pdf'));
+  });
+  document.getElementById('pdfClose').onclick=function(){ if(opened) history.back(); else close(); };
+  window.addEventListener('popstate',function(){ if(opened) close(); });
+})();
 </script>
 </body>
 </html>
