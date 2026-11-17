@@ -82,6 +82,9 @@
   .marks span{position:absolute;transform:translateX(-50%);}
   .log{list-style:none;padding:0;margin:8px 0 0;}
   .log li{display:flex;justify-content:space-between;padding:8px 2px;border-bottom:1px dashed var(--line);font-size:15px;}
+  .log li .r{display:flex;align-items:center;gap:8px;}
+  .del{border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:99px;font-size:12px;padding:3px 10px;}
+  .del.sure{border-color:var(--bad);background:var(--bad);color:#fff;}
   .pill{font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;}
   .pill.good{background:var(--ok-bg);color:var(--ok);}
   .pill.slow{background:var(--bad-bg);color:var(--bad);}
@@ -212,7 +215,7 @@
       </div>
     </div>
     <div class="box">
-      <h3>練習紀錄 <small style="font-weight:400;color:var(--ink-soft);font-size:13px;">（存在這台裝置）</small></h3>
+      <h3>練習紀錄 <small style="font-weight:400;color:var(--ink-soft);font-size:13px;">（存在雲端，手機電腦都看得到）</small></h3>
       <ul class="log" id="log"></ul>
       <p id="logEmpty">還沒有紀錄。評審建議：用計時器連跑 3 遍，都落在 1:45～1:52。</p>
     </div>
@@ -584,21 +587,57 @@ $('go').onclick = () => {
     $('go').textContent = '開始'; $('go').style.background = '';
     const [cls, txt] = judge(s);
     $('zone').innerHTML = `<span class="pill ${cls}">${txt}</span>`;
-    const log = store('story-tikki-log') || [];
-    log.unshift({ s: Math.round(s * 10) / 10, d: new Date().toISOString() });
-    store('story-tikki-log', log.slice(0, 30)); drawLog();
+    saveLog(s);
   }
 };
 $('reset').onclick = () => { clearInterval(tick); t0 = null; render(0); $('zone').innerHTML = '&nbsp;'; $('go').textContent = '開始'; $('go').style.background = ''; };
-function drawLog(){
-  const log = store('story-tikki-log') || [];
-  $('logEmpty').classList.toggle('hidden', log.length > 0);
-  $('log').innerHTML = log.map(x => {
-    const d = new Date(x.d), [cls, txt] = judge(x.s);
-    return `<li><span>${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}　<b>${fmt(x.s)}</b></span><span class="pill ${cls}">${txt}</span></li>`;
-  }).join('');
+// ---------- 練習紀錄（雲端） ----------
+const STORY = 'tikki';
+let logItems = [];
+async function api(method, body){
+  const opt = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opt.body = JSON.stringify(body);
+  const r = await fetch('/api/open/story/log' + (method === 'GET' ? '?story=' + STORY : ''), opt);
+  if (!r.ok) throw new Error('網路錯誤');
+  return r.json();
 }
-drawLog();
+async function loadLog(){
+  try { logItems = (await api('GET')).items; drawLog(); }
+  catch(e){ $('logEmpty').classList.remove('hidden'); $('logEmpty').textContent = '紀錄讀不到，請檢查網路後重新整理。'; }
+}
+async function saveLog(sec){
+  const tmp = { id: 'tmp' + Date.now(), seconds: Math.round(sec * 10) / 10, createdAt: new Date().toISOString() };
+  logItems.unshift(tmp); drawLog();
+  try { await api('POST', { story: STORY, seconds: sec }); loadLog(); }
+  catch(e){ logItems = logItems.filter(x => x !== tmp); drawLog(); alertMsg('沒存到雲端，請檢查網路'); }
+}
+function alertMsg(t){ $('zone').innerHTML = `<span class="pill slow">${t}</span>`; }
+function drawLog(){
+  $('logEmpty').classList.toggle('hidden', logItems.length > 0);
+  $('log').innerHTML = logItems.map(x => {
+    const d = new Date(x.createdAt), [cls, txt] = judge(x.seconds);
+    return `<li><span>${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}　<b>${fmt(x.seconds)}</b></span><span class="r"><span class="pill ${cls}">${txt}</span><button class="del" data-id="${x.id}">刪除</button></span></li>`;
+  }).join('');
+  $('log').querySelectorAll('.del').forEach(b => b.onclick = async () => {
+    if (!b.classList.contains('sure')) {   // 先按一下變紅「確定刪除？」，再按一下才真的刪，避免誤刪
+      b.classList.add('sure'); b.textContent = '確定刪除？';
+      setTimeout(() => { if (b.isConnected) { b.classList.remove('sure'); b.textContent = '刪除'; } }, 3000);
+      return;
+    }
+    const id = b.dataset.id; if (String(id).startsWith('tmp')) return;
+    b.disabled = true;
+    try { await api('DELETE', { story: STORY, id: Number(id) }); logItems = logItems.filter(x => String(x.id) !== id); drawLog(); }
+    catch(e){ b.disabled = false; alertMsg('刪除失敗，請再試一次'); }
+  });
+}
+// 之前存在這台裝置上的紀錄，搬到雲端一次
+(async () => {
+  const old = store('story-tikki-log') || [];
+  if (old.length) {
+    try { for (const x of old.slice().reverse()) await api('POST', { story: STORY, seconds: x.s, createdAt: x.d }); localStorage.removeItem('story-tikki-log'); } catch(e){}
+  }
+  loadLog();
+})();
 
 // ---------- 賽前檢核勾選 ----------
 const chk = store('story-tikki-check') || {};

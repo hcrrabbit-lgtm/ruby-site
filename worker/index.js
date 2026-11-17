@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS morph_events (id INTEGER PRIMARY KEY AUTOINCREMENT, c
 CREATE TABLE IF NOT EXISTS morph_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, unit TEXT NOT NULL, word TEXT NOT NULL DEFAULT '', question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, answered_at TEXT);
 CREATE TABLE IF NOT EXISTS wugong_words (id INTEGER PRIMARY KEY AUTOINCREMENT, child TEXT NOT NULL, cat TEXT NOT NULL, sub TEXT NOT NULL, word TEXT NOT NULL, sentence TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', mine TEXT NOT NULL DEFAULT '', used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS wugong_subs (child TEXT NOT NULL, cat TEXT NOT NULL, sub TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(child, cat, sub));
+CREATE TABLE IF NOT EXISTS story_practice (id INTEGER PRIMARY KEY AUTOINCREMENT, story TEXT NOT NULL, seconds REAL NOT NULL, created_at TEXT NOT NULL);
 `;
 
 // cheap non-cryptographic hash so the bootstrap flag below automatically
@@ -1808,6 +1809,31 @@ const BM_CONTEST_KINDS = new Set(["圍棋", "英文", "語文", "跳繩", "美�
 const BM_TRACKS = new Set(["ienglish", "yehu"]);
 const BM_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// ---- 英語說故事專區：計時練習紀錄（頁面在 /open/storytelling.html，孩子端不用登入，放 /api/open/）----
+function storyKey(v) { const k = String(v || "").trim(); return /^[a-z0-9-]{1,30}$/.test(k) ? k : null; }
+async function storyLogGet(env, url) {
+  const story = storyKey(url.searchParams.get("story"));
+  if (!story) return json({ error: "story 不正確" }, { status: 400 });
+  const r = await env.DB.prepare("SELECT id, seconds, created_at as createdAt FROM story_practice WHERE story = ? ORDER BY created_at DESC, id DESC LIMIT 200").bind(story).all();
+  return json({ items: r.results || [] });
+}
+async function storyLogPost(env, request) {
+  const b = await request.json().catch(() => ({}));
+  const story = storyKey(b.story), sec = Number(b.seconds);
+  if (!story || !(sec > 0 && sec < 3600)) return json({ error: "資料不正確" }, { status: 400 });
+  let at = new Date().toISOString();
+  if (b.createdAt && !isNaN(Date.parse(b.createdAt))) at = new Date(b.createdAt).toISOString();
+  const r = await env.DB.prepare("INSERT INTO story_practice (story, seconds, created_at) VALUES (?, ?, ?)").bind(story, Math.round(sec * 10) / 10, at).run();
+  return json({ ok: true, id: r.meta && r.meta.last_row_id });
+}
+async function storyLogDelete(env, request) {
+  const b = await request.json().catch(() => ({}));
+  const story = storyKey(b.story);
+  if (!story || !Number(b.id)) return json({ error: "資料不正確" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM story_practice WHERE id = ? AND story = ?").bind(Number(b.id), story).run();
+  return json({ ok: true });
+}
+
 // ---- 武功秘笈（Rina 讀報收集的詞語、四字語詞、成語；頁面在 /open/wugong.html）----
 // 孩子端不用登入，放 /api/open/
 const WG_CHILDREN = new Set(["Rina", "Cathy"]);
@@ -2308,6 +2334,9 @@ export default {
       if (path === "/api/open/study-habits/bank/history" && request.method === "GET") return await bankHandlers.history(env, url);
       if (path === "/api/open/study-habits/bank/withdraw" && request.method === "POST") return await bankHandlers.withdraw(env, request);
 
+      if (path === "/api/open/story/log" && request.method === "GET") return await storyLogGet(env, url);
+      if (path === "/api/open/story/log" && request.method === "POST") return await storyLogPost(env, request);
+      if (path === "/api/open/story/log" && request.method === "DELETE") return await storyLogDelete(env, request);
       if (path === "/api/open/wugong" && request.method === "GET") return await wgGet(env, url);
       if (path === "/api/open/wugong/word" && request.method === "POST") return await wgWordPost(env, request);
       if (path === "/api/open/wugong/word" && request.method === "DELETE") return await wgWordDelete(env, request);
