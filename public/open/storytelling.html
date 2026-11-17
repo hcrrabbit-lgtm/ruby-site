@@ -204,6 +204,7 @@
       <div class="zone" id="zone">&nbsp;</div>
       <div class="bar"><div class="goal" id="goal"></div><div class="fill" id="fill"></div></div>
       <div class="marks" id="marks"></div>
+      <p style="text-align:center;font-size:13px;">綠色區塊是目標 1:45～1:52</p>
       <div class="row" style="justify-content:center;">
         <button class="btn" id="go" style="min-width:140px;">開始</button>
         <button class="btn plain" id="reset">重來</button>
@@ -503,7 +504,7 @@ fetch('story/tikki-demo.mp3').then(r => r.arrayBuffer()).then(ab => {
 const LIMIT = 150; // 進度條顯示到 2:30
 const pct = s => (s / LIMIT * 100) + '%';
 $('goal').style.left = pct(105); $('goal').style.width = pct(7);
-$('marks').innerHTML = [[90, '1:30 🔔'], [108, '目標'], [120, '2:00 🔔🔔']].map(([s, t]) => `<span style="left:${pct(s)}">${t}</span>`).join('');
+$('marks').innerHTML = [[90, '1:30 🔔'], [120, '2:00 🔔🔔']].map(([s, t]) => `<span style="left:${pct(s)}">${t}</span>`).join('');
 
 let t0 = null, tick = null, rang1 = false, rang2 = false;
 function ding(times){
