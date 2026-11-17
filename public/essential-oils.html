@@ -23,7 +23,7 @@
   .back{ text-decoration:none; color:var(--soft); font-size:14px; border:1px solid var(--line); background:var(--card); border-radius:10px; padding:6px 10px; }
   h1{ font-family:'Noto Serif TC',serif; font-size:24px; letter-spacing:.06em; margin:10px 0 2px; color:#3B352D; }
   .sub{ color:var(--soft); font-size:13.5px; margin:0 0 16px; line-height:1.7; }
-  .tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 18px; }
+  .tabs{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:0 0 18px; }
   .tabs button{ border:1px solid var(--line); background:var(--card); color:var(--soft); border-radius:12px; padding:9px 4px;
     font-family:'Noto Serif TC',serif; font-size:14px; letter-spacing:.06em; cursor:pointer; }
   .tabs button.active{ background:#fff; border-color:var(--sage); color:var(--sage); font-weight:700; }
@@ -85,6 +85,7 @@
   <nav class="tabs">
     <button data-p="pOverview" class="active">總覽</button>
     <button data-p="pOils">精油小百科</button>
+    <button data-p="pRecipes">配方大全</button>
     <button data-p="pSafe">安全守則</button>
     <button data-p="pFolders">資料夾導覽</button>
   </nav>
@@ -127,6 +128,20 @@
     <p class="note" style="margin-top:14px">卡片上的一句話是我整理的白話重點；「資料庫原文說法」是照原文件收錄的功效與配方（只略去產地故事和每份都一樣的注意事項）。搜尋症狀時，會自動打開有提到的那幾張，並把關鍵字標出來。原文說法未經醫學證實，僅供參考。</p>
   </section>
 
+  <!-- 配方大全 -->
+  <section class="panel" id="pRecipes">
+    <div class="box" style="padding:12px 16px">
+      <p class="note" style="margin:0">整理自「07 好用配方DIY」資料夾的圖卡，共 <b id="rcTotal"></b> 張，其中 <b id="rcDone"></b> 張已經逐張看圖、把份量和作法寫下來（標「完整配方」）；其他目前只有主題和用到的精油，點「看原圖」可以開回雲端硬碟。還在陸續補完中。</p>
+    </div>
+    <input class="search" id="rq" placeholder="搜尋症狀、用途或精油，例如：便秘、防蚊、薰衣草" autocomplete="off">
+    <div class="chips" id="rcCat"></div>
+    <div class="chips" id="rcSrc"></div>
+    <label class="note" style="display:flex;align-items:center;gap:6px;margin:4px 0 8px"><input type="checkbox" id="rcOnly"> 只看完整配方</label>
+    <div class="count" id="rcCount"></div>
+    <div class="oils" id="rcList"></div>
+    <p class="note" style="margin-top:14px">配方是資料庫裡的原文整理，未經醫學證實，僅供參考；自己調之前先看「安全守則」的稀釋比例。另有「30天新手指南」（38 頁）和精油萬花筒的「產品團隊圖片」（99 張，沒有標題）還沒整理進來。</p>
+  </section>
+
   <!-- 安全守則 -->
   <section class="panel" id="pSafe">
     <div class="box">
@@ -166,6 +181,7 @@
   </section>
 
 <script src="essential-oils-data.js"></script>
+<script src="essential-oils-recipes.js"></script>
 <script>
 const DRIVE = 'https://drive.google.com/drive/folders/';
 const FOLDERS = [
@@ -416,6 +432,39 @@ function render(){
   }).join('') || '<p class="note">找不到，換個關鍵字試試。</p>';
 }
 render();
+
+// ---------- 配方大全 ----------
+(function(){
+  const R = window.EO_RECIPES || [], SRC = window.EO_SRC || {};
+  const CATS = ['睡眠情緒','呼吸感冒','肌膚美容','頭髮頭皮','痠痛按摩','女性孕產','瘦身體態','腸胃消化','居家清潔','防蚊防蟲','香氛擴香','兒童寶寶','招財能量','精油知識'];
+  let cat = '', src = '';
+  document.getElementById('rcTotal').textContent = R.length;
+  document.getElementById('rcDone').textContent = R.filter(r => r.d).length;
+  const cc = document.getElementById('rcCat'), sc = document.getElementById('rcSrc');
+  cc.innerHTML = CATS.map(c => `<button class="chip" data-c="${c}">${c}</button>`).join('');
+  sc.innerHTML = `<button class="chip on" data-s="">全部來源</button>` + Object.entries(SRC).map(([k,v]) => `<button class="chip" data-s="${k}">${v}</button>`).join('');
+  cc.addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; cat = cat === b.dataset.c ? '' : b.dataset.c; cc.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.c === cat)); draw(); });
+  sc.addEventListener('click', e => { const b = e.target.closest('.chip'); if (!b) return; src = b.dataset.s; sc.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === b)); draw(); });
+  document.getElementById('rq').addEventListener('input', draw);
+  document.getElementById('rcOnly').addEventListener('change', draw);
+  function draw(){
+    const q = document.getElementById('rq').value.trim().toLowerCase();
+    const only = document.getElementById('rcOnly').checked;
+    const list = R.filter(r => (!cat || r.c.includes(cat)) && (!src || r.s === src) && (!only || r.d) &&
+      (!q || (r.t + ' ' + r.o + ' ' + r.d).toLowerCase().includes(q)));
+    list.sort((a,b) => (b.d ? 1 : 0) - (a.d ? 1 : 0));
+    document.getElementById('rcCount').textContent = `共 ${list.length} 則`;
+    document.getElementById('rcList').innerHTML = list.map(r => {
+      const link = 'https://drive.google.com/drive/search?q=' + encodeURIComponent(r.q);
+      return `<div class="oil"><div class="nm"><b>${hl(r.t, q)}</b><span class="kind">${r.n ? r.n + '・' : ''}${SRC[r.s] || ''}</span></div>
+        ${r.o ? `<div class="en">${hl(r.o, q)}</div>` : ''}
+        ${r.d ? `<div class="d" style="margin-top:6px">${hl(r.d, q)}</div><div class="tg"><span style="background:var(--rose-bg);color:var(--rose)">完整配方</span>${r.c.map(c => `<span>${c}</span>`).join('')}</div>`
+              : `<div class="tg" style="margin-top:6px">${r.c.map(c => `<span>${c}</span>`).join('')}</div>`}
+        <a href="${link}" target="_blank" rel="noopener">看原圖 →</a></div>`;
+    }).join('') || '<p class="note">找不到，換個關鍵字試試。</p>';
+  }
+  draw();
+})();
 
 // 上方分頁，記住上次看的
 function show(id){
