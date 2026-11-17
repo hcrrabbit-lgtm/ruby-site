@@ -1,19 +1,21 @@
 {
-  "_說明": "放映室的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。channel 填頻道（@名稱 或 channel/UC…），卡片就會顯示頻道大頭照。",
+  "_說明": "放映室的資料。who: rina / cathy / both。有 youtube 欄位（影片網址）的會直接在頁面上播放；只有 link 的會開新分頁。channel 填頻道（@名稱 或 channel/UC…），卡片就會顯示頻道大頭照。 zone 填分區名稱（例如「🎹 鋼琴區」），同一區的影片會集中在一起、加上區標題；沒填的放在「推薦頻道」。",
   "videos": [
     {
       "title": "",
-      "cat": "影片",
+      "cat": "鋼琴",
       "who": "rina",
       "note": "",
-      "youtube": "https://youtu.be/cLZEh8jtEes"
+      "youtube": "https://youtu.be/cLZEh8jtEes",
+      "zone": "🎹 鋼琴區"
     },
     {
       "title": "",
-      "cat": "影片",
+      "cat": "鋼琴",
       "who": "rina",
       "note": "",
-      "youtube": "https://youtu.be/7HeRbe-k-fA"
+      "youtube": "https://youtu.be/7HeRbe-k-fA",
+      "zone": "🎹 鋼琴區"
     },
     {
       "title": "Goat Girl",

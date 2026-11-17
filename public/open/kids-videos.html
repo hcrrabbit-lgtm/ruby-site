@@ -55,6 +55,8 @@
     color:#fff;background:var(--c-video);padding:8px 16px;border-radius:10px;
   }
   .v a.go:hover{filter:brightness(1.07);}
+.zone-h{grid-column:1/-1;margin:14px 0 -4px;font-size:20px;}
+  .zone-h:first-child{margin-top:0;}
   .empty{color:var(--ink-soft);text-align:center;padding:40px 0;}
   .rule{
     margin-top:28px;padding:14px 18px;border-radius:12px;background:var(--paper-deep);
@@ -99,7 +101,12 @@
     const list = document.getElementById('list');
     const shown = videos.filter(v => who==='all' || v.who===who || v.who==='both');
     if(!shown.length){ list.innerHTML = '<p class="empty">這裡還沒有影片喔。</p>'; return; }
-    list.innerHTML = shown.map(v => {
+    // 依 zone 分區：有分區的排前面，沒分區的歸「推薦頻道」
+    const zones = [];
+    shown.forEach(v => { const z = v.zone || '📺 推薦頻道'; if(!zones.includes(z)) zones.push(z); });
+    zones.sort((a,b) => (a==='📺 推薦頻道') - (b==='📺 推薦頻道'));
+    const showHead = zones.length > 1;
+    list.innerHTML = zones.map(z => (showHead ? `<h2 class="zone-h">${esc(z)}</h2>` : '') + shown.filter(v => (v.zone || '📺 推薦頻道') === z).map(v => {
       const id = ytId(v.youtube);
       const player = id
         ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" title="${esc(v.title)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
@@ -112,7 +119,7 @@
       return `<div class="v">${player}<div class="body">
         <div class="tags"><span class="tag">${esc(v.cat)}</span>${whoTag}</div>
         <div class="head">${av}<h3${!v.title && id ? ` data-yt="${id}"` : ''}>${esc(v.title || '載入中…')}</h3></div>${v.note ? `<p>${esc(v.note)}</p>` : `<p${id ? ` data-yt-by="${id}"` : ''}></p>`}${btn}</div></div>`;
-    }).join('');
+    }).join('')).join('');
     // 沒填標題的影片：自動抓 YouTube 標題和頻道名
     list.querySelectorAll('h3[data-yt]').forEach(h => {
       const id = h.dataset.yt;
