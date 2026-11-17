@@ -57,6 +57,13 @@
   .v a.go:hover{filter:brightness(1.07);}
 .zone-h{grid-column:1/-1;margin:14px 0 -4px;font-size:20px;}
   .zone-h:first-child{margin-top:0;}
+  .zone-fold{grid-column:1/-1;margin-top:14px;}
+  .zone-fold summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;font-family:'Noto Serif TC',serif;font-size:20px;font-weight:700;padding:10px 14px;border-radius:14px;background:rgba(0,0,0,.04);}
+  .zone-fold summary::-webkit-details-marker{display:none;}
+  .zone-fold summary::after{content:'▸';margin-left:auto;transition:transform .2s;}
+  .zone-fold[open] summary::after{transform:rotate(90deg);}
+  .zone-fold .zone-n{font-size:14px;font-weight:400;color:var(--ink-soft);font-family:inherit;}
+  .zone-fold > .grid{margin-top:14px;}
   .empty{color:var(--ink-soft);text-align:center;padding:40px 0;}
   .rule{
     margin-top:28px;padding:14px 18px;border-radius:12px;background:var(--paper-deep);
@@ -106,7 +113,7 @@
     shown.forEach(v => { const z = v.zone || '📺 推薦頻道'; if(!zones.includes(z)) zones.push(z); });
     zones.sort((a,b) => (a==='📺 推薦頻道') - (b==='📺 推薦頻道'));
     const showHead = zones.length > 1;
-    list.innerHTML = zones.map(z => (showHead ? `<h2 class="zone-h">${esc(z)}</h2>` : '') + shown.filter(v => (v.zone || '📺 推薦頻道') === z).map(v => {
+    const card = v => {
       const id = ytId(v.youtube);
       const player = id
         ? `<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${id}?rel=0" title="${esc(v.title)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`
@@ -119,7 +126,16 @@
       return `<div class="v">${player}<div class="body">
         <div class="tags"><span class="tag">${esc(v.cat)}</span>${whoTag}</div>
         <div class="head">${av}<h3${!v.title && id ? ` data-yt="${id}"` : ''}>${esc(v.title || '載入中…')}</h3></div>${v.note ? `<p>${esc(v.note)}</p>` : `<p${id ? ` data-yt-by="${id}"` : ''}></p>`}${btn}</div></div>`;
-    }).join('')).join('');
+    };
+    list.innerHTML = zones.map(z => {
+      const items = shown.filter(v => (v.zone || '📺 推薦頻道') === z);
+      const cards = items.map(card).join('');
+      if (z === '📺 推薦頻道') {
+        // 推薦頻道做成可收合，預設收起來（只剩這一區時就直接打開）
+        return `<details class="zone-fold"${showHead ? '' : ' open'}><summary><span class="zone-t">${esc(z)}</span><span class="zone-n">${items.length} 個</span></summary><div class="grid">${cards}</div></details>`;
+      }
+      return (showHead ? `<h2 class="zone-h">${esc(z)}</h2>` : '') + cards;
+    }).join('');
     // 沒填標題的影片：自動抓 YouTube 標題和頻道名
     list.querySelectorAll('h3[data-yt]').forEach(h => {
       const id = h.dataset.yt;
