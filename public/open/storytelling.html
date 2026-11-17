@@ -199,7 +199,8 @@
   <section id="t-timer" class="hidden">
     <div class="box">
       <h3>上台計時</h3>
-      <p>跟比賽一樣：<b>1:30 響一聲、2:00 響兩聲</b>。從鞠躬開始按，說完 Thank you 鞠躬後按停。</p>
+      <p>跟比賽一樣：<b>1:30 響一聲、2:00 響兩聲</b>，螢幕也會閃黃色／紅色。從鞠躬開始按，說完 Thank you 鞠躬後按停。</p>
+      <div class="row"><button class="btn plain" id="testBell" style="font-size:14px;padding:7px 14px;">🔔 先試聽鈴聲</button><span style="font-size:13px;color:var(--ink-soft);">手機音量記得開大</span></div>
       <div class="clock" id="clock">0:00</div>
       <div class="zone" id="zone">&nbsp;</div>
       <div class="bar"><div class="goal" id="goal"></div><div class="fill" id="fill"></div></div>
@@ -512,15 +513,50 @@ $('goal').style.left = pct(105); $('goal').style.width = pct(7);
 $('marks').innerHTML = [[90, '1:30 🔔'], [120, '2:00 🔔🔔']].map(([s, t]) => `<span style="left:${pct(s)}">${t}</span>`).join('');
 
 let t0 = null, tick = null, rang1 = false, rang2 = false;
-function ding(times){
-  const c = getCtx(); c.resume();
+// 鈴聲：先把「叮」做成音檔，用 <audio> 播放（iPhone 開靜音也比較不會被消音），音量開到最大
+function makeBell(times){
+  const sr = 44100, one = 1.6, step = 0.55, len = Math.floor(sr * (one + step * (times - 1)));
+  const pcm = new Float32Array(len);
+  // 服務鈴的泛音（不整齊的倍數才有「金屬鈴」的感覺）
+  const partials = [[1, 1, 1.1], [2.76, 0.6, 0.7], [5.40, 0.35, 0.45], [8.93, 0.2, 0.3], [1.5, 0.25, 0.9]];
+  const f0 = 1800;
   for(let k = 0; k < times; k++){
-    const at = c.currentTime + k * 0.45, o = c.createOscillator(), g = c.createGain();
-    o.type = 'sine'; o.frequency.value = 1320; o.connect(g); g.connect(c.destination);
-    g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.5, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.4);
-    o.start(at); o.stop(at + 0.42);
+    const off = Math.floor(sr * step * k);
+    for(let i = 0; i < sr * one && off + i < len; i++){
+      const t = i / sr, att = Math.min(1, t / 0.003);
+      let v = 0;
+      partials.forEach(([r, a, d]) => { v += a * Math.exp(-t / d * 2.2) * Math.sin(2 * Math.PI * f0 * r * t); });
+      pcm[off + i] += v * att;
+    }
   }
+  let peak = 0; for(let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(pcm[i]));
+  const out = new Int16Array(len);
+  for(let i = 0; i < len; i++){ const v = Math.tanh(pcm[i] / peak * 1.6) / Math.tanh(1.6); out[i] = v * 32767; }
+  const head = new ArrayBuffer(44), dv = new DataView(head), w = (q, str) => { for(let i = 0; i < str.length; i++) dv.setUint8(q + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + out.byteLength, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  w(36, 'data'); dv.setUint32(40, out.byteLength, true);
+  const a = new Audio(URL.createObjectURL(new Blob([head, out], { type: 'audio/wav' })));
+  a.volume = 1; a.preload = 'auto';
+  return a;
 }
+const bells = { 1: makeBell(1), 2: makeBell(2) };
+// 按「開始」時先無聲播一下，手機才會允許之後自動響鈴
+function unlockBells(){ Object.values(bells).forEach(a => { a.muted = true; a.play().then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; }); }); }
+function ding(times){
+  const a = bells[times]; a.currentTime = 0; a.muted = false; a.play().catch(() => {});
+  if(navigator.vibrate) navigator.vibrate(times === 1 ? [400] : [400, 150, 400]);
+  flash(times === 1 ? '#F2C14E' : '#D9534F', times === 1 ? '🔔 1:30' : '🔔🔔 2:00');
+}
+function flash(color, text){
+  const f = document.createElement('div');
+  f.style.cssText = `position:fixed;inset:0;background:${color};display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;color:#fff;z-index:50;opacity:.92;transition:opacity .6s;pointer-events:none;`;
+  f.textContent = text; document.body.appendChild(f);
+  setTimeout(() => { f.style.opacity = 0; }, 1400);
+  setTimeout(() => f.remove(), 2100);
+}
+document.getElementById('testBell').onclick = () => ding(1);
 function judge(s){
   if(s < 90) return ['fast', '不到 1:30'];
   if(s > 120) return ['slow', '超過 2:00 會扣分'];
@@ -534,7 +570,7 @@ function render(s){
 }
 $('go').onclick = () => {
   if(t0 === null){
-    getCtx().resume();
+    unlockBells();
     t0 = performance.now(); rang1 = rang2 = false; $('zone').innerHTML = '&nbsp;';
     $('go').textContent = '停'; $('go').style.background = 'var(--bad)';
     tick = setInterval(() => {
