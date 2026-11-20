@@ -629,6 +629,16 @@
     font-size:11px; font-weight:700; white-space:nowrap; vertical-align:1px;
   }
   /* Lilian 的獨立頁：只顯示她自己的習慣，不顯示 Cathy／Rina 的分頁、放映室和用餐 */
+  /* 手機：標題自己一行，四個連結排成一排小方塊（圖示在上、字在下） */
+  @media (max-width:600px){
+    .title-row{ flex-direction:column; align-items:stretch; gap:10px; }
+    .title-row h1{ white-space:nowrap; }
+    .title-links{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:8px; }
+    .title-links .video-link{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      padding:8px 4px; border-radius:14px; font-size:13px; line-height:1.25; text-align:center; white-space:nowrap; }
+    .title-links .video-link .ic{ font-size:20px; line-height:1; }
+    .title-links .video-link .ar{ display:none; }
+  }
   body.solo .child-tabs, body.solo .video-link, body.solo .title-links, body.solo #mealSection, body.solo #noticeBoard{ display:none !important; }
   body.solo h1{ color:#B0607A; }
 </style>
@@ -638,10 +648,10 @@
   <div class="title-row">
     <h1>✅ Better Me</h1>
     <div class="title-links">
-      <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
-      <a class="video-link go-link" id="goLink" href="go-review.html">⚫️ 復盤室 →</a>
-      <a class="video-link go-link" id="yikeLink" href="yike.html">🧩 專項訓練 →</a>
-      <a class="video-link story-link" id="storyLink" href="storytelling.html" style="display:none">🎙️ 說故事 →</a>
+      <a class="video-link" id="videoLink" href="kids-videos.html"><span class="ic">🎬</span> <span>放映室</span><span class="ar"> →</span></a>
+      <a class="video-link go-link" id="goLink" href="go-review.html"><span class="ic">⚫️</span> <span>復盤室</span><span class="ar"> →</span></a>
+      <a class="video-link go-link" id="yikeLink" href="yike.html"><span class="ic">🧩</span> <span>專項訓練</span><span class="ar"> →</span></a>
+      <a class="video-link story-link" id="storyLink" href="storytelling.html" style="display:none"><span class="ic">🎙️</span> <span>說故事</span><span class="ar"> →</span></a>
     </div>
   </div>
 
