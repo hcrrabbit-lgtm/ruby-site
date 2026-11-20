@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#dcb276">
+<title>奕客專項訓練</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, friendly helper a parent taps through in a minute after practice
+   IDEA: a kaya-wood Go board and two stone bowls — black stone Cathy, white stone Rina
+   PICTURE: the working app itself; header is a board corner with grid lines; stages as progress rows
+   COLOUR and TYPE: wood #dcb276 field, ink near-black, red accent for 又錯了, green for 完成; Noto Sans TC
+   LAYOUT: phone column, sticky board header, cards, bottom tab bar, + button opens a sheet */
+:root{color-scheme:light;
+--bg:#f5ecda;--card:#fffbf2;--ink:#1d1711;
+--mut:#76664f;--line:#e6d6b8;--wood:#dcb276;
+--grid:rgba(60,35,10,.35);--red:#b93a28;--green:#2d7446;
+--soft:#f0e3c8}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans TC",system-ui,sans-serif;overflow-x:clip;padding-bottom:92px}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.board{background:var(--wood);background-image:repeating-linear-gradient(0deg,var(--grid) 0 1px,transparent 1px 34px),repeating-linear-gradient(90deg,var(--grid) 0 1px,transparent 1px 34px);background-position:16px 16px;padding:16px max(4vw,16px) 14px;position:sticky;top:0;z-index:5;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:640px;margin:0 auto}
+h1{margin:0;font-size:21px;line-height:1.1;color:#1d1711;font-weight:700}
+.kids{display:flex;gap:6px;background:rgba(255,250,240,.55);padding:4px;border-radius:999px}
+.kid{display:flex;align-items:center;gap:6px;border:0;background:transparent;border-radius:999px;padding:6px 12px 6px 6px;min-height:44px;color:#1d1711;font-weight:500}
+.kid[aria-pressed=true]{background:#fffbf2;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.stone{width:26px;height:26px;border-radius:50%;flex:none}
+.stone.b{background:radial-gradient(circle at 35% 30%,#666,#111 60%);box-shadow:0 2px 2px rgba(0,0,0,.35)}
+.stone.w{background:radial-gradient(circle at 35% 30%,#fff,#ddd 70%,#bbb);box-shadow:0 2px 2px rgba(0,0,0,.3)}
+.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:640px;margin:12px auto 0}
+.fig{background:rgba(255,250,240,.82);border-radius:14px;padding:8px 10px;color:#1d1711}
+.fig b{display:block;font-size:clamp(21px,6vw,27px);line-height:1.15}
+.fig span{font-size:13px;color:#5d4c36}
+main{max-width:640px;margin:0 auto;padding:16px max(4vw,16px)}
+.bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;min-height:40px;font-size:15px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--soft);padding:4px;border-radius:14px;margin-bottom:10px}
+.seg button{border:0;background:transparent;border-radius:10px;min-height:44px;font-weight:500}
+.seg button[aria-pressed=true]{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.day{font-size:13px;color:var(--mut);margin:16px 4px 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px}
+button.card{display:block;width:100%;text-align:start}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:13px;border-radius:999px;padding:2px 10px;background:var(--soft);white-space:nowrap}
+.score{margin-inline-start:auto;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.note{color:var(--mut);font-size:14px;margin-top:4px;white-space:pre-wrap}
+.st-todo{background:var(--soft)}.st-again{background:var(--red);color:#fff}.st-ok{background:var(--green);color:#fff}
+.lbl{font-size:13px;color:var(--mut);margin-top:8px}
+.txt{white-space:pre-wrap;overflow-wrap:anywhere}
+.shot{width:100%;max-height:320px;object-fit:contain;border-radius:10px;background:var(--wood);margin-top:8px;display:block}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;min-height:44px;font-weight:500}
+.btn.ok{background:var(--green);color:#fff;border-color:transparent}
+.btn.bad{background:var(--red);color:#fff;border-color:transparent}
+.btn.main{background:var(--ink);color:var(--bg);border-color:transparent;flex:1}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--mut)}
+.empty{text-align:center;color:var(--mut);padding:40px 16px}
+.empty .stone{margin:0 auto 12px;width:40px;height:40px}
+.stage{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.stage .no{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;background:var(--soft)}
+.stage.done .no{background:var(--green);color:#fff}
+.stage .nm{font-weight:500}
+.stage .meter{grid-column:2/4}
+.meter{height:10px;border-radius:5px;background:var(--soft);overflow:hidden;margin-top:4px}
+.meter i{display:block;height:100%;background:var(--ink);border-radius:5px}
+.done .meter i{background:var(--green)}
+.big{font-size:clamp(23px,7vw,30px);font-weight:700;line-height:1.15;margin:4px 0}
+nav{position:fixed;inset:auto 0 0 0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:6}
+nav .in{display:flex;max-width:640px;width:100%;align-items:center}
+.tab{flex:1;border:0;background:none;min-height:52px;font-size:15px;color:var(--mut);border-radius:12px;padding:0 2px}
+.tab[aria-current=page]{color:var(--ink);font-weight:700;background:var(--soft)}
+.fab{flex:none;width:56px;height:56px;border-radius:50%;border:0;margin:0 6px;background:radial-gradient(circle at 35% 30%,#555,#111 65%);color:#fff;font-size:30px;line-height:1;box-shadow:0 3px 8px rgba(0,0,0,.35);transform:translateY(-14px)}
+.fab:disabled{opacity:.4}
+.sheet{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.panel{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:18px max(4vw,16px) calc(18px + env(safe-area-inset-bottom))}
+@media (prefers-reduced-motion:no-preference){.panel{animation:up .22s ease-out}@keyframes up{from{transform:translateY(40px);opacity:.4}}}
+h2{margin:0 0 6px;font-size:20px}
+label.f{display:block;font-size:14px;color:var(--mut);margin:14px 0 6px}
+input.in,textarea,select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 12px;font-size:16px;min-height:44px}
+textarea{min-height:76px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:20px;flex:none}
+.step input{width:72px;text-align:center}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.hint{font-size:13px;color:var(--mut)}
+.msg{background:var(--red);color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:15px}
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px}
+.toast[hidden]{display:none}
+@media(max-width:380px){.tab{font-size:14px}.fab{margin:0 2px}}
+.run{display:flex;flex-direction:column;gap:12px}
+.qnum{text-align:center;font-size:20px;color:var(--mut);margin-top:4px}
+.qnum b{display:block;font-size:clamp(56px,18vw,84px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.yn button{border:0;border-radius:22px;min-height:120px;font-size:56px;line-height:1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.yn button small{font-size:17px;font-weight:500}
+.yn button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.yn .yes{background:var(--green)}.yn .no{background:var(--red)}
+.grid{display:flex;flex-wrap:wrap;gap:3px;max-width:290px}
+.grid .c{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);background:var(--card);font-size:10px;color:var(--mut);display:grid;place-items:center;padding:0;font-variant-numeric:tabular-nums;flex:none}
+.grid .c.y{background:var(--green);border-color:transparent;color:#fff}
+.grid .c.n{background:var(--red);border-color:transparent;color:#fff}
+.grid .c.cur{outline:2px solid var(--ink);outline-offset:1px}
+.grid.sm{gap:2px;max-width:150px}.grid.sm .c{width:13px;height:13px;border-radius:3px;font-size:0}
+.grid.heat{max-width:200px;gap:2px}.grid.heat .c{width:18px;height:18px;border-radius:3px;font-size:10px;font-weight:700}
+.grid.heat .c.ok{background:#b9d6c1;border-color:transparent}
+.grid.heat .c.h1{background:#ecbcb2;color:var(--ink);border-color:transparent}
+.grid.heat .c.h2{background:#cf6f5f;color:#fff;border-color:transparent}
+.grid.heat .c.h3{background:var(--red);color:#fff;border-color:transparent}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:6px;align-items:center}
+.legend .c{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-inline-end:3px}
+.tries{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:13px;margin:6px 0 8px}
+.tries span{white-space:nowrap}
+details summary{cursor:pointer;color:var(--mut);font-size:14px;min-height:36px;display:flex;align-items:center}
+.att{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;border:0;background:none;padding:6px 0;border-top:1px solid var(--line);text-align:start}
+.res{text-align:center}
+.chk{display:flex;gap:10px;align-items:center;min-height:44px}
+.chk input{width:22px;height:22px;accent-color:var(--ink)}
+.flash{animation:fl .25s}@keyframes fl{from{transform:scale(1.15)}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
+</style>
+</head>
+<body>
+<header class="board">
+  <div class="top">
+    <div><a id="back" href="study-habits.html" style="font-size:13px;color:#5d4c36;text-decoration:none">← Better Me</a><h1>奕客專項訓練</h1></div>
+    <div class="kids" role="group" aria-label="選孩子">
+      <button class="kid" id="k-Cathy" aria-pressed="true"><span class="stone b"></span>Cathy</button>
+      <button class="kid" id="k-Rina" aria-pressed="false"><span class="stone w"></span>Rina</button>
+    </div>
+  </div>
+  <div class="sum">
+    <div class="fig"><b id="s1">0</b><span>近 7 天做題</span></div>
+    <div class="fig"><b id="s2">–</b><span>近 7 天正確率</span></div>
+    <div class="fig"><b id="s3">0</b><span>待重做錯題</span></div>
+  </div>
+</header>
+<main>
+  <div id="msg" class="msg" hidden></div>
+  <div id="view"><p class="empty">讀取中…</p></div>
+</main>
+<nav><div class="in">
+  <button class="tab" data-tab="stages" aria-current="page">開始做題</button>
+  <button class="tab" data-tab="table">總表</button>
+  <button class="tab" data-tab="wrong">錯題本</button>
+  <button class="tab" data-tab="stats">統計</button>
+</div></nav>
+<div class="sheet" id="sheet" hidden><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+<script>
+{
+/* 奕客專項訓練「按級別」關卡：名稱 + 題數 */
+const RAW={
+ '中級':{'吃子':'征子50|接不歸50|倒撲50|龜不出頭40|緊氣的要點40|相思斷30|有眼殺瞎50|滾打包收30',
+  '死活':'脹牯牛50|基礎打劫50|基礎死型50|基礎活型50|直三與彎三50|丁四與方塊四50|刀把五與梅花五50|葡萄六50|盤角曲四50|雙活50|三眼兩做50|縮小眼位50|擴大眼位50|有眼殺瞎50|左右同形20',
+  '布局':'逼住的種類與特點37|拆邊的種類50|掛角的種類48|守角的種類50|二三四線發展50|高中國流40|立一拆二立二拆三50|迷你中國流42|小林流40',
+  '官子':'後手官子價值計算50|全局官子20|單先官子計算50|知道單官30',
+  '定式':'小目常見定式50|小目定式選擇50|星位常見定式50|星位定式選擇50|三三常見定式50|目外常見定式20|經典大型定式50',
+  '手筋':'分斷的手筋36|聯絡的手筋49'},
+ '高級':{'吃子':'倒撲40|倒脫靴50|枷吃50|大頭鬼50|接不歸25|金雞獨立40|黃鶯撲蝶20|聚殺30',
+  '死活':'基礎打劫50|基礎死型50|基礎活型50|直三與彎三30|丁四與方塊四35|刀把五與梅花五30|葡萄六20|盤角曲四30|雙活30|擴大眼位30|左右同形10|利用先手35|利用氣緊35|縮小眼位10|利用棄子25|敵之要點25|三眼兩做15|佔據要點30',
+  '棋形':'愚形與裂形10|補斷的手法30|出頭要點30|雙單形見定靠單20|點方與應對50|封鎖要點50',
+  '布局':'逼住的種類與特點（拆兼逼）40|大場與急所40|厚勢的發展面40|拆邊的種類——分投30|模樣與勢力的天王山40|守角後的發展面20|定式未完成的急所40',
+  '官子':'後手官子價值計算50|全局官子25|單先官子的計算30|雙先官子的計算50',
+  '定式':'經典大型定式27|三三常見定式25|目外常見定式20|星位定式（小飛掛角）50|AI小目定式（小飛掛角）40|AI三三定式8|AI目外定式13|還原AI高目定式20',
+  '手筋':'聯絡的手筋50'}};
+const LV={'中級':'9K–5K 中級','高級':'4K–1K+ 高級'};
+const DATA={};
+for(const l in RAW){DATA[l]={};for(const c in RAW[l])DATA[l][c]=RAW[l][c].split('|').map((s,i)=>{const m=s.match(/^(.*?)(\d+)$/);return{no:i+1,name:m[1],n:+m[2]}})}
+
+const TYPES=['吃子','死活','棋形','布局','官子','定式','手筋'];
+const LC={'中級':'m','高級':'h'};
+const kOf=(l,c,no)=>`${l}|${c}|${no}`;
+const stageOf=k=>{const [l,c,no]=String(k||'').split('|');const s=DATA[l]?.[c]?.[+no-1];return s?{l,c,key:k,...s}:null};
+const stageName=k=>{const s=stageOf(k);return s?`${s.no}. ${s.name}`:''};
+const where=k=>{const s=stageOf(k);return s?`${s.l}・${s.c}`:''};
+const wid=(who,k,q)=>{const s=stageOf(k);return `${who}-${LC[s.l]}-${TYPES.indexOf(s.c)}-${s.no}-${q}`};
+const ST={todo:'還沒重做',ok:'重做對了',again:'又錯了'};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>{const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const WK='日一二三四五六';
+const fmtDay=s=>{if(!s)return'';const d=new Date(s+'T00:00:00');return `${d.getMonth()+1}/${d.getDate()}（${WK[d.getDay()]}）`};
+const pct=(c,q)=>q?Math.round(c/q*100)+'%':'–';
+const cnt=r=>{const a=(r.results||[]);let y=0,n=0;for(const v of a){if(v===1)y++;else if(v===0)n++}return{y,n,done:y+n}};
+let child='Cathy',lvl='中級',cat='吃子';
+try{child=localStorage.getItem('yk-child')||'Cathy';lvl=localStorage.getItem('yk-lvl')||'中級'}catch(e){}
+{const w=new URLSearchParams(location.search).get('who');if(w){const W2=w[0].toUpperCase()+w.slice(1).toLowerCase();if(W2==='Cathy'||W2==='Rina')child=W2}}
+if(!['Cathy','Rina'].includes(child))child='Cathy';if(!DATA[lvl])lvl='中級';
+let tab='stages',wf='todo',tf='',tl='',R=[],W=[],canWrite=false,loaded=0,busy=false,run=null,form=null;
+async function api(path,method,body){const r=await fetch('/api/open/yike'+path,{method:method||'GET',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let d={};try{d=await r.json()}catch(_){}if(!r.ok){const e=new Error(d.error||'失敗');e.msg=d.error;throw e}return d}
+async function reload(){const d=await api('');R=d.runs||[];W=d.wrong||[];loaded=2;render()}
+const backLink=()=>{const a=document.getElementById('back');if(a)a.href='study-habits.html?who='+child};
+const remember=()=>{try{localStorage.setItem('yk-child',child);localStorage.setItem('yk-lvl',lvl)}catch(e){}};
+function toast(t){const e=$('#toast');e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>e.hidden=true,2200)}
+function showMsg(t){const e=$('#msg');e.textContent=t||'';e.hidden=!t}
+const mine=a=>a.filter(x=>x.child===child);
+const empty=t=>`<div class="empty"><div class="stone ${child==='Cathy'?'b':'w'}"></div>${t}</div>`;
+const byDate=a=>[...a].sort((x,y)=>(y.date||'').localeCompare(x.date||'')||(y.created||0)-(x.created||0));
+const gridHTML=(res,n,opts={})=>`<div class="grid${opts.sm?' sm':''}">${Array.from({length:n},(_,i)=>{const v=res[i];const cls=v===1?' y':v===0?' n':'';return opts.btn?`<button type="button" class="c${cls}${i===opts.cur?' cur':''}" data-jump="${i}" aria-label="第 ${i+1} 題">${i+1}</button>`:`<span class="c${cls}" title="第 ${i+1} 題">${opts.sm?'':i+1}</span>`}).join('')}</div>`;
+
+function render(){
+  backLink();
+  for(const k of ['Cathy','Rina'])$('#k-'+k).setAttribute('aria-pressed',k===child);
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
+  const rs=mine(R),ws=mine(W);
+  const wk=new Date();wk.setDate(wk.getDate()-6);const from=wk.toISOString().slice(0,10);
+  let y=0,d=0;for(const r of rs)if(r.date>=from){const c=cnt(r);y+=c.y;d+=c.done}
+  $('#s1').textContent=d;$('#s2').textContent=pct(y,d);$('#s3').textContent=ws.filter(w=>w.status!=='ok').length;
+  if(loaded<2&&!R.length&&!W.length)return;
+  $('#view').innerHTML=tab==='stages'?vStages(rs):tab==='table'?vTable(rs):tab==='wrong'?vWrong(ws):vStats(rs,ws);
+}
+function lvlBar(){return `<div class="seg">${Object.keys(DATA).map(l=>`<button data-lvl="${l}" aria-pressed="${l===lvl}">${LV[l]}</button>`).join('')}</div>
+  <div class="bar">${Object.keys(DATA[lvl]).map(c=>`<button class="chip" data-cat="${c}" aria-pressed="${c===cat}">${c}</button>`).join('')}</div>`}
+function vStages(rs){
+  if(!DATA[lvl][cat])cat=Object.keys(DATA[lvl])[0];
+  const list=DATA[lvl][cat];
+  return lvlBar()+`<div class="hint" style="margin:0 4px 10px">點一關就開始，每一題按 ✓ 或 ✗。</div>`+list.map(s=>{
+    const k=kOf(lvl,cat,s.no);const mineR=byDate(rs.filter(r=>r.stage===k));const fin=mineR.filter(r=>r.finished);const open=mineR.find(r=>!r.finished);
+    const last=fin[0];const c=last?cnt(last):null;
+    const info=open?`做到一半（${cnt(open).done}/${s.n}）`:last?`最近 ${pct(c.y,c.done)}・做過 ${fin.length} 次`:`${s.n} 題`;
+    return `<button class="card stage${last?' done':''}" data-start="${esc(k)}"><span class="no">${s.no}</span><span class="nm">${esc(s.name)}</span><span class="score" style="font-weight:500;font-size:14px">${info}</span>${last?`<span class="meter"><i style="width:${c.done?Math.round(c.y/c.done*100):0}%"></i></span>`:''}</button>`}).join('');
+}
+function vTable(rs){
+  const lv=['','中級','高級'];
+  const fin=rs.filter(r=>r.finished&&stageOf(r.stage)&&(!tl||stageOf(r.stage).l===tl));
+  const head=`<div class="bar">${lv.map(l=>`<button class="chip" data-tl="${l}" aria-pressed="${tl===l}">${l||'全部'}</button>`).join('')}</div>`;
+  if(!fin.length)return head+empty(`${child} 還沒有做完的關卡。<br>到「開始做題」點一關，做完就會出現在總表。`);
+  const G={};for(const r of fin)(G[r.stage]=G[r.stage]||[]).push(r);
+  const keys=Object.keys(G).sort((a,b)=>(byDate(G[b])[0].date||'').localeCompare(byDate(G[a])[0].date||''));
+  return head+`<div class="legend" style="margin:0 4px 10px">每格是一題，數字是累計錯幾次：<span><i class="c" style="background:#b9d6c1"></i>都對</span><span><i class="c" style="background:#ecbcb2"></i>錯 1 次</span><span><i class="c" style="background:#cf6f5f"></i>2 次</span><span><i class="c" style="background:var(--red)"></i>3 次以上</span></div>`+keys.map(k=>{
+    const s=stageOf(k),runs=byDate(G[k]),wrong=Array(s.n).fill(0),seen=Array(s.n).fill(0);
+    for(const r of runs)(r.results||[]).forEach((v,i)=>{if(i<s.n&&v!=null){seen[i]++;if(v===0)wrong[i]++}});
+    const top=wrong.map((w,i)=>[i+1,w]).filter(x=>x[1]>=2).sort((a,b)=>b[1]-a[1]);
+    const heat=`<div class="grid heat">${wrong.map((w,i)=>`<span class="c${!seen[i]?'':w>=3?' h3':w==2?' h2':w==1?' h1':' ok'}" title="第 ${i+1} 題：錯 ${w} 次／做 ${seen[i]} 次">${w||''}</span>`).join('')}</div>`;
+    const tries=[...runs].reverse().map(r=>{const c=cnt(r);return `<span>${fmtDay(r.date).replace(/（.）/,'')} <b>${pct(c.y,c.done)}</b></span>`}).join('<span aria-hidden="true">→</span>');
+    return `<div class="card"><div class="row"><span class="pill">${esc(where(k))}</span><b>${esc(stageName(k))}</b><span class="score" style="font-weight:500;font-size:14px">做了 ${runs.length} 回</span></div>
+    <div class="tries">${tries}</div>${heat}
+    <div class="hint" style="margin-top:8px">${top.length?`常錯：${top.slice(0,8).map(([q,w])=>`第 ${q} 題 ×${w}`).join('、')}`:wrong.some(Boolean)?'目前沒有錯 2 次以上的題目':'每一題都答對過了'}</div>
+    <details><summary>看每一回</summary>${runs.map(r=>{const c=cnt(r);return `<button class="att" data-open="${esc(r.id)}"><span class="hint">${fmtDay(r.date)}</span>${gridHTML(r.results||[],s.n,{sm:true})}<b>${pct(c.y,c.done)}</b></button>`}).join('')}</details></div>`}).join('');
+}
+function vWrong(ws){
+  const fs=[['todo','待重做'],['ok','已經會了'],['all','全部']];
+  let out=`<div class="bar">${fs.map(([k,t])=>`<button class="chip" data-wf="${k}" aria-pressed="${wf===k}">${t}</button>`).join('')}<span style="width:8px;flex:none"></span>${['',...TYPES].map(t=>`<button class="chip" data-tf="${t}" aria-pressed="${tf===t}">${t||'全部題型'}</button>`).join('')}</div>`;
+  if(canWrite)out+=`<div class="acts" style="margin:0 0 10px"><button class="btn" id="addw">＋ 手動加一題</button></div>`;
+  let list=ws.filter(w=>wf==='all'||(wf==='ok'?w.status==='ok':w.status!=='ok')).filter(w=>!tf||stageOf(w.stage)?.c===tf);
+  list=byDate(list).sort((a,b)=>(b.status==='again')-(a.status==='again'));
+  if(!list.length)return out+empty(ws.length?'這個篩選下沒有題目。':`${child} 的錯題本還是空的。<br>做題時按 ✗ 的題目會自動放進來。`);
+  return out+list.map(w=>`<div class="card"><div class="row"><span class="pill">${esc(where(w.stage))}</span><b>${esc(stageName(w.stage))}　第 ${esc(w.qno)} 題</b><span class="pill st-${w.status||'todo'}" style="margin-inline-start:auto">${ST[w.status]||ST.todo}</span></div>
+  <div class="hint">${fmtDay(w.date)} 錯${w.redoCount?`・重做 ${+w.redoCount} 次，最近 ${fmtDay(w.redoDate)}`:''}</div>
+  ${w.photo&&/^data:image\//.test(w.photo)?`<img class="shot" alt="題目截圖" src="${esc(w.photo)}">`:''}
+  ${w.why?`<div class="lbl">錯在哪裡</div><div class="txt">${esc(w.why)}</div>`:''}
+  ${w.key?`<div class="lbl">正解重點</div><div class="txt">${esc(w.key)}</div>`:''}
+  ${canWrite?`<div class="acts"><button class="btn ok" data-redo="ok" data-id="${esc(w.id)}">重做對了</button><button class="btn bad" data-redo="again" data-id="${esc(w.id)}">又錯了</button><button class="btn ghost" data-editw="${esc(w.id)}">寫筆記</button></div>`:''}</div>`).join('');
+}
+function vStats(rs,ws){
+  const fin=rs.filter(r=>r.finished);
+  if(!fin.length&&!ws.length)return empty(`${child} 還沒有資料，做完一關後這裡會出現統計。`);
+  let Y=0,D=0;const T={},S={};
+  for(const r of fin){const c=cnt(r),s=stageOf(r.stage);if(!s)continue;Y+=c.y;D+=c.done;const t=T[s.c]||(T[s.c]={y:0,d:0});t.y+=c.y;t.d+=c.done;const o=S[r.stage]||(S[r.stage]={y:0,d:0});o.y+=c.y;o.d+=c.done}
+  const weak=Object.entries(S).filter(([,o])=>o.d>=5).sort((a,b)=>a[1].y/a[1].d-b[1].y/b[1].d).slice(0,3);
+  const again=ws.filter(w=>w.status==='again');
+  return `<div class="card"><div class="hint">全部累計</div><div class="big">${D} 題・正確率 ${pct(Y,D)}</div><div class="hint">做完 ${fin.length} 關次，錯題本 ${ws.length} 題（已會 ${ws.filter(w=>w.status==='ok').length} 題）</div></div>
+  ${weak.length?`<div class="day">正確率最低的關卡</div>${weak.map(([k,o])=>`<div class="card"><div class="row"><span class="pill">${esc(where(k))}</span><b>${esc(stageName(k))}</b><span class="score">${o.y}/${o.d}　${pct(o.y,o.d)}</span></div></div>`).join('')}`:''}
+  ${again.length?`<div class="day">重做還是錯的題目</div><div class="card">${again.map(w=>`<div>${esc(where(w.stage))} ${esc(stageName(w.stage))} 第 ${esc(w.qno)} 題</div>`).join('')}</div>`:''}
+  <div class="day">各題型</div>
+  ${TYPES.filter(t=>T[t]).map(t=>`<div class="card"><div class="row"><b>${t}</b><span class="score">${T[t].y}/${T[t].d}　${pct(T[t].y,T[t].d)}</span></div><div class="meter"><i style="width:${Math.round(T[t].y/T[t].d*100)}%"></i></div></div>`).join('')}
+  <div class="acts"><button class="btn" id="copy">複製 ${child} 的紀錄（可貼到 Excel）</button></div>`;
+}
+
+/* ---- answering one stage ---- */
+function startStage(k){
+  const s=stageOf(k);if(!s)return;
+  const open=byDate(mine(R).filter(r=>r.stage===k&&!r.finished))[0];
+  if(open){openChoice(k,open);return}
+  beginRun({stage:k,child,date:today(),results:Array(s.n).fill(null)});
+}
+function openChoice(k,open){
+  const s=stageOf(k);const c=cnt(open);
+  $('#panel').innerHTML=`<h2>${esc(stageName(k))}</h2><div class="hint">${esc(where(k))}・上次做到一半（${c.done}/${s.n}，${fmtDay(open.date)}）</div>
+  <div class="acts"><button class="btn main" data-resume="${esc(open.id)}">繼續上次</button><button class="btn" data-fresh="${esc(k)}">重新開始</button></div>
+  <div class="acts"><button class="btn ghost" id="cancel">取消</button></div>`;
+  $('#sheet').hidden=false;
+}
+function beginRun(r){
+  const s=stageOf(r.stage);const res=Array.from({length:s.n},(_,i)=>r.results?.[i]??null);
+  run={id:r.id||null,stage:r.stage,child:r.child||child,date:r.date||today(),created:r.created||Date.now(),results:res,orig:r.results?[...res]:Array(s.n).fill(null),cur:Math.max(0,res.findIndex(v=>v==null)),view:'ans',finished:!!r.finished,addWrong:true};
+  if(run.cur<0||res.every(v=>v!=null))run.cur=0;
+  if(run.finished)run.view='res';
+  drawRun();$('#sheet').hidden=false;
+}
+function drawRun(){
+  const s=stageOf(run.stage);const c=cnt(run);
+  const head=`<div class="row"><span class="pill">${esc(where(run.stage))}</span><b>${esc(stageName(run.stage))}</b><span class="hint" style="margin-inline-start:auto">${esc(run.child)}</span></div>`;
+  if(run.view==='ans'){
+    $('#panel').innerHTML=`<div class="run">${head}
+    <div class="qnum">第<b id="qn" class="flash">${run.cur+1}</b>題（共 ${s.n} 題）</div>
+    <div class="yn"><button class="yes" data-ans="1">✓<small>答對</small></button><button class="no" data-ans="0">✗<small>答錯</small></button></div>
+    <div class="row"><button class="btn" data-mv="-1">← 上一題</button><span class="hint" style="margin-inline-start:auto">已做 ${c.done}・對 ${c.y}・${pct(c.y,c.done)}</span><button class="btn" data-mv="1">下一題 →</button></div>
+    ${gridHTML(run.results,s.n,{btn:true,cur:run.cur})}
+    <div class="hint">點上面的格子可以跳到那一題或改答案。</div>
+    <div class="acts"><button class="btn main" id="tores">完成這一關，看結果</button></div>
+    <div class="acts"><button class="btn" id="pause">先暫停，之後繼續</button><button class="btn ghost" id="quit">不存，離開</button></div></div>`;
+  }else{
+    const wrongs=run.results.map((v,i)=>v===0?i+1:0).filter(Boolean);
+    $('#panel').innerHTML=`<div class="run res">${head}
+    <div class="hint">${fmtDay(run.date)}</div>
+    <div class="big" style="font-size:clamp(44px,14vw,64px)">${pct(c.y,c.done)}</div>
+    <div>對 ${c.y} 題・錯 ${c.n} 題${c.done<s.n?`・<b>${s.n-c.done} 題還沒做</b>`:''}</div>
+    ${gridHTML(run.results,s.n,{btn:true,cur:-1})}
+    ${wrongs.length?`<div class="card" style="text-align:start"><div class="hint">答錯的題目</div>第 ${wrongs.join('、')} 題</div>
+    <label class="chk"><input type="checkbox" id="addw-chk" ${run.addWrong?'checked':''}>把答錯的題目放進錯題本</label>`:''}
+    <label class="f" for="rdate" style="text-align:start">日期</label><input class="in" id="rdate" type="date" value="${esc(run.date)}">
+    <div class="acts"><button class="btn main" id="saverun">儲存到總表</button><button class="btn" id="back">回去改答案</button></div>
+    ${run.id?`<div class="acts"><button class="btn ghost" id="delrun">刪除這次紀錄</button></div>`:''}</div>`;
+  }
+}
+function answer(v){
+  const s=stageOf(run.stage);run.results[run.cur]=v;
+  let nx=-1;for(let i=run.cur+1;i<s.n;i++)if(run.results[i]==null){nx=i;break}
+  if(nx<0)for(let i=0;i<run.cur;i++)if(run.results[i]==null){nx=i;break}
+  if(nx<0){run.view='res';toast('這一關做完了！')}else run.cur=nx;
+  drawRun();
+}
+async function saveRun(finished){
+  const c=cnt(run);
+  if(!c.done){toast('還沒有作答');return}
+  const r=run;let res=null;
+  const ok=await write(async()=>{res=await api('/run','POST',{id:r.id,child:r.child,stage:r.stage,date:($('#rdate')?.value)||r.date,results:r.results,finished,addWrong:r.addWrong});r.id=res.id;await reload()},null);
+  if(!ok)return;
+  toast(finished?(res&&res.checked?'已存到總表，Better Me「下棋」已打勾 ✓':'已存到總表'):'已暫停，下次點這一關可以繼續');
+  closeSheet();if(finished){tab='table';render()}
+}
+
+/* ---- wrong-problem note form ---- */
+function openWrong(id){
+  const w=id?W.find(x=>x.id===id):null;
+  const st=w?stageOf(w.stage):{l:lvl,c:DATA[lvl][cat]?cat:Object.keys(DATA[lvl])[0],no:1};
+  form={id,w,l:st.l,c:st.c,no:st.no,photo:w?.photo||''};
+  $('#panel').innerHTML=`<form id="frm"><h2>${w?'錯題筆記':'手動加一題錯題'}</h2>
+  ${w?`<div class="row"><span class="pill">${esc(where(w.stage))}</span><b>${esc(stageName(w.stage))}　第 ${esc(w.qno)} 題</b></div>`:`<label class="f">關卡</label><div id="picker">${pickerHTML()}</div><label class="f" for="fqno">第幾題</label><input class="in" id="fqno" inputmode="numeric" required>`}
+  <label class="f" for="fpic">題目截圖（可不放）</label><input class="in" id="fpic" type="file" accept="image/*"><div id="pv">${form.photo?`<img class="shot" alt="" src="${esc(form.photo)}"><button type="button" class="btn ghost" id="rmpic">拿掉截圖</button>`:''}</div>
+  <label class="f" for="fwhy">錯在哪裡</label><textarea id="fwhy" placeholder="例如：第一手下在外面，沒看到點眼">${esc(w?.why)}</textarea>
+  <label class="f" for="fkey">正解重點</label><textarea id="fkey" placeholder="例如：先點在中間，再擋">${esc(w?.key)}</textarea>
+  <div class="acts"><button class="btn main" type="submit">儲存</button><button class="btn" type="button" id="cancel">取消</button></div>
+  ${w?`<div class="acts"><button class="btn ghost" type="button" id="delw">從錯題本移除</button></div>`:''}</form>`;
+  $('#sheet').hidden=false;
+}
+function pickerHTML(){const f=form;
+  return `<div class="seg" style="margin:0">${Object.keys(DATA).map(l=>`<button type="button" data-flvl="${l}" aria-pressed="${l===f.l}">${LV[l]}</button>`).join('')}</div>
+  <div class="chips" style="margin-top:8px">${Object.keys(DATA[f.l]).map(c=>`<button type="button" class="chip" data-fcat="${c}" aria-pressed="${c===f.c}">${c}</button>`).join('')}</div>
+  <select id="fstage" style="margin-top:8px" aria-label="關卡">${DATA[f.l][f.c].map(s=>`<option value="${s.no}"${s.no===f.no?' selected':''}>${s.no}. ${esc(s.name)}（${s.n} 題）</option>`).join('')}</select>`}
+async function submitWrong(){
+  const f=form;const g=id=>$('#'+id)?.value??'';
+  const note={why:g('fwhy').trim(),key:g('fkey').trim(),photo:f.photo||'',updated:Date.now()};
+  if(f.w){if(await write(async()=>{await api('/wrong','POST',{id:f.w.id,...note});await reload()},'已儲存'))closeSheet();return}
+  f.no=+g('fstage')||1;const k=kOf(f.l,f.c,f.no);const s=stageOf(k);const q=parseInt(g('fqno'));
+  if(!(q>=1&&q<=s.n)){toast(`題號要在 1 到 ${s.n} 之間`);return}
+  if(W.find(w=>w.child===child&&w.stage===k&&+w.qno===q)){toast('這一題已經在錯題本裡');return}
+  if(await write(async()=>{await api('/wrong','POST',{child,stage:k,qno:q,...note});await reload()},'已加入錯題本'))closeSheet();
+}
+async function shrink(file){
+  const url=URL.createObjectURL(file);
+  try{const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+    let q=.72,m=900,out='';
+    for(let k=0;k<4;k++){const s=Math.min(1,m/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=Math.round(img.width*s);cv.height=Math.round(img.height*s);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);out=cv.toDataURL('image/jpeg',q);if(out.length<180000)break;q-=.12;m-=150}
+    return out}finally{URL.revokeObjectURL(url)}
+}
+function closeSheet(){$('#sheet').hidden=true;run=null;form=null}
+async function write(fn,okText){
+  if(busy)return false;busy=true;
+  try{await fn();if(okText)toast(okText);return true}
+  catch(e){toast(e&&e.msg?e.msg:'存檔失敗，請檢查網路再試一次');return false}
+  finally{busy=false}
+}
+
+/* ---- events ---- */
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button');if(!t)return;const D=t.dataset;
+  if(t.classList.contains('kid')){child=t.id.slice(2);remember();render();return}
+  if(D.tab){tab=D.tab;render();scrollTo(0,0);return}
+  if(D.lvl){lvl=D.lvl;remember();render();return}
+  if(D.cat){cat=D.cat;render();return}
+  if(D.tl!==undefined){tl=D.tl;render();return}
+  if(D.wf){wf=D.wf;render();return}
+  if(D.tf!==undefined){tf=D.tf;render();return}
+  if(D.start){if(canWrite)startStage(D.start);else toast('目前無法存檔');return}
+  if(D.open){const r=R.find(x=>x.id===D.open);if(r&&canWrite)beginRun(r);return}
+  if(D.resume){const r=R.find(x=>x.id===D.resume);if(r)beginRun(r);return}
+  if(D.fresh){const s=stageOf(D.fresh);beginRun({stage:D.fresh,child,date:today(),results:Array(s.n).fill(null)});return}
+  if(run){
+    if(D.ans){answer(+D.ans);return}
+    if(D.mv){const s=stageOf(run.stage);run.cur=Math.min(s.n-1,Math.max(0,run.cur+(+D.mv)));drawRun();return}
+    if(D.jump){run.cur=+D.jump;run.view='ans';drawRun();return}
+    if(t.id==='tores'){run.view='res';drawRun();return}
+    if(t.id==='back'){run.date=$('#rdate')?.value||run.date;run.view='ans';drawRun();return}
+    if(t.id==='pause'){await saveRun(false);return}
+    if(t.id==='quit'){if(!run.q2&&cnt(run).done){run.q2=1;t.textContent='再按一次：不存就離開';t.classList.replace('ghost','bad');return}closeSheet();return}
+    if(t.id==='saverun'){await saveRun(true);return}
+    if(t.id==='delrun'){if(!run.d2){run.d2=1;t.textContent='再按一次確定刪除';t.classList.replace('ghost','bad');return}const id=run.id;if(await write(async()=>{await api('/run','DELETE',{id});await reload()},'已刪除'))closeSheet();return}
+  }
+  if(t.id==='addw'){openWrong(null);return}
+  if(D.editw){openWrong(D.editw);return}
+  if(D.redo){const w=W.find(x=>x.id===D.id);if(!w)return;
+    await write(async()=>{await api('/wrong','POST',{action:'redo',id:w.id,status:D.redo});await reload()},D.redo==='ok'?'太好了！':'記下來了，下次再練');return}
+  if(form&&D.flvl){form.l=D.flvl;if(!DATA[form.l][form.c])form.c=Object.keys(DATA[form.l])[0];form.no=1;$('#picker').innerHTML=pickerHTML();return}
+  if(form&&D.fcat){form.c=D.fcat;form.no=1;$('#picker').innerHTML=pickerHTML();return}
+  if(t.id==='rmpic'&&form){form.photo='';$('#pv').innerHTML='';return}
+  if(t.id==='delw'&&form){if(!form.d2){form.d2=1;t.textContent='再按一次確定移除';t.classList.replace('ghost','bad');return}const id=form.w.id;if(await write(async()=>{await api('/wrong','DELETE',{id});await reload()},'已移除'))closeSheet();return}
+  if(t.id==='cancel'){closeSheet();return}
+  if(t.id==='copy'){
+    const c=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+    let s='總表\n日期,孩子,級別,題型,關卡,題數,對,錯,正確率,答錯的題號\n'+byDate(mine(R).filter(r=>r.finished)).map(r=>{const k=cnt(r),st=stageOf(r.stage);return[r.date,r.child,st?.l,st?.c,stageName(r.stage),st?.n,k.y,k.n,pct(k.y,k.done),(r.results||[]).map((v,i)=>v===0?i+1:0).filter(Boolean).join('、')].map(c).join(',')}).join('\n');
+    s+='\n\n錯題本\n日期,孩子,級別,題型,關卡,第幾題,錯在哪裡,正解重點,重做結果,重做次數,最近重做\n'+byDate(mine(W)).map(w=>{const st=stageOf(w.stage);return[w.date,w.child,st?.l,st?.c,stageName(w.stage),w.qno,w.why,w.key,ST[w.status]||ST.todo,w.redoCount||0,w.redoDate].map(c).join(',')}).join('\n');
+    try{await navigator.clipboard.writeText(s);toast('已複製')}catch(_){toast('這裡不能複製')}
+  }
+});
+document.addEventListener('submit',e=>{e.preventDefault();if(form)submitWrong()});
+document.addEventListener('change',async e=>{
+  if(e.target.id==='addw-chk'&&run){run.addWrong=e.target.checked;return}
+  if(!form)return;
+  if(e.target.id==='fstage'){form.no=+e.target.value;return}
+  if(e.target.id!=='fpic')return;const file=e.target.files[0];if(!file)return;
+  try{form.photo=await shrink(file);$('#pv').innerHTML=`<img class="shot" alt="" src="${form.photo}"><button type="button" class="btn ghost" id="rmpic">拿掉截圖</button>`}
+  catch(_){toast('這張圖讀不出來')}
+});
+document.addEventListener('keydown',e=>{
+  if(run&&run.view==='ans'&&!e.target.closest('input,textarea,select')){
+    if(e.key==='ArrowRight'||e.key==='1'||e.key==='o'){answer(1);return}
+    if(e.key==='ArrowLeft'||e.key==='0'||e.key==='x'){answer(0);return}}
+  if(e.key==='Escape'&&form)closeSheet();
+});
+
+/* ---- data ---- */
+render();
+canWrite=true;
+reload().catch(()=>{loaded=2;showMsg('讀不到資料，請檢查網路後重新整理。');render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!run&&!form)reload().catch(()=>{})});
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,10 @@
+import { YIKE_SEED } from "./yike-seed.js";
 // 美術課上課助手 - Cloudflare Worker 後端
 // 負責處理 /api/* 請求，其餘一律交給靜態檔案 (env.ASSETS)
 
 const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS yike_runs (id TEXT PRIMARY KEY, child TEXT NOT NULL, stage TEXT NOT NULL, date TEXT NOT NULL, results TEXT NOT NULL, correct INTEGER NOT NULL DEFAULT 0, answered INTEGER NOT NULL DEFAULT 0, finished INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS yike_wrong (id TEXT PRIMARY KEY, child TEXT NOT NULL, stage TEXT NOT NULL, qno INTEGER NOT NULL, date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'todo', redo_count INTEGER NOT NULL DEFAULT 0, redo_date TEXT NOT NULL DEFAULT '', why TEXT NOT NULL DEFAULT '', key_note TEXT NOT NULL DEFAULT '', photo TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS classes (id TEXT PRIMARY KEY, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, class_id TEXT NOT NULL, seat INTEGER NOT NULL, name TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS schedule (id INTEGER PRIMARY KEY AUTOINCREMENT, class_id TEXT NOT NULL, weekday INTEGER NOT NULL, start TEXT NOT NULL, end TEXT NOT NULL, label TEXT NOT NULL);
@@ -2300,6 +2303,13 @@ export default {
       if (path === "/api/gratitude" && request.method === "GET") return await gratitudeHandlers.list(env, url);
       if (path === "/api/gratitude" && request.method === "POST") return await gratitudeHandlers.save(env, request);
 
+      // 奕客專項訓練（逐題 ✓／✗、總表、錯題本）；做完一關會自動在 Better Me 的「下棋」打勾
+      if (path === "/api/open/yike" && request.method === "GET") return await yikeGet(env);
+      if (path === "/api/open/yike/run" && request.method === "POST") return await yikeRunPost(env, request);
+      if (path === "/api/open/yike/run" && request.method === "DELETE") return await yikeRunDelete(env, request);
+      if (path === "/api/open/yike/wrong" && request.method === "POST") return await yikeWrongPost(env, request);
+      if (path === "/api/open/yike/wrong" && request.method === "DELETE") return await yikeWrongDelete(env, request);
+
       // served from public/open/ and bypassed from Cloudflare Access, so kept under /api/open/
       // 圍棋復盤室：LINE 小幫手收檔、頁面讀清單和播放檔案
       if (path === "/api/open/line-webhook" && request.method === "POST") return await goLineWebhook(env, request, ctx);
@@ -2710,5 +2720,142 @@ async function goAdminDelete(env, request) {
   if (!row) return json({ error: "找不到" }, { status: 404 });
   await env.PHOTOS.delete(row.r2_key);
   await env.DB.prepare("DELETE FROM go_items WHERE id = ?").bind(Number(b.id)).run();
+  return json({ ok: true });
+}
+
+
+// ---- 奕客專項訓練 ----
+const YIKE_KIDS = new Set(["Cathy", "Rina"]);
+const yikeStageOk = s => typeof s === "string" && /^(中級|高級)\|[一-鿿]{2}\|\d{1,2}$/.test(s);
+const yikeWid = (child, stage, q) => `${child}|${stage}|${q}`;
+
+async function yikeSeed(env) {
+  const flag = await env.DB.prepare("SELECT value FROM app_settings WHERE key = 'yike_seed_v1'").first();
+  if (flag) return;
+  const now = Date.now();
+  for (const r of YIKE_SEED.runs) {
+    const y = r.results.filter(v => v === 1).length, d = r.results.filter(v => v === 0 || v === 1).length;
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO yike_runs (id, child, stage, date, results, correct, answered, finished, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(r.id, r.child, r.stage, r.date, JSON.stringify(r.results), y, d, r.finished, r.created, now).run();
+    if (r.finished && d) await yikeCheckGo(env, r.child, r.date);
+  }
+  for (const [stage, status, ...qs] of YIKE_SEED.wrong) {
+    for (const q of qs) {
+      await env.DB.prepare(
+        "INSERT OR IGNORE INTO yike_wrong (id, child, stage, qno, date, status, redo_count, redo_date, created_at, updated_at) VALUES (?, 'Rina', ?, ?, '2026-11-20', ?, ?, ?, ?, ?)"
+      ).bind(yikeWid("Rina", stage, q), stage, q, status, status === "todo" ? 0 : 1, status === "todo" ? "" : "2026-11-20", now, now).run();
+    }
+  }
+  await env.DB.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('yike_seed_v1', ?)").bind(new Date().toISOString()).run();
+}
+
+// 在 Better Me 這個孩子的「下棋」習慣打勾（名稱有「棋」的那一個）；已經打過勾就不動
+async function yikeCheckGo(env, child, date) {
+  const h = await env.DB.prepare(
+    "SELECT id FROM study_habits WHERE child = ? AND name LIKE '%棋%' ORDER BY order_no LIMIT 1"
+  ).bind(child).first();
+  if (!h) return false;
+  await env.DB.prepare("INSERT OR IGNORE INTO study_habit_logs (habit_id, date, bonus) VALUES (?, ?, 0)").bind(h.id, date).run();
+  return true;
+}
+
+async function yikeGet(env) {
+  await yikeSeed(env);
+  const runs = (await env.DB.prepare("SELECT * FROM yike_runs ORDER BY date DESC, created_at DESC").all()).results.map(r => ({
+    id: r.id, child: r.child, stage: r.stage, date: r.date, results: JSON.parse(r.results || "[]"),
+    finished: !!r.finished, created: r.created_at
+  }));
+  const wrong = (await env.DB.prepare("SELECT * FROM yike_wrong ORDER BY date DESC, created_at DESC").all()).results.map(w => ({
+    id: w.id, child: w.child, stage: w.stage, qno: String(w.qno), date: w.date, status: w.status,
+    redoCount: w.redo_count, redoDate: w.redo_date, why: w.why, key: w.key_note, photo: w.photo, created: w.created_at
+  }));
+  return json({ runs, wrong });
+}
+
+async function yikeRunPost(env, request) {
+  const b = await request.json();
+  if (!YIKE_KIDS.has(b.child)) return json({ error: "child 不對" }, { status: 400 });
+  if (!yikeStageOk(b.stage)) return json({ error: "關卡不對" }, { status: 400 });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date || "")) return json({ error: "日期不對" }, { status: 400 });
+  if (!Array.isArray(b.results) || b.results.length > 60) return json({ error: "作答紀錄不對" }, { status: 400 });
+  const results = b.results.map(v => (v === 1 ? 1 : v === 0 ? 0 : null));
+  const y = results.filter(v => v === 1).length, d = results.filter(v => v !== null).length;
+  if (!d) return json({ error: "還沒有作答" }, { status: 400 });
+  const now = Date.now();
+  const id = typeof b.id === "string" && /^[\w-]{6,40}$/.test(b.id) ? b.id : "yr_" + now + "_" + Math.random().toString(36).slice(2, 8);
+  const old = await env.DB.prepare("SELECT results, child FROM yike_runs WHERE id = ?").bind(id).first();
+  if (old && old.child !== b.child) return json({ error: "不能改別人的紀錄" }, { status: 400 });
+  const before = old ? JSON.parse(old.results || "[]") : [];
+  const finished = b.finished ? 1 : 0;
+  await env.DB.prepare(
+    `INSERT INTO yike_runs (id, child, stage, date, results, correct, answered, finished, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET date = excluded.date, results = excluded.results, correct = excluded.correct, answered = excluded.answered, finished = excluded.finished, updated_at = excluded.updated_at`
+  ).bind(id, b.child, b.stage, b.date, JSON.stringify(results), y, d, finished, now, now).run();
+  let checked = false;
+  if (finished) {
+    // 錯題本同步：這次新答錯的放進去（之前已經會了的改成「又錯了」），之前錯的這次答對就改成「重做對了」
+    for (let i = 0; i < results.length; i++) {
+      const v = results[i];
+      if (v === null || v === (before[i] ?? null)) continue;
+      const wid = yikeWid(b.child, b.stage, i + 1);
+      const w = await env.DB.prepare("SELECT status, redo_count FROM yike_wrong WHERE id = ?").bind(wid).first();
+      if (v === 0 && b.addWrong !== false) {
+        if (!w) await env.DB.prepare(
+          "INSERT INTO yike_wrong (id, child, stage, qno, date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'todo', ?, ?)"
+        ).bind(wid, b.child, b.stage, i + 1, b.date, now, now).run();
+        else if (w.status === "ok") await env.DB.prepare(
+          "UPDATE yike_wrong SET status = 'again', redo_count = redo_count + 1, redo_date = ?, updated_at = ? WHERE id = ?"
+        ).bind(b.date, now, wid).run();
+      } else if (v === 1 && w && w.status !== "ok") {
+        await env.DB.prepare(
+          "UPDATE yike_wrong SET status = 'ok', redo_count = redo_count + 1, redo_date = ?, updated_at = ? WHERE id = ?"
+        ).bind(b.date, now, wid).run();
+      }
+    }
+    checked = await yikeCheckGo(env, b.child, b.date);
+  }
+  return json({ ok: true, id, checked });
+}
+
+async function yikeRunDelete(env, request) {
+  const { id } = await request.json();
+  if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM yike_runs WHERE id = ?").bind(String(id)).run();
+  return json({ ok: true });
+}
+
+async function yikeWrongPost(env, request) {
+  const b = await request.json();
+  const now = Date.now();
+  const today = taipeiDateStr(taipeiNow());
+  if (b.action === "redo") {
+    if (!["ok", "again"].includes(b.status)) return json({ error: "狀態不對" }, { status: 400 });
+    await env.DB.prepare("UPDATE yike_wrong SET status = ?, redo_count = redo_count + 1, redo_date = ?, updated_at = ? WHERE id = ?")
+      .bind(b.status, today, now, String(b.id || "")).run();
+    return json({ ok: true });
+  }
+  const why = String(b.why || "").slice(0, 2000), key = String(b.key || "").slice(0, 2000);
+  const photo = typeof b.photo === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.photo) && b.photo.length < 400000 ? b.photo : "";
+  if (b.id) {
+    await env.DB.prepare("UPDATE yike_wrong SET why = ?, key_note = ?, photo = ?, updated_at = ? WHERE id = ?").bind(why, key, photo, now, String(b.id)).run();
+    return json({ ok: true });
+  }
+  if (!YIKE_KIDS.has(b.child)) return json({ error: "child 不對" }, { status: 400 });
+  if (!yikeStageOk(b.stage)) return json({ error: "關卡不對" }, { status: 400 });
+  const q = parseInt(b.qno, 10);
+  if (!(q >= 1 && q <= 60)) return json({ error: "題號不對" }, { status: 400 });
+  const wid = yikeWid(b.child, b.stage, q);
+  const r = await env.DB.prepare(
+    "INSERT OR IGNORE INTO yike_wrong (id, child, stage, qno, date, status, why, key_note, photo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?)"
+  ).bind(wid, b.child, b.stage, q, today, why, key, photo, now, now).run();
+  if (!r.meta || !r.meta.changes) return json({ error: "這一題已經在錯題本裡" }, { status: 409 });
+  return json({ ok: true, id: wid });
+}
+
+async function yikeWrongDelete(env, request) {
+  const { id } = await request.json();
+  if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  await env.DB.prepare("DELETE FROM yike_wrong WHERE id = ?").bind(String(id)).run();
   return json({ ok: true });
 }

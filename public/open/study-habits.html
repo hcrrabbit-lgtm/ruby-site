@@ -640,6 +640,7 @@
     <div class="title-links">
       <a class="video-link" id="videoLink" href="kids-videos.html">🎬 放映室 →</a>
       <a class="video-link go-link" id="goLink" href="go-review.html">⚫️ 復盤室 →</a>
+      <a class="video-link go-link" id="yikeLink" href="yike.html">🧩 專項訓練 →</a>
       <a class="video-link story-link" id="storyLink" href="storytelling.html" style="display:none">🎙️ 說故事 →</a>
     </div>
   </div>
@@ -909,6 +910,10 @@
   document.getElementById('videoLink')?.addEventListener('click', (e) => {
     const w = String(activeChild || '').toLowerCase();
     if (w === 'cathy' || w === 'rina') { e.preventDefault(); location.href = 'kids-videos.html?who=' + w; }
+  });
+  document.getElementById('yikeLink')?.addEventListener('click', (e) => {
+    const w = String(activeChild || '').toLowerCase();
+    if (w === 'cathy' || w === 'rina') { e.preventDefault(); location.href = 'yike.html?who=' + w; }
   });
   document.getElementById('goLink')?.addEventListener('click', (e) => {
     const w = String(activeChild || '').toLowerCase();
