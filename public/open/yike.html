@@ -96,6 +96,14 @@ textarea{min-height:76px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:20;font-size:15px}
 .toast[hidden]{display:none}
 @media(max-width:380px){.tab{font-size:14px}.fab{margin:0 2px}}
+@media(min-width:900px){
+ .top,.sum,main,nav .in{max-width:1200px}
+ .list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px;align-items:start}
+ .list.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .grid.heat{max-width:500px}.grid.heat .c{width:18px;height:18px}
+ .grid.sm{max-width:375px}
+ .att{grid-template-columns:110px minmax(0,1fr) auto}
+}
 .run{display:flex;flex-direction:column;gap:12px}
 .qnum{text-align:center;font-size:20px;color:var(--mut);margin-top:4px}
 .qnum b{display:block;font-size:clamp(56px,18vw,84px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
@@ -223,11 +231,11 @@ function lvlBar(){return `<div class="seg">${Object.keys(DATA).map(l=>`<button d
 function vStages(rs){
   if(!DATA[lvl][cat])cat=Object.keys(DATA[lvl])[0];
   const list=DATA[lvl][cat];
-  return lvlBar()+`<div class="hint" style="margin:0 4px 10px">點一關就開始，每一題按 ✓ 或 ✗。</div>`+list.map(s=>{
+  return lvlBar()+`<div class="hint" style="margin:0 4px 10px">點一關就開始，每一題按 ✓ 或 ✗。</div><div class="list three">`+list.map(s=>{
     const k=kOf(lvl,cat,s.no);const mineR=byDate(rs.filter(r=>r.stage===k));const fin=mineR.filter(r=>r.finished);const open=mineR.find(r=>!r.finished);
     const last=fin[0];const c=last?cnt(last):null;
     const info=open?`做到一半（${cnt(open).done}/${s.n}）`:last?`最近 ${pct(c.y,c.done)}・做過 ${fin.length} 次`:`${s.n} 題`;
-    return `<button class="card stage${last?' done':''}" data-start="${esc(k)}"><span class="no">${s.no}</span><span class="nm">${esc(s.name)}</span><span class="score" style="font-weight:500;font-size:14px">${info}</span>${last?`<span class="meter"><i style="width:${c.done?Math.round(c.y/c.done*100):0}%"></i></span>`:''}</button>`}).join('');
+    return `<button class="card stage${last?' done':''}" data-start="${esc(k)}"><span class="no">${s.no}</span><span class="nm">${esc(s.name)}</span><span class="score" style="font-weight:500;font-size:14px">${info}</span>${last?`<span class="meter"><i style="width:${c.done?Math.round(c.y/c.done*100):0}%"></i></span>`:''}</button>`}).join('')+'</div>';
 }
 function vTable(rs){
   const lv=['','中級','高級'];
@@ -236,7 +244,7 @@ function vTable(rs){
   if(!fin.length)return head+empty(`${child} 還沒有做完的關卡。<br>到「開始做題」點一關，做完就會出現在總表。`);
   const G={};for(const r of fin)(G[r.stage]=G[r.stage]||[]).push(r);
   const keys=Object.keys(G).sort((a,b)=>(byDate(G[b])[0].date||'').localeCompare(byDate(G[a])[0].date||''));
-  return head+`<div class="legend" style="margin:0 4px 10px">每格是一題，數字是累計錯幾次：<span><i class="c" style="background:#b9d6c1"></i>都對</span><span><i class="c" style="background:#ecbcb2"></i>錯 1 次</span><span><i class="c" style="background:#cf6f5f"></i>2 次</span><span><i class="c" style="background:var(--red)"></i>3 次以上</span></div>`+keys.map(k=>{
+  return head+`<div class="legend" style="margin:0 4px 10px">每格是一題，數字是累計錯幾次：<span><i class="c" style="background:#b9d6c1"></i>都對</span><span><i class="c" style="background:#ecbcb2"></i>錯 1 次</span><span><i class="c" style="background:#cf6f5f"></i>2 次</span><span><i class="c" style="background:var(--red)"></i>3 次以上</span></div>`+'<div class="list">'+keys.map(k=>{
     const s=stageOf(k),runs=byDate(G[k]),wrong=Array(s.n).fill(0),seen=Array(s.n).fill(0);
     for(const r of runs)(r.results||[]).forEach((v,i)=>{if(i<s.n&&v!=null){seen[i]++;if(v===0)wrong[i]++}});
     const top=wrong.map((w,i)=>[i+1,w]).filter(x=>x[1]>=2).sort((a,b)=>b[1]-a[1]);
@@ -245,7 +253,7 @@ function vTable(rs){
     return `<div class="card"><div class="row"><span class="pill">${esc(where(k))}</span><b>${esc(stageName(k))}</b><span class="score" style="font-weight:500;font-size:14px">做了 ${runs.length} 回</span></div>
     <div class="tries">${tries}</div>${heat}
     <div class="hint" style="margin-top:8px">${top.length?`常錯：${top.slice(0,8).map(([q,w])=>`第 ${q} 題 ×${w}`).join('、')}`:wrong.some(Boolean)?'目前沒有錯 2 次以上的題目':'每一題都答對過了'}</div>
-    <details><summary>看每一回</summary>${runs.map(r=>{const c=cnt(r);return `<button class="att" data-open="${esc(r.id)}"><span class="hint">${fmtDay(r.date)}</span>${gridHTML(r.results||[],s.n,{sm:true})}<b>${pct(c.y,c.done)}</b></button>`}).join('')}</details></div>`}).join('');
+    <details><summary>看每一回</summary>${runs.map(r=>{const c=cnt(r);return `<button class="att" data-open="${esc(r.id)}"><span class="hint">${fmtDay(r.date)}</span>${gridHTML(r.results||[],s.n,{sm:true})}<b>${pct(c.y,c.done)}</b></button>`}).join('')}</details></div>`}).join('')+'</div>';
 }
 function vWrong(ws){
   const fs=[['todo','待重做'],['ok','已經會了'],['all','全部']];
@@ -254,12 +262,12 @@ function vWrong(ws){
   let list=ws.filter(w=>wf==='all'||(wf==='ok'?w.status==='ok':w.status!=='ok')).filter(w=>!tf||stageOf(w.stage)?.c===tf);
   list=byDate(list).sort((a,b)=>(b.status==='again')-(a.status==='again'));
   if(!list.length)return out+empty(ws.length?'這個篩選下沒有題目。':`${child} 的錯題本還是空的。<br>做題時按 ✗ 的題目會自動放進來。`);
-  return out+list.map(w=>`<div class="card"><div class="row"><span class="pill">${esc(where(w.stage))}</span><b>${esc(stageName(w.stage))}　第 ${esc(w.qno)} 題</b><span class="pill st-${w.status||'todo'}" style="margin-inline-start:auto">${ST[w.status]||ST.todo}</span></div>
+  return out+'<div class="list">'+list.map(w=>`<div class="card"><div class="row"><span class="pill">${esc(where(w.stage))}</span><b>${esc(stageName(w.stage))}　第 ${esc(w.qno)} 題</b><span class="pill st-${w.status||'todo'}" style="margin-inline-start:auto">${ST[w.status]||ST.todo}</span></div>
   <div class="hint">${fmtDay(w.date)} 錯${w.redoCount?`・重做 ${+w.redoCount} 次，最近 ${fmtDay(w.redoDate)}`:''}</div>
   ${w.photo&&/^data:image\//.test(w.photo)?`<img class="shot" alt="題目截圖" src="${esc(w.photo)}">`:''}
   ${w.why?`<div class="lbl">錯在哪裡</div><div class="txt">${esc(w.why)}</div>`:''}
   ${w.key?`<div class="lbl">正解重點</div><div class="txt">${esc(w.key)}</div>`:''}
-  ${canWrite?`<div class="acts"><button class="btn ok" data-redo="ok" data-id="${esc(w.id)}">重做對了</button><button class="btn bad" data-redo="again" data-id="${esc(w.id)}">又錯了</button><button class="btn ghost" data-editw="${esc(w.id)}">寫筆記</button></div>`:''}</div>`).join('');
+  ${canWrite?`<div class="acts"><button class="btn ok" data-redo="ok" data-id="${esc(w.id)}">重做對了</button><button class="btn bad" data-redo="again" data-id="${esc(w.id)}">又錯了</button><button class="btn ghost" data-editw="${esc(w.id)}">寫筆記</button></div>`:''}</div>`).join('')+'</div>';
 }
 function vStats(rs,ws){
   const fin=rs.filter(r=>r.finished);
@@ -320,7 +328,7 @@ function drawRun(){
     <label class="chk"><input type="checkbox" id="addw-chk" ${run.addWrong?'checked':''}>把答錯的題目放進錯題本</label>`:''}
     <label class="f" for="rdate" style="text-align:start">日期</label><input class="in" id="rdate" type="date" value="${esc(run.date)}">
     <div class="acts"><button class="btn main" id="saverun">儲存到總表</button><button class="btn" id="back">回去改答案</button></div>
-    ${run.id?`<div class="acts"><button class="btn ghost" id="delrun">刪除這次紀錄</button></div>`:''}</div>`;
+    ${run.id?`<div class="acts"><button class="btn ghost" id="delrun">刪除這次紀錄（錯題本裡這一回錯的題也會一起刪）</button></div>`:''}</div>`;
   }
 }
 function answer(v){
@@ -405,7 +413,7 @@ document.addEventListener('click',async e=>{
     if(t.id==='pause'){await saveRun(false);return}
     if(t.id==='quit'){if(!run.q2&&cnt(run).done){run.q2=1;t.textContent='再按一次：不存就離開';t.classList.replace('ghost','bad');return}closeSheet();return}
     if(t.id==='saverun'){await saveRun(true);return}
-    if(t.id==='delrun'){if(!run.d2){run.d2=1;t.textContent='再按一次確定刪除';t.classList.replace('ghost','bad');return}const id=run.id;if(await write(async()=>{await api('/run','DELETE',{id});await reload()},'已刪除'))closeSheet();return}
+    if(t.id==='delrun'){if(!run.d2){run.d2=1;t.textContent='再按一次確定刪除';t.classList.replace('ghost','bad');return}const id=run.id;if(await write(async()=>{await api('/run','DELETE',{id});await reload()},'已刪除，這一回的錯題也一起移除了'))closeSheet();return}
   }
   if(t.id==='addw'){openWrong(null);return}
   if(D.editw){openWrong(D.editw);return}

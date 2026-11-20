@@ -2821,8 +2821,20 @@ async function yikeRunPost(env, request) {
 async function yikeRunDelete(env, request) {
   const { id } = await request.json();
   if (!id) return json({ error: "缺少 id" }, { status: 400 });
+  const run = await env.DB.prepare("SELECT child, stage, results FROM yike_runs WHERE id = ?").bind(String(id)).first();
+  if (!run) return json({ ok: true });
   await env.DB.prepare("DELETE FROM yike_runs WHERE id = ?").bind(String(id)).run();
-  return json({ ok: true });
+  // 這一回答錯的題目也從錯題本移除；但同一關其他還留著的回合也錯過這題的，就保留
+  const res = JSON.parse(run.results || "[]");
+  const others = (await env.DB.prepare("SELECT results FROM yike_runs WHERE child = ? AND stage = ? AND finished = 1")
+    .bind(run.child, run.stage).all()).results.map(r => JSON.parse(r.results || "[]"));
+  let removed = 0;
+  for (let i = 0; i < res.length; i++) {
+    if (res[i] !== 0 || others.some(o => o[i] === 0)) continue;
+    const r = await env.DB.prepare("DELETE FROM yike_wrong WHERE id = ?").bind(yikeWid(run.child, run.stage, i + 1)).run();
+    removed += (r.meta && r.meta.changes) || 0;
+  }
+  return json({ ok: true, removed });
 }
 
 async function yikeWrongPost(env, request) {
