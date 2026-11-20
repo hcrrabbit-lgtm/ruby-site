@@ -2795,24 +2795,29 @@ async function yikeRunPost(env, request) {
   let checked = false;
   if (finished) {
     // 錯題本同步：這次新答錯的放進去（之前已經會了的改成「又錯了」），之前錯的這次答對就改成「重做對了」
+    const have = {};
+    (await env.DB.prepare("SELECT id, status FROM yike_wrong WHERE child = ? AND stage = ?").bind(b.child, b.stage).all())
+      .results.forEach(w => { have[w.id] = w.status; });
+    const stmts = [];
     for (let i = 0; i < results.length; i++) {
       const v = results[i];
       if (v === null || v === (before[i] ?? null)) continue;
       const wid = yikeWid(b.child, b.stage, i + 1);
-      const w = await env.DB.prepare("SELECT status, redo_count FROM yike_wrong WHERE id = ?").bind(wid).first();
+      const st = have[wid];
       if (v === 0 && b.addWrong !== false) {
-        if (!w) await env.DB.prepare(
-          "INSERT INTO yike_wrong (id, child, stage, qno, date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'todo', ?, ?)"
-        ).bind(wid, b.child, b.stage, i + 1, b.date, now, now).run();
-        else if (w.status === "ok") await env.DB.prepare(
+        if (!st) stmts.push(env.DB.prepare(
+          "INSERT OR IGNORE INTO yike_wrong (id, child, stage, qno, date, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'todo', ?, ?)"
+        ).bind(wid, b.child, b.stage, i + 1, b.date, now, now));
+        else if (st === "ok") stmts.push(env.DB.prepare(
           "UPDATE yike_wrong SET status = 'again', redo_count = redo_count + 1, redo_date = ?, updated_at = ? WHERE id = ?"
-        ).bind(b.date, now, wid).run();
-      } else if (v === 1 && w && w.status !== "ok") {
-        await env.DB.prepare(
+        ).bind(b.date, now, wid));
+      } else if (v === 1 && st && st !== "ok") {
+        stmts.push(env.DB.prepare(
           "UPDATE yike_wrong SET status = 'ok', redo_count = redo_count + 1, redo_date = ?, updated_at = ? WHERE id = ?"
-        ).bind(b.date, now, wid).run();
+        ).bind(b.date, now, wid));
       }
     }
+    if (stmts.length) await env.DB.batch(stmts);
     checked = await yikeCheckGo(env, b.child, b.date);
   }
   return json({ ok: true, id, checked });
@@ -2828,12 +2833,13 @@ async function yikeRunDelete(env, request) {
   const res = JSON.parse(run.results || "[]");
   const others = (await env.DB.prepare("SELECT results FROM yike_runs WHERE child = ? AND stage = ? AND finished = 1")
     .bind(run.child, run.stage).all()).results.map(r => JSON.parse(r.results || "[]"));
-  let removed = 0;
+  const stmts = [];
   for (let i = 0; i < res.length; i++) {
     if (res[i] !== 0 || others.some(o => o[i] === 0)) continue;
-    const r = await env.DB.prepare("DELETE FROM yike_wrong WHERE id = ?").bind(yikeWid(run.child, run.stage, i + 1)).run();
-    removed += (r.meta && r.meta.changes) || 0;
+    stmts.push(env.DB.prepare("DELETE FROM yike_wrong WHERE id = ?").bind(yikeWid(run.child, run.stage, i + 1)));
   }
+  if (stmts.length) await env.DB.batch(stmts);
+  const removed = stmts.length;
   return json({ ok: true, removed });
 }
 

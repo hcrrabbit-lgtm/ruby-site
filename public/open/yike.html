@@ -345,14 +345,19 @@ function answer(v){
   if(nx<0){run.view='res';toast('這一關做完了！')}else run.cur=nx;
   drawRun();
 }
-async function saveRun(finished){
+// 先在畫面上更新、馬上關掉視窗，再在背景存到網站；失敗才提醒並重新讀取
+let pending=0;
+function bg(fn,okFn){pending++;fn().then(d=>{pending--;okFn&&okFn(d);return reload()}).catch(e=>{pending--;toast(e&&e.msg?e.msg:'存檔失敗，請檢查網路再試一次');reload().catch(()=>{})})}
+function saveRun(finished){
   const c=cnt(run);
   if(!c.done){toast('還沒有作答');return}
-  const r=run;let res=null;
-  const ok=await write(async()=>{res=await api('/run','POST',{id:r.id,child:r.child,stage:r.stage,date:($('#rdate')?.value)||r.date,results:r.results,finished,addWrong:r.addWrong});r.id=res.id;await reload()},null);
-  if(!ok)return;
-  toast(finished?(res&&res.checked?'已存到總表，Better Me「下棋」已打勾 ✓':'已存到總表'):'已暫停，下次點這一關可以繼續');
-  closeSheet();if(finished){tab='table';render()}
+  const r=run;const date=($('#rdate')?.value)||r.date;
+  const body={id:r.id,child:r.child,stage:r.stage,date,results:[...r.results],finished,addWrong:r.addWrong};
+  const local={id:r.id||('tmp'+Date.now()),child:r.child,stage:r.stage,date,results:body.results,finished,created:r.created};
+  R=[local,...R.filter(x=>x.id!==local.id)];
+  closeSheet();if(finished)tab='table';render();
+  toast(finished?'已存到總表':'已暫停，下次點這一關可以繼續');
+  bg(()=>api('/run','POST',body),d=>{if(finished&&d&&d.checked)toast('已存到總表，Better Me「下棋」已打勾 ✓')});
 }
 
 /* ---- wrong-problem note form ---- */
@@ -408,7 +413,7 @@ document.addEventListener('click',async e=>{
   if(D.wf){wf=D.wf;render();return}
   if(D.tf!==undefined){tf=D.tf;render();return}
   if(D.start){if(canWrite)startStage(D.start);else toast('目前無法存檔');return}
-  if(D.open){const r=R.find(x=>x.id===D.open);if(r&&canWrite)beginRun(r);return}
+  if(D.open){if(String(D.open).startsWith('tmp')){toast('還在存檔，請稍等一下');return}const r=R.find(x=>x.id===D.open);if(r&&canWrite)beginRun(r);return}
   if(D.resume){const r=R.find(x=>x.id===D.resume);if(r)beginRun(r);return}
   if(D.fresh){const s=stageOf(D.fresh);beginRun({stage:D.fresh,child,date:today(),results:Array(s.n).fill(null)});return}
   if(run){
@@ -417,15 +422,15 @@ document.addEventListener('click',async e=>{
     if(D.jump){run.cur=+D.jump;run.view='ans';drawRun();return}
     if(t.id==='tores'){run.view='res';drawRun();return}
     if(t.id==='back'){run.date=$('#rdate')?.value||run.date;run.view='ans';drawRun();return}
-    if(t.id==='pause'){await saveRun(false);return}
+    if(t.id==='pause'){saveRun(false);return}
     if(t.id==='quit'){if(!run.q2&&cnt(run).done){run.q2=1;t.textContent='再按一次：不存就離開';t.classList.replace('ghost','bad');return}closeSheet();return}
-    if(t.id==='saverun'){await saveRun(true);return}
-    if(t.id==='delrun'){if(!run.d2){run.d2=1;t.textContent='再按一次確定刪除';t.classList.replace('ghost','bad');return}const id=run.id;if(await write(async()=>{await api('/run','DELETE',{id});await reload()},'已刪除，這一回的錯題也一起移除了'))closeSheet();return}
+    if(t.id==='saverun'){saveRun(true);return}
+    if(t.id==='delrun'){if(!run.d2){run.d2=1;t.textContent='再按一次確定刪除';t.classList.replace('ghost','bad');return}const id=run.id;closeSheet();R=R.filter(x=>x.id!==id);render();toast('已刪除，這一回的錯題也一起移除了');bg(()=>api('/run','DELETE',{id}));return}
   }
   if(t.id==='addw'){openWrong(null);return}
   if(D.editw){openWrong(D.editw);return}
   if(D.redo){const w=W.find(x=>x.id===D.id);if(!w)return;
-    await write(async()=>{await api('/wrong','POST',{action:'redo',id:w.id,status:D.redo});await reload()},D.redo==='ok'?'太好了！':'記下來了，下次再練');return}
+    w.status=D.redo;w.redoCount=(+w.redoCount||0)+1;w.redoDate=today();render();toast(D.redo==='ok'?'太好了！':'記下來了，下次再練');bg(()=>api('/wrong','POST',{action:'redo',id:w.id,status:D.redo}));return}
   if(form&&D.flvl){form.l=D.flvl;if(!DATA[form.l][form.c])form.c=Object.keys(DATA[form.l])[0];form.no=1;$('#picker').innerHTML=pickerHTML();return}
   if(form&&D.fcat){form.c=D.fcat;form.no=1;$('#picker').innerHTML=pickerHTML();return}
   if(t.id==='rmpic'&&form){form.photo='';$('#pv').innerHTML='';return}
@@ -458,7 +463,7 @@ document.addEventListener('keydown',e=>{
 render();
 canWrite=true;
 reload().catch(()=>{loaded=2;showMsg('讀不到資料，請檢查網路後重新整理。');render()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!run&&!form)reload().catch(()=>{})});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!run&&!form&&!pending)reload().catch(()=>{})});
 }
 </script>
 </body>
