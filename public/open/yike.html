@@ -104,13 +104,22 @@ textarea{min-height:76px;resize:vertical}
  .grid.sm{max-width:375px}
  .att{grid-template-columns:110px minmax(0,1fr) auto}
 }
-.run{display:flex;flex-direction:column;gap:12px}
-.qnum{text-align:center;font-size:20px;color:var(--mut);margin-top:4px}
-.qnum b{display:block;font-size:clamp(56px,18vw,84px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
-.yn{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.yn button{border:0;border-radius:22px;min-height:120px;font-size:56px;line-height:1;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.run{display:flex;flex-direction:column;gap:8px}
+.qnum{text-align:center;font-size:16px;color:var(--mut);display:flex;align-items:baseline;justify-content:center;gap:6px}
+.qnum b{font-size:44px;line-height:1.1;color:var(--ink);font-variant-numeric:tabular-nums}
+.yn{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yn button{border:0;border-radius:16px;min-height:76px;font-size:34px;line-height:1;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 0 rgba(0,0,0,.18)}
 .yn button small{font-size:17px;font-weight:500}
-.yn button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.yn button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.run .btn{min-height:40px;padding:6px 12px}
+.run .acts{margin-top:4px}
+.run .grid .c{width:24px;height:24px}
+.run .grid{max-width:270px;margin:0 auto}
+@media(min-width:700px){
+ .sheet{align-items:center}
+ .panel{border-radius:20px;max-width:740px;padding:24px 28px}
+ .run .grid{max-width:675px}
+}
 .yn .yes{background:var(--green)}.yn .no{background:var(--red)}
 .grid{display:flex;flex-wrap:wrap;gap:3px;max-width:290px}
 .grid .c{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);background:var(--card);font-size:10px;color:var(--mut);display:grid;place-items:center;padding:0;font-variant-numeric:tabular-nums;flex:none}
@@ -310,13 +319,11 @@ function drawRun(){
   const head=`<div class="row"><span class="pill">${esc(where(run.stage))}</span><b>${esc(stageName(run.stage))}</b><span class="hint" style="margin-inline-start:auto">${esc(run.child)}</span></div>`;
   if(run.view==='ans'){
     $('#panel').innerHTML=`<div class="run">${head}
-    <div class="qnum">第<b id="qn" class="flash">${run.cur+1}</b>題（共 ${s.n} 題）</div>
+    <div class="qnum">第<b id="qn" class="flash">${run.cur+1}</b>題 / 共 ${s.n} 題</div>
     <div class="yn"><button class="yes" data-ans="1">✓<small>答對</small></button><button class="no" data-ans="0">✗<small>答錯</small></button></div>
-    <div class="row"><button class="btn" data-mv="-1">← 上一題</button><span class="hint" style="margin-inline-start:auto">已做 ${c.done}・對 ${c.y}・${pct(c.y,c.done)}</span><button class="btn" data-mv="1">下一題 →</button></div>
+    <div class="row"><button class="btn" data-mv="-1">← 上一題</button><span class="hint" style="margin:0 auto">已做 ${c.done}・對 ${c.y}・${pct(c.y,c.done)}</span><button class="btn" data-mv="1">下一題 →</button></div>
     ${gridHTML(run.results,s.n,{btn:true,cur:run.cur})}
-    <div class="hint">點上面的格子可以跳到那一題或改答案。</div>
-    <div class="acts"><button class="btn main" id="tores">完成這一關，看結果</button></div>
-    <div class="acts"><button class="btn" id="pause">先暫停，之後繼續</button><button class="btn ghost" id="quit">不存，離開</button></div></div>`;
+    <div class="acts"><button class="btn main" id="tores">完成，看結果</button><button class="btn" id="pause">暫停</button><button class="btn ghost" id="quit">不存，離開</button></div></div>`;
   }else{
     const wrongs=run.results.map((v,i)=>v===0?i+1:0).filter(Boolean);
     $('#panel').innerHTML=`<div class="run res">${head}
