@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>學習扶助</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F3EB; --paper-deep:#EFE8D9; --ink:#2E2A25; --ink-soft:#6B655C; --line:#DDD4C1;
+    --admin:#3F6672; --admin-bg:#E7EFF0; --done:#5F8955; --done-bg:#E6EFE2; --warn:#B96B77; --blank:#C4863A; --blank-bg:#FBF0DE;
+    --zh:#8A3B2E; --en:#4E7A3A;
+    --radius:14px; --shadow:0 2px 10px rgba(46,42,37,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Noto Sans TC',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3{font-family:'Noto Serif TC',serif;}
+  .wrap{max-width:860px;margin:0 auto;padding:20px 16px 80px;}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px;}
+  h1{margin:8px 0 4px;font-size:clamp(24px,5vw,32px);color:var(--admin);}
+  .desc{color:var(--ink-soft);font-size:14px;margin:0 0 16px;line-height:1.7;}
+  h2{font-size:19px;color:var(--admin);margin:28px 0 12px;display:flex;align-items:center;gap:8px;}
+  h2::after{content:'';flex:1;height:1px;background:var(--line);}
+  .card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--admin);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:12px;}
+  .card h3{margin:0 0 4px;font-size:17px;}
+  .card p{margin:4px 0 0;line-height:1.75;font-size:15px;}
+  .date{font-weight:700;color:var(--zh);font-size:15px;}
+  .badge{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 10px;margin-left:6px;vertical-align:middle;}
+  .b-todo{background:var(--admin-bg);color:var(--admin);}
+  .b-now{background:var(--blank-bg);color:var(--blank);}
+  .b-done{background:var(--paper-deep);color:var(--ink-soft);}
+  .card.done{opacity:.6;border-left-color:var(--line);}
+  .card.now{border-left-color:var(--blank);}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);font-size:15px;}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:center;line-height:1.6;}
+  th{background:var(--admin);color:#fff;font-weight:700;}
+  th small{display:block;font-weight:400;opacity:.85;font-size:12px;}
+  td:first-child{font-weight:700;background:var(--paper);white-space:nowrap;}
+  td .zh{color:var(--zh);font-weight:700;} td .en{color:var(--en);font-weight:700;}
+  td.none{color:var(--line);}
+  .row{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;}
+  .row .grow{flex:1;min-width:200px;}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:7px 12px;font-size:14px;white-space:nowrap;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-block;}
+  .btn.primary{background:var(--admin);border-color:var(--admin);color:#fff;}
+  .btn.copied{background:var(--done);border-color:var(--done);color:#fff;}
+  .path{font-size:13px;color:var(--ink-soft);word-break:break-all;background:var(--paper);border-radius:8px;padding:6px 8px;margin-top:6px;}
+  .exempt{display:flex;gap:10px;flex-wrap:wrap;}
+  .exempt div{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px;text-align:center;box-shadow:var(--shadow);}
+  .exempt b{display:block;font-size:26px;color:var(--admin);font-family:'Noto Serif TC',serif;}
+  .exempt span{font-size:14px;color:var(--ink-soft);}
+  .total{margin-top:8px;font-size:14px;color:var(--ink-soft);}
+  ul.notes{margin:0;padding-left:20px;line-height:1.9;}
+  .foot{margin-top:30px;font-size:12px;color:var(--ink-soft);text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html#admin">← 回行政工作</a>
+  <h1 id="title">學習扶助</h1>
+  <p class="desc">註冊組承辦的學習扶助成長測驗：時程、各年級測驗方式、練習資源一頁看完。</p>
+
+  <h2>📅 重要時程</h2>
+  <div id="schedule"></div>
+
+  <h2>📝 各年級測驗方式</h2>
+  <div style="overflow-x:auto;"><table id="grades"></table></div>
+  <p class="desc" style="margin-top:8px;">施測範圍：<b id="scope"></b></p>
+
+  <h2>🙋 誰負責施測</h2>
+  <div id="who"></div>
+
+  <h2>📚 練習資源</h2>
+  <div id="practice"></div>
+
+  <h2>🛟 免施測學生（經學習輔導小組認定）</h2>
+  <div class="exempt" id="exempt"></div>
+  <p class="total" id="exemptTotal"></p>
+
+  <h2>💡 其他提醒</h2>
+  <div class="card"><ul class="notes" id="notes"></ul></div>
+
+  <p class="foot" id="updated"></p>
+</div>
+
+<script src="learning-support-data.js"></script>
+<script>
+(function(){
+  const D = window.LS_DATA;
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const wk = "日一二三四五六";
+  const md = iso => { const d = new Date(iso + "T00:00:00"); return `${d.getMonth()+1}/${d.getDate()}（${wk[d.getDay()]}）`; };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const day = iso => new Date(iso + "T00:00:00");
+  const daysTo = iso => Math.round((day(iso) - today) / 86400000);
+
+  document.getElementById("title").textContent = D.title;
+  document.title = D.title;
+
+  // 時程：依今天自動標狀態
+  document.getElementById("schedule").innerHTML = D.schedule.map(s => {
+    let cls, badge;
+    const left = daysTo(s.end);
+    if (left < 0) { cls = "done"; badge = '<span class="badge b-done">已結束</span>'; }
+    else if (!s.start || daysTo(s.start) <= 0) { cls = "now"; badge = `<span class="badge b-now">${s.start ? "進行中・" : ""}剩 ${left} 天</span>`; }
+    else { cls = ""; badge = `<span class="badge b-todo">${daysTo(s.start)} 天後開始</span>`; }
+    const when = s.start ? `${md(s.start)} ～ ${md(s.end)}` : `${md(s.end)} 前`;
+    return `<div class="card ${cls}"><h3>${esc(s.name)}${badge}</h3><div class="date">${when}</div><p>${esc(s.note)}</p></div>`;
+  }).join("");
+
+  // 各年級
+  const color = t => esc(t).replace(/(國語|數學)/g, '<span class="zh">$1</span>').replace(/(英語（含聽力）)/g, '<span class="en">$1</span>');
+  const pEnd = D.schedule.find(s => s.name.includes("紙筆"));
+  const oRun = D.schedule.find(s => s.name.includes("線上測驗"));
+  document.getElementById("grades").innerHTML =
+    `<tr><th>年級</th><th>紙筆測驗${pEnd ? `<small>${md(pEnd.end)} 前完成</small>` : ""}</th><th>線上測驗（平板／電腦）${oRun ? `<small>${md(oRun.start)} ～ ${md(oRun.end)}</small>` : ""}</th></tr>` +
+    D.grades.map(g => `<tr><td>${esc(g.grade)}</td>${g.paper ? `<td>${color(g.paper)}</td>` : '<td class="none">—</td>'}${g.online ? `<td>${color(g.online)}</td>` : '<td class="none">—</td>'}</tr>`).join("");
+  document.getElementById("scope").textContent = D.scope;
+
+  document.getElementById("who").innerHTML = D.who.map(w => `<div class="card"><h3>${color(w.subject)}</h3><p>${esc(w.text)}</p></div>`).join("");
+
+  // 練習資源
+  document.getElementById("practice").innerHTML = D.practice.map((p, i) => `
+    <div class="card"><div class="row"><div class="grow"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p>
+      ${p.path ? `<div class="path">${esc(p.path)}</div>` : ""}</div>
+      ${p.url ? `<a class="btn primary" href="${esc(p.url)}" target="_blank" rel="noopener">開啟 ↗</a>` : ""}
+      <button class="btn" data-copy="${i}">${p.path ? "複製路徑" : "複製連結"}</button>
+    </div></div>`).join("");
+  document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+    const p = D.practice[b.dataset.copy];
+    try { await navigator.clipboard.writeText(p.path || p.url); } catch(e) {}
+    const t = b.textContent; b.textContent = "已複製 ✓"; b.classList.add("copied");
+    setTimeout(() => { b.textContent = t; b.classList.remove("copied"); }, 1500);
+  }));
+
+  // 免施測
+  document.getElementById("exempt").innerHTML = D.exempt.map(e => `<div><b>${e.count}</b><span>${esc(e.label)}</span></div>`).join("");
+  document.getElementById("exemptTotal").textContent = `合計 ${D.exempt.reduce((a, e) => a + e.count, 0)} 人（完整名單另存，不放在網頁上）`;
+
+  document.getElementById("notes").innerHTML = D.notes.map(n => `<li>${esc(n)}</li>`).join("");
+  document.getElementById("updated").textContent = `資料更新：${D.updated}`;
+})();
+</script>
+</body>
+</html>

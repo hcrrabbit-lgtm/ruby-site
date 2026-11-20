@@ -627,7 +627,7 @@
       <div class="card admin" onclick="goTo('admin')">
         <div class="num">02</div>
         <h3>行政工作</h3>
-        <p>註冊組事務：學生資料整理、印成績單、公告記錄、雙語計畫。</p>
+        <p>註冊組事務：學生資料整理、印成績單、公告記錄、學習扶助、雙語計畫。</p>
       </div>
       <div class="card study" onclick="goTo('study')">
         <div class="num">03</div>
@@ -664,6 +664,11 @@
           <a href="headshots.html" style="color:var(--c-admin);font-weight:700;">新生大頭照</a>
           —— 依名單拍一年級新生大頭照，檔名自動為班級座號（10102.jpg）；名單存 D1，照片存私人雲端 R2（需登入）。
           <span class="meta">建立：2026年10月</span>
+        </li>
+        <li>
+          <a href="learning-support.html" style="color:var(--c-admin);font-weight:700;">學習扶助</a>
+          —— 成長測驗時程、各年級測驗方式、練習資源；內容集中在 learning-support-data.js，改那一個檔就好。
+          <span class="meta">建立：2026年11月</span>
         </li>
         <li>
           <a href="open/kids-videos.html" style="color:var(--c-study);font-weight:700;">放映室</a>
@@ -789,7 +794,7 @@
   <!-- 四、行政工作 -->
   <section id="admin">
     <h2>🗂️ 行政工作</h2>
-    <p class="section-desc">註冊組事務：學生資料整理、印成績單、公告記錄、雙語計畫。</p>
+    <p class="section-desc">註冊組事務：學生資料整理、印成績單、公告記錄、學習扶助、雙語計畫。</p>
 
     <div class="card admin" style="cursor:pointer;margin-bottom:22px;" onclick="window.location.href='headshots.html'">
       <div class="num">工具</div>
@@ -801,6 +806,12 @@
       <div class="num">工具</div>
       <h3>常用公告 →</h3>
       <p>轉學要準備什麼、開學補助公告等常用文字，一鍵複製貼到 LINE；轉學表格等附件直接下載。</p>
+    </div>
+
+    <div class="card admin" style="cursor:pointer;margin-bottom:22px;" onclick="window.location.href='learning-support.html'">
+      <div class="num">資料</div>
+      <h3>學習扶助 →</h3>
+      <p>成長測驗時程、各年級紙筆／線上測驗方式、誰負責施測、考古題與範例試題連結、免施測人數。</p>
     </div>
 
     <div class="card admin" style="cursor:pointer;margin-bottom:22px;" onclick="window.open('https://english-passport.hcrrabbit.workers.dev/','_blank')">
