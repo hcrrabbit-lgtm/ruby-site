@@ -23,6 +23,7 @@ h1 svg{width:34px;height:34px}
 .btn .ic svg{width:38px;height:38px}
 h2{font-size:20px;margin:0 0 10px;font-family:"Noto Serif TC",serif;font-weight:700}
 .sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+.site-back{display:inline-block;font-size:14px;color:var(--ink);text-decoration:none;background:#fff;border:1.5px solid var(--ink);border-radius:999px;padding:5px 12px;box-shadow:2px 2px 0 var(--shadow);margin-bottom:8px}
 button{font-family:inherit;cursor:pointer;border:none}
 .card{background:var(--card);border:1.5px solid var(--ink);border-radius:18px;padding:16px;box-shadow:4px 4px 0 var(--shadow);margin-bottom:16px}
 .btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1.5px solid var(--ink);
@@ -583,10 +584,13 @@ function nextReview(){if(!D.last)return '今天就開始吧！';const idx=Math.m
 function topBar(title,pct){return `<div class="topbar"><button class="back" onclick="home()">←</button>${pct!=null?`<div class="prog"><i style="width:${pct}%"></i></div>`:`<h2 style="margin:0">${title}</h2>`}</div>`}
 
 /* ========== 首頁 ========== */
+// 從網站點進來的就回上一頁（保留原本的分頁狀態）；直接開網址的就回首頁「Ruby 進化中」
+function siteBack(){try{if(document.referrer&&new URL(document.referrer).origin===location.origin&&history.length>1){history.back();return false}}catch(e){}return true}
 function home(){
  try{speechSynthesis.cancel()}catch(e){}
  const total=W.reduce((a,w)=>a+D.m[w.id],0),max=W.length*4;
  app.innerHTML=`
+ <a class="site-back" href="../index.html#health" onclick="return siteBack()">← 回 Ruby 進化中</a>
  <h1>${I.palette} Ruby 的單字遊樂場</h1>
  <p class="sub">語音對話收集的 ${W.length} 個生字・掌握度 ${Math.round(total/max*100)}%</p>
  <div class="card">
